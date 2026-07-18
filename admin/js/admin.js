@@ -219,7 +219,8 @@ async function loadJadwalKegiatan() {
     container.classList.add('d-none');
 
     try {
-        const result = await fetchWithAuth(`${API_BASE_URL}/admin/jadwal`);
+        // Tambahkan parameter unik (timestamp) untuk mencegah browser caching pada request GET
+        const result = await fetchWithAuth(`${API_BASE_URL}/admin/jadwal?_=${new Date().getTime()}`);
         if (result.status) {
             renderJadwalTable(result.data);
         } else {
