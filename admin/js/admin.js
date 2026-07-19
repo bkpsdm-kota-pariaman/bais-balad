@@ -19,6 +19,7 @@ const modalVerifikasi = new bootstrap.Modal(document.getElementById('modalVerifi
 const modalRingkasan = new bootstrap.Modal(document.getElementById('modalRingkasan'));
 const modalPegawai = new bootstrap.Modal(document.getElementById('modalPegawai'));
 const modalTambahPeserta = new bootstrap.Modal(document.getElementById('modalTambahPeserta'));
+const modalOpd = new bootstrap.Modal(document.getElementById('modalOpd'));
 
 /**
  * Menampilkan atau menyembunyikan overlay loading menggunakan SweetAlert.
@@ -863,6 +864,7 @@ function selectOpdDinas(mode) {
  */
 
 function kembaliKeDaftar() {
+    document.getElementById('opdContainer').classList.add('d-none');
     document.getElementById('pegawaiContainer').classList.add('d-none');
     document.getElementById('rekapContainer').classList.add('d-none');
     document.getElementById('dashboardContainer').classList.remove('d-none');
@@ -872,6 +874,7 @@ function kembaliKeDaftar() {
 function bukaHalamanPegawai() {
     document.getElementById('dashboardContainer').classList.add('d-none');
     document.getElementById('rekapContainer').classList.add('d-none');
+    document.getElementById('opdContainer').classList.add('d-none');
     document.getElementById('pegawaiContainer').classList.remove('d-none');
     
     // Reset tampilan dan isi filter, jangan load data dulu
@@ -882,6 +885,14 @@ function bukaHalamanPegawai() {
     document.getElementById('pegawaiSearchInput').value = '';
     populatePegawaiFilterOpd();
     loadPegawaiStats();
+}
+
+function bukaHalamanOpd() {
+    document.getElementById('dashboardContainer').classList.add('d-none');
+    document.getElementById('rekapContainer').classList.add('d-none');
+    document.getElementById('pegawaiContainer').classList.add('d-none');
+    document.getElementById('opdContainer').classList.remove('d-none');
+    loadOpdData();
 }
 
 async function lihatRekap(kodeAkses) {
@@ -1113,6 +1124,182 @@ async function terapkanFilterRekap() {
             tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">Terjadi kesalahan koneksi.</td></tr>`;
         } else {
             photoGridView.innerHTML = `<div class="col-12 text-center text-danger py-4">Terjadi kesalahan koneksi.</div>`;
+        }
+    }
+}
+
+/**
+ * =================================================
+ * FUNGSI-FUNGSI UNTUK HALAMAN MANAJEMEN OPD
+ * =================================================
+ */
+let currentOpdMode = 'add';
+
+async function loadOpdData() {
+    const tbody = document.getElementById('opdTableBody');
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm"></div> Memuat data OPD...</td></tr>';
+
+    try {
+        // Tambahkan timestamp untuk bypass cache
+        const result = await fetchWithAuth(`${API_BASE_URL}/admin/opd?_=${new Date().getTime()}`);
+        if (result.status) {
+            renderOpdTable(result.data);
+        } else {
+            tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger py-4">Gagal memuat data: ${result.message}</td></tr>`;
+        }
+    } catch (error) {
+        console.error('Error loading OPD data:', error);
+        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger py-4">Terjadi kesalahan koneksi.</td></tr>`;
+    }
+}
+
+function renderOpdTable(opdList) {
+    const tbody = document.getElementById('opdTableBody');
+    if (opdList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Tidak ada data OPD.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = opdList.map((opd, i) => {
+        const opdData = JSON.stringify(opd).replace(/"/g, '&quot;');
+        return `
+            <tr>
+                <td class="text-center">${i + 1}</td>
+                <td>${opd.nama_opd}</td>
+                <td class="text-center">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-warning" onclick='bukaModalEditOpd(${opdData})' title="Edit OPD"><i class="bi bi-pencil-fill"></i></button>
+                        <button class="btn btn-outline-danger" onclick="hapusOpd('${opd.id}', '${opd.nama_opd.replace(/'/g, `\\'`)}')" title="Hapus OPD"><i class="bi bi-trash-fill"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function bukaModalTambahOpd() {
+    currentOpdMode = 'add';
+    document.getElementById('formOpd').reset();
+    
+    const header = document.getElementById('modalOpdHeader');
+    const title = document.getElementById('modalOpdTitle');
+    const button = document.getElementById('btnSimpanOpd');
+
+    header.className = 'modal-header bg-success text-white border-0';
+    title.innerHTML = '<i class="bi bi-building"></i> Tambah OPD Baru';
+    button.className = 'btn btn-success w-100 fw-bold py-2';
+    button.innerHTML = '<i class="bi bi-plus-circle"></i> Tambah OPD';
+
+    modalOpd.show();
+}
+
+function bukaModalEditOpd(opd) {
+    currentOpdMode = 'edit';
+    document.getElementById('formOpd').reset();
+    
+    const header = document.getElementById('modalOpdHeader');
+    const title = document.getElementById('modalOpdTitle');
+    const button = document.getElementById('btnSimpanOpd');
+
+    header.className = 'modal-header bg-warning text-dark border-0';
+    title.innerHTML = '<i class="bi bi-pencil-square"></i> Edit Nama OPD';
+    button.className = 'btn btn-warning w-100 fw-bold py-2';
+    button.innerHTML = '<i class="bi bi-floppy"></i> Simpan Perubahan';
+
+    document.getElementById('opdId').value = opd.id;
+    document.getElementById('opdNama').value = opd.nama_opd;
+
+    modalOpd.show();
+}
+
+async function submitOpd(event) {
+    event.preventDefault();
+    const btn = document.getElementById('btnSimpanOpd');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Menyimpan...';
+
+    const payload = {
+        nama_opd: document.getElementById('opdNama').value,
+    };
+
+    let url = `${API_BASE_URL}/admin/opd`;
+    let method = 'POST';
+
+    if (currentOpdMode === 'edit') {
+        const opdId = document.getElementById('opdId').value;
+        url = `${API_BASE_URL}/admin/opd/${opdId}`;
+        method = 'PUT';
+    }
+
+    try {
+        const result = await fetchWithAuth(url, { method: method, body: JSON.stringify(payload) });
+        if (result.status) {
+            modalOpd.hide();
+            Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, icon: 'success', title: result.message });
+            loadOpdData();
+        } else {
+            Swal.fire('Gagal', result.message, 'error');
+        }
+    } catch (error) {
+        Swal.fire('Koneksi Gagal', 'Gagal menyimpan data OPD. Periksa koneksi internet Anda.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = (currentOpdMode === 'add') ? '<i class="bi bi-plus-circle"></i> Tambah OPD' : '<i class="bi bi-floppy"></i> Simpan Perubahan';
+    }
+}
+
+async function hapusOpd(id, nama) {
+    const confirmation = await Swal.fire({
+        title: 'Anda Yakin?',
+        html: `Anda akan menghapus OPD:<br><b>${nama}</b>.<br>Aksi ini tidak dapat dibatalkan!`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal'
+    });
+
+    if (confirmation.isConfirmed) {
+        try {
+            const result = await fetchWithAuth(`${API_BASE_URL}/admin/opd/${id}`, { method: 'DELETE' });
+            if (result.status) {
+                Swal.fire('Terhapus!', result.message, 'success');
+                loadOpdData();
+            } else {
+                Swal.fire('Gagal', result.message, 'error');
+            }
+        } catch (error) {
+            Swal.fire('Koneksi Gagal', 'Gagal menghapus OPD. Periksa koneksi internet Anda.', 'error');
+        }
+    }
+}
+
+async function syncOpdList() {
+    const confirmation = await Swal.fire({
+        title: 'Sinkronkan Cache OPD?',
+        html: `Anda akan memperbarui daftar OPD yang disimpan di cache Cloudflare. Ini akan memastikan PWA menggunakan daftar OPD terbaru.`,
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonColor: '#198754',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, Sinkronkan!',
+        cancelButtonText: 'Batal'
+    });
+
+    if (confirmation.isConfirmed) {
+        showAdminLoading(true, 'Memulai sinkronisasi...');
+        try {
+            const res = await fetchWithAuth(`${API_BASE_URL}/admin/opd/sync-kv`, { method: 'POST' });
+            showAdminLoading(false);
+            if (res.status) {
+                Swal.fire({toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, icon: 'success', title: res.message});
+            } else {
+                Swal.fire('Gagal', res.message, 'error');
+            }
+        } catch (error) {
+            showAdminLoading(false);
+            Swal.fire('Koneksi Gagal', 'Gagal memicu sinkronisasi. Periksa koneksi internet Anda.', 'error');
         }
     }
 }
