@@ -768,22 +768,14 @@ function initMap(mode) {
 }
 
 async function initOpdSelector(mode, selectedOpds = []) {
-    // Ensure allOpdList is loaded
+    // Pastikan allOpdList sudah dimuat dengan memanggil fungsi terpusat
+    await loadAllOpdList();
+
+    // Jika pemuatan gagal, allOpdList akan tetap kosong. Tampilkan pesan error di UI.
     if (allOpdList.length === 0) {
-        try {
-            const result = await fetchWithAuth(`${API_BASE_URL}/admin/opd/list`);
-            if (result.status) {
-                allOpdList = result.data;
-            } else {
-                const container = document.getElementById(mode === 'add' ? 'availableOpdContainer' : 'editAvailableOpdContainer');
-                container.innerHTML = '<div class="text-danger">Gagal memuat daftar OPD.</div>';
-                return;
-            }
-        } catch (error) {
-            const container = document.getElementById(mode === 'add' ? 'availableOpdContainer' : 'editAvailableOpdContainer');
-            container.innerHTML = '<div class="text-danger">Gagal memuat daftar OPD.</div>';
-            return;
-        }
+        const container = document.getElementById(mode === 'add' ? 'availableOpdContainer' : 'editAvailableOpdContainer');
+        container.innerHTML = '<div class="alert alert-danger small p-2">Gagal memuat daftar OPD.</div>';
+        return;
     }
 
     // Initialize state for the current mode
@@ -2178,13 +2170,17 @@ async function syncJadwalKv(kodeAkses, judul) {
 async function loadAllOpdList() {
     if (allOpdList.length > 0) return; // Already loaded
     try {
-        const result = await fetchWithAuth(`${API_BASE_URL}/admin/opd/list`);
+        // Gunakan endpoint admin yang benar, yang mengembalikan array of objects
+        const result = await fetchWithAuth(`${API_BASE_URL}/admin/opd`);
         if (result.status) {
-            allOpdList = result.data;
+            // Ubah array of objects menjadi array of strings (nama OPD) dan urutkan
+            allOpdList = result.data.map(opd => opd.nama_opd).sort();
         } else {
+            allOpdList = []; // Pastikan array kosong jika gagal
             console.error('Gagal memuat daftar OPD global.');
         }
     } catch (error) {
+        allOpdList = []; // Pastikan array kosong jika gagal
         console.error('Error loading global OPD list:', error);
     }
 }
