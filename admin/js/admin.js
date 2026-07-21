@@ -256,9 +256,19 @@ function renderJadwalTable(jadwalList) {
 
         let syncStatusHtml = '';
         if (jadwal.kv_sync_status == 1) {
-            syncStatusHtml = '<span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Sinkron</span>';
+            syncStatusHtml = `
+                <div class="d-flex flex-column align-items-center gap-1">
+                    <span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Sinkron</span>
+                    <button class="btn btn-sm btn-outline-info mt-1" onclick="syncJadwalKv('${jadwal.kode_akses}', '${jadwal.judul.replace(/'/g, `\\'`)}')" title="Sinkron Ulang Cache"><i class="bi bi-arrow-repeat"></i> Sinkron Ulang</button>
+                </div>
+            `;
         } else {
-            syncStatusHtml = '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill"></i> Belum Sinkron</span>';
+            syncStatusHtml = `
+                <div class="d-flex flex-column align-items-center gap-1">
+                    <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill"></i> Belum Sinkron</span>
+                    <button class="btn btn-sm btn-outline-primary mt-1" onclick="syncJadwalKv('${jadwal.kode_akses}', '${jadwal.judul.replace(/'/g, `\\'`)}')" title="Sinkronkan Cache"><i class="bi bi-arrow-repeat"></i> Sinkronkan</button>
+                </div>
+            `;
         }
         const row = `
             <tr>
@@ -278,7 +288,6 @@ function renderJadwalTable(jadwalList) {
                             <button class="btn btn-outline-success" onclick="cetakQrCode('${jadwal.kode_akses}', '${jadwal.judul.replace(/'/g, "\\'")}', '${jadwal.tanggal}', '${jadwal.jam_mulai}', '${jadwal.jam_selesai}')" title="Cetak QR Code"><i class="bi bi-qr-code"></i> QR</button>
                             <button class="btn btn-outline-warning" onclick="bukaModalEdit('${jadwal.kode_akses}')" title="Edit Jadwal"><i class="bi bi-pencil-fill"></i> Edit</button>
                             <button class="btn btn-outline-danger" onclick="hapusKegiatan('${jadwal.kode_akses}')" title="Hapus Jadwal"><i class="bi bi-trash-fill"></i> Hapus</button>
-                            <button class="btn btn-outline-info" onclick="syncJadwalKv('${jadwal.kode_akses}', '${jadwal.judul.replace(/'/g, `\\'`)}')" title="Sinkron Ulang Cache"><i class="bi bi-arrow-repeat"></i></button>
                         </div>
                     </div>
                 </td>
@@ -2069,9 +2078,19 @@ function renderPegawaiTable(pegawaiList) {
 
         let syncStatusHtml = '';
         if (p.kv_sync_status == 1) {
-            syncStatusHtml = '<span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Sinkron</span>';
+            syncStatusHtml = `
+                <div class="d-flex flex-column align-items-center gap-1">
+                    <span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Sinkron</span>
+                    <button class="btn btn-sm btn-outline-info mt-1" onclick="syncPegawaiKv('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}')" title="Sinkron Ulang Cache"><i class="bi bi-arrow-repeat"></i> Sinkron Ulang</button>
+                </div>
+            `;
         } else {
-            syncStatusHtml = '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill"></i> Belum Sinkron</span>';
+            syncStatusHtml = `
+                <div class="d-flex flex-column align-items-center gap-1">
+                    <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill"></i> Belum Sinkron</span>
+                    <button class="btn btn-sm btn-outline-primary mt-1" onclick="syncPegawaiKv('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}')" title="Sinkronkan Cache"><i class="bi bi-arrow-repeat"></i> Sinkronkan</button>
+                </div>
+            `;
         }
 
         return `
@@ -2089,7 +2108,6 @@ function renderPegawaiTable(pegawaiList) {
                     <div class="btn-group btn-group-sm">
                         <button class="btn btn-outline-warning" onclick='bukaModalEditPegawai(${pegawaiData})' title="Edit Pegawai"><i class="bi bi-pencil-fill"></i></button>
                         <button class="btn btn-outline-danger" onclick="hapusPegawai('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}')" title="Hapus Pegawai"><i class="bi bi-trash-fill"></i></button>
-                        <button class="btn btn-outline-info" onclick="syncPegawaiKv('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}')" title="Sinkron Ulang Cache"><i class="bi bi-arrow-repeat"></i></button>
                     </div>
                 </td>
             </tr>
