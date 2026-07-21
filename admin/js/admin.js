@@ -258,12 +258,7 @@ function renderJadwalTable(jadwalList) {
         if (jadwal.kv_sync_status == 1) {
             syncStatusHtml = '<span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Sinkron</span>';
         } else {
-            syncStatusHtml = `
-                <div class="d-flex flex-column align-items-center gap-1">
-                    <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill"></i> Belum Sinkron</span>
-                    <button class="btn btn-sm btn-outline-primary mt-1" onclick="syncJadwalKv('${jadwal.kode_akses}', '${jadwal.judul.replace(/'/g, `\\'`)}')" title="Sinkronkan data ke cache KV"><i class="bi bi-arrow-repeat"></i> Sinkronkan</button>
-                </div>
-            `;
+            syncStatusHtml = '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill"></i> Belum Sinkron</span>';
         }
         const row = `
             <tr>
@@ -283,6 +278,7 @@ function renderJadwalTable(jadwalList) {
                             <button class="btn btn-outline-success" onclick="cetakQrCode('${jadwal.kode_akses}', '${jadwal.judul.replace(/'/g, "\\'")}', '${jadwal.tanggal}', '${jadwal.jam_mulai}', '${jadwal.jam_selesai}')" title="Cetak QR Code"><i class="bi bi-qr-code"></i> QR</button>
                             <button class="btn btn-outline-warning" onclick="bukaModalEdit('${jadwal.kode_akses}')" title="Edit Jadwal"><i class="bi bi-pencil-fill"></i> Edit</button>
                             <button class="btn btn-outline-danger" onclick="hapusKegiatan('${jadwal.kode_akses}')" title="Hapus Jadwal"><i class="bi bi-trash-fill"></i> Hapus</button>
+                            <button class="btn btn-outline-info" onclick="syncJadwalKv('${jadwal.kode_akses}', '${jadwal.judul.replace(/'/g, `\\'`)}')" title="Sinkron Ulang Cache"><i class="bi bi-arrow-repeat"></i></button>
                         </div>
                     </div>
                 </td>
@@ -2075,14 +2071,7 @@ function renderPegawaiTable(pegawaiList) {
         if (p.kv_sync_status == 1) {
             syncStatusHtml = '<span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Sinkron</span>';
         } else {
-            syncStatusHtml = `
-                <div class="d-flex flex-column align-items-center gap-1">
-                    <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill"></i> Belum Sinkron</span>
-                    <button class="btn btn-sm btn-outline-primary" onclick="syncPegawaiKv('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}')" title="Sinkronkan data ke cache KV">
-                        <i class="bi bi-arrow-repeat"></i> Sinkronkan
-                    </button>
-                </div>
-            `;
+            syncStatusHtml = '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill"></i> Belum Sinkron</span>';
         }
 
         return `
@@ -2100,6 +2089,7 @@ function renderPegawaiTable(pegawaiList) {
                     <div class="btn-group btn-group-sm">
                         <button class="btn btn-outline-warning" onclick='bukaModalEditPegawai(${pegawaiData})' title="Edit Pegawai"><i class="bi bi-pencil-fill"></i></button>
                         <button class="btn btn-outline-danger" onclick="hapusPegawai('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}')" title="Hapus Pegawai"><i class="bi bi-trash-fill"></i></button>
+                        <button class="btn btn-outline-info" onclick="syncPegawaiKv('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}')" title="Sinkron Ulang Cache"><i class="bi bi-arrow-repeat"></i></button>
                     </div>
                 </td>
             </tr>
@@ -2109,8 +2099,8 @@ function renderPegawaiTable(pegawaiList) {
 
 async function syncPegawaiKv(nip, nama) {
     const confirmation = await Swal.fire({
-        title: 'Sinkronkan Cache?',
-        html: `Anda akan memicu sinkronisasi cache untuk pegawai:<br><b>${nama}</b> (NIP: ${nip}).<br><br>Ini akan menghapus data lama dari cache Cloudflare KV.`,
+        title: 'Sinkronkan Ulang Cache?',
+        html: `Anda akan memicu sinkronisasi ulang cache untuk pegawai:<br><b>${nama}</b> (NIP: ${nip}).<br><br>Ini akan memperbarui data di cache.`,
         icon: 'info',
         showCancelButton: true,
         confirmButtonColor: '#198754',
@@ -2139,8 +2129,8 @@ async function syncPegawaiKv(nip, nama) {
 
 async function syncJadwalKv(kodeAkses, judul) {
     const confirmation = await Swal.fire({
-        title: 'Sinkronkan Cache?',
-        html: `Anda akan memicu sinkronisasi cache untuk jadwal:<br><b>${judul}</b> (Kode: ${kodeAkses}).<br><br>Ini akan memperbarui data di cache Cloudflare KV.`,
+        title: 'Sinkronkan Ulang Cache?',
+        html: `Anda akan memicu sinkronisasi ulang cache untuk jadwal:<br><b>${judul}</b> (Kode: ${kodeAkses}).<br><br>Ini akan memperbarui data di cache.`,
         icon: 'info',
         showCancelButton: true,
         confirmButtonColor: '#198754',
