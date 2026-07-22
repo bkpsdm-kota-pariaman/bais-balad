@@ -896,13 +896,8 @@ async function lihatRekap(kodeAkses) {
     // Pindah ke tampilan rekap
     document.getElementById('dashboardContainer').classList.add('d-none');
     document.getElementById('rekapContainer').classList.remove('d-none');
-    
-    // Reset state & UI secara menyeluruh untuk menghindari data lama muncul
     currentRekapData = { jadwal: null, filtered_pegawai: [] }; // Reset data cache
-    
-    // Reset filter inputs
-    rekapFilterOpdSelect.clear(); // Clear TomSelect
-    document.getElementById('rekapFilterStatus').value = 'semua';
+    resetRekapFilters();
     document.getElementById('rekapFilterView').value = 'table';
 
     // Reset tampilan tabel dan foto ke default (tabel)
@@ -1048,16 +1043,25 @@ function populateRekapFilters(opdList) {
     rekapFilterOpdSelect.clear();
     rekapFilterOpdSelect.clearOptions();
     rekapFilterOpdSelect.addOption(opdList.map(opd => ({ value: opd, text: opd })));
-    document.getElementById('rekapFilterStatus').value = 'semua';
 }
 
 function selectAllOpdFilter() {
     const allOptions = Object.keys(rekapFilterOpdSelect.options);
     rekapFilterOpdSelect.setValue(allOptions);
 }
+
+function resetRekapFilters() {
+    rekapFilterOpdSelect.clear();
+    document.getElementById('rekapSearchInput').value = '';
+    // Saat direset, defaultnya adalah semua status dicentang agar menampilkan semua data
+    document.querySelectorAll('#rekapFilterStatusContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
+    document.querySelectorAll('#rekapFilterVerifikasiContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
+}
+
 async function terapkanFilterRekap() {
     const selectedOpds = rekapFilterOpdSelect.getValue();
-    const selectedStatus = document.getElementById('rekapFilterStatus').value;
+    const statusKehadiran = Array.from(document.querySelectorAll('#rekapFilterStatusContainer input:checked')).map(cb => cb.value);
+    const statusVerifikasi = Array.from(document.querySelectorAll('#rekapFilterVerifikasiContainer input:checked')).map(cb => cb.value);
     const selectedView = document.getElementById('rekapFilterView').value;
     const searchInput = document.getElementById('rekapSearchInput').value;
 
@@ -1089,7 +1093,8 @@ async function terapkanFilterRekap() {
             method: 'POST',
             body: JSON.stringify({
                 opd_list: selectedOpds,
-                status_kehadiran: selectedStatus,
+                status_kehadiran: statusKehadiran,
+                status_verifikasi: statusVerifikasi,
                 search: searchInput
             })
         });
@@ -1866,21 +1871,24 @@ async function refreshRekapSummary() {
 async function exportRekapToExcel() {
     // 1. Dapatkan nilai filter saat ini
     const selectedOpds = rekapFilterOpdSelect.getValue();
-    const selectedStatus = document.getElementById('rekapFilterStatus').value;
+    const statusKehadiran = Array.from(document.querySelectorAll('#rekapFilterStatusContainer input:checked')).map(cb => cb.value);
+    const statusVerifikasi = Array.from(document.querySelectorAll('#rekapFilterVerifikasiContainer input:checked')).map(cb => cb.value);
+    const searchInput = document.getElementById('rekapSearchInput').value;
 
     // 2. Validasi: Pastikan filter OPD dipilih
     if (selectedOpds.length === 0) {
         alert('Silakan pilih minimal satu OPD untuk diunduh.');
         return;
     }
-
     // 3. Panggil API detail untuk mendapatkan data yang akan diexport
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/details/${currentRekapData.jadwal.kode_akses}`, {
             method: 'POST',
             body: JSON.stringify({
                 opd_list: selectedOpds,
-                status_kehadiran: selectedStatus // Use status_kehadiran for consistency
+                status_kehadiran: statusKehadiran,
+                status_verifikasi: statusVerifikasi,
+                search: searchInput
             })
         });
 
@@ -1910,8 +1918,7 @@ async function exportRekapToExcel() {
 
         // 6. Buat nama file dinamis dan picu unduhan
         const judulKegiatan = currentRekapData.jadwal.judul.replace(/[^a-zA-Z0-9]/g, '_');
-        const statusFile = selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1);
-        const fileName = `Rekap_${judulKegiatan}_${statusFile}.xlsx`;
+        const fileName = `Rekap_${judulKegiatan}.xlsx`;
         XLSX.writeFile(wb, fileName);
 
     } catch (error) {
