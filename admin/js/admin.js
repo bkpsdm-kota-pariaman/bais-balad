@@ -1057,7 +1057,6 @@ function resetRekapFilters() {
     document.querySelectorAll('#rekapFilterStatusContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
     document.querySelectorAll('#rekapFilterVerifikasiContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
 }
-
 async function terapkanFilterRekap() {
     const selectedOpds = rekapFilterOpdSelect.getValue();
     const statusKehadiran = Array.from(document.querySelectorAll('#rekapFilterStatusContainer input:checked')).map(cb => cb.value);
@@ -1070,6 +1069,16 @@ async function terapkanFilterRekap() {
     const photoGridView = document.getElementById('rekapPhotoGridView');
     const btnDownload = document.getElementById('btnDownloadExcel');
     const checkAllHeader = document.getElementById('rekapPilihSemua').parentElement;
+
+    // --- VALIDASI BARU ---
+    if (statusKehadiran.length === 0) {
+        Swal.fire('Filter Tidak Lengkap', 'Anda harus memilih minimal satu "Status Kehadiran" untuk ditampilkan.', 'warning');
+        return;
+    }
+    if (statusVerifikasi.length === 0) {
+        Swal.fire('Filter Tidak Lengkap', 'Anda harus memilih minimal satu "Status Verifikasi" untuk ditampilkan.', 'warning');
+        return;
+    }
 
     // Atur tampilan dan tampilkan indikator muat data
     if (selectedView === 'table') {
@@ -1711,19 +1720,23 @@ function renderTambahPesertaView() {
 
     const renderList = (pegawaiList, filter, isSelectedList) => {
         return pegawaiList
-            .filter(p => 
-                p.nama_pegawai.toLowerCase().includes(filter) || 
-                p.nip.toLowerCase().includes(filter)
+            .filter(p =>
+                p.nama_pegawai.toLowerCase().includes(filter) ||
+                p.nip.toLowerCase().includes(filter) ||
+                (p.jabatan && p.jabatan.toLowerCase().includes(filter)) ||
+                (p.perangkat_daerah && p.perangkat_daerah.toLowerCase().includes(filter))
             )
             .map(p => {
                 const action = isSelectedList ? 'deselect' : 'select';
                 const btnClass = isSelectedList ? 'list-group-item-success' : '';
                 const onClickAction = `movePegawai('${p.nip}', '${action}')`;
 
-                return `
-                    <button type="button" class="list-group-item list-group-item-action py-1 px-2 ${btnClass}" onclick="${onClickAction}">
+                 return `
+                    <button type="button" class="list-group-item list-group-item-action py-2 px-2 ${btnClass}" onclick="${onClickAction}">
                         <strong class="d-block">${p.nama_pegawai}</strong>
-                        <small class="text-muted">NIP: ${p.nip}</small>
+                        <small class="text-muted d-block">NIP: ${p.nip}</small>
+                        <small class="text-muted d-block">${p.jabatan || '-'}</small>
+                        <small class="text-muted d-block fst-italic">${p.perangkat_daerah}</small>
                     </button>
                 `;
             }).join('');
@@ -1875,9 +1888,9 @@ async function exportRekapToExcel() {
     const statusVerifikasi = Array.from(document.querySelectorAll('#rekapFilterVerifikasiContainer input:checked')).map(cb => cb.value);
     const searchInput = document.getElementById('rekapSearchInput').value;
 
-    // 2. Validasi: Pastikan filter OPD dipilih
-    if (selectedOpds.length === 0) {
-        alert('Silakan pilih minimal satu OPD untuk diunduh.');
+    // 2. Validasi: Pastikan filter checkbox dipilih
+    if (statusKehadiran.length === 0 || statusVerifikasi.length === 0) {
+        Swal.fire('Filter Tidak Lengkap', 'Pastikan Anda telah memilih setidaknya satu "Status Kehadiran" dan "Status Verifikasi" sebelum mengunduh.', 'warning');
         return;
     }
     // 3. Panggil API detail untuk mendapatkan data yang akan diexport
@@ -2039,18 +2052,18 @@ async function loadPegawai() {
     const search = document.getElementById('pegawaiSearchInput').value;
     const tbody = document.getElementById('pegawaiTableBody');
 
-    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm"></div> Memuat data pegawai...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm"></div> Memuat data pegawai...</td></tr>';
 
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/pegawai?opd=${encodeURIComponent(opd)}&search=${encodeURIComponent(search)}&install=${encodeURIComponent(installStatus)}&sync=${encodeURIComponent(syncStatus)}`);
         if (result.status) {
             renderPegawaiTable(result.data);
         } else {
-            tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">Gagal memuat data: ${result.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="11" class="text-center text-danger py-4">Gagal memuat data: ${result.message}</td></tr>`;
         }
     } catch (error) {
         console.error('Error loading pegawai:', error);
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">Terjadi kesalahan koneksi.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" class="text-center text-danger py-4">Terjadi kesalahan koneksi.</td></tr>`;
     }
 }
 
@@ -2076,7 +2089,7 @@ function formatIndonesianDateTime(dateTimeString) {
 function renderPegawaiTable(pegawaiList) {
     const tbody = document.getElementById('pegawaiTableBody');
     if (pegawaiList.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Tidak ada data pegawai yang ditemukan.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">Tidak ada data pegawai yang ditemukan.</td></tr>';
         return;
     }
 
@@ -2100,6 +2113,10 @@ function renderPegawaiTable(pegawaiList) {
             `;
         }
 
+        const roleBadge = p.role === 'Admin' 
+            ? `<span class="badge bg-danger">${p.role}</span>` 
+            : `<span class="badge bg-secondary">${p.role}</span>`;
+
         return `
             <tr>
                 <td class="text-center">${i + 1}</td>
@@ -2109,6 +2126,7 @@ function renderPegawaiTable(pegawaiList) {
                 <td>${p.jabatan || '-'}</td>
                 <td>${p.nik}</td>
                 <td><span class="badge ${p.jenis_asn === 'PNS' ? 'bg-primary' : 'bg-success'}">${p.jenis_asn}</span></td>
+                <td>${roleBadge}</td>
                 <td>${formatIndonesianDateTime(p.last_login)}</td>
                 <td class="text-center">${syncStatusHtml}</td>
                 <td class="text-center">
@@ -2253,6 +2271,7 @@ async function bukaModalEditPegawai(pegawai) {
     document.getElementById('pegawaiNik').value = pegawai.nik;
     document.getElementById('pegawaiJabatan').value = pegawai.jabatan || '';
     document.getElementById('pegawaiJenisAsn').value = pegawai.jenis_asn;
+    document.getElementById('pegawaiRole').value = pegawai.role;
     
     await loadAllOpdList();
     populateOpdDropdown('pegawaiOpd', pegawai.perangkat_daerah);
@@ -2273,6 +2292,7 @@ async function submitPegawai(event) {
         perangkat_daerah: document.getElementById('pegawaiOpd').value,
         jabatan: document.getElementById('pegawaiJabatan').value,
         jenis_asn: document.getElementById('pegawaiJenisAsn').value,
+        role: document.getElementById('pegawaiRole').value
     };
 
     let url = `${API_BASE_URL}/admin/pegawai`;
