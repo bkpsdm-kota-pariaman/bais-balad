@@ -1,0 +1,52 @@
+{
+  "name": "pwa-absensi-build",
+  "version": "1.0.5",
+  "private": true,
+  "description": "Build scripts untuk PWA absensi (sumber di src/Views, output ke docs)",
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "clean": "rimraf docs",
+    "prepare-dirs": "npx mkdirp docs",
+    "build:static:dirs": "npx mkdirp docs",
+    "build:static:copy-cname": "npx cpx \"src/Views/CNAME\" docs/ || true",
+    "build:static:copy-ico": "npx cpx \"src/Views/icon.ico\" docs/ || true",
+    "build:static:copy-root-htaccess": "npx cpx \"src/Views/.htaccess\" docs/ || true",
+    "build:static": "npm run build:static:dirs && npm run build:static:copy-cname && npm run build:static:copy-ico && npm run build:static:copy-root-htaccess",
+    "build:admin:dirs": "npx mkdirp docs/admin docs/admin/js",
+    "build:admin:js": "npx esbuild \"src/Views/admin/js/*.js\" --bundle --minify --outdir=docs/admin/js --platform=browser --target=es2018",
+    "build:admin:copy-other": "npx cpx \"src/Views/admin/**/*.{png,jpg,jpeg,svg,ico,css,html}\" docs/admin || true",
+    "build:admin:html": "npx html-minifier-terser --collapse-whitespace --remove-comments --remove-optional-tags --minify-css true --minify-js true src/Views/admin/index.html -o docs/admin/index.html",
+    "build:admin": "npm run build:admin:dirs && npm run build:admin:js && npm run build:admin:copy-other && npm run build:admin:html",
+    "build:absensi:dirs": "npx mkdirp docs/absensi-cadangan",
+    "build:absensi:copy": "npx cpx \"src/Views/absensi-cadangan/**\" docs/absensi-cadangan || true",
+    "build:absensi:html": "npx html-minifier-terser --collapse-whitespace --remove-comments --remove-optional-tags --minify-css true --minify-js true src/Views/absensi-cadangan/index.html -o docs/absensi-cadangan/index.html",
+    "build:absensi": "npm run build:absensi:dirs && npm run build:absensi:copy && npm run build:absensi:html",
+    "build:pwa:dirs": "npx mkdirp docs/pwa docs/pwa/css docs/pwa/js docs/pwa/icons docs/pwa/uploads docs/pwa/uploads/foto_absensi",
+    "build:pwa:js-app": "npx esbuild \"src/Views/pwa/js/*.js\" --bundle --minify --outdir=docs/pwa/js --platform=browser --target=es2018",
+    "build:pwa:css": "npx esbuild \"src/Views/pwa/css/*.css\" --minify --outdir=docs/pwa/css",
+    "build:pwa:copy-sw": "npx cpx \"src/Views/pwa/sw.js\" docs/pwa/ || true",
+    "build:pwa:copy-manifest": "npx cpx \"src/Views/pwa/manifest.json\" docs/pwa/ || true",
+    "build:pwa:copy-icons": "npx cpx \"src/Views/pwa/icons/*\" docs/pwa/icons || true",
+    "build:pwa:copy-htaccess": "npx cpx \"src/Views/pwa/.htaccess\" \"src/Views/pwa/icons/.htaccess\" \"src/Views/pwa/js/.htaccess\" \"src/Views/pwa/uploads/.htaccess\" docs/pwa || true",
+    "build:pwa:copy-uploads": "npx cpx \"src/Views/pwa/uploads/**\" docs/pwa/uploads || true",
+    "build:pwa:html": "npx html-minifier-terser --collapse-whitespace --remove-comments --remove-optional-tags --minify-css true --minify-js true src/Views/pwa/index.html -o docs/pwa/index.html",
+    "build:pwa": "npm run build:pwa:dirs && npm run build:pwa:js-app && npm run build:pwa:css && npm run build:pwa:copy-sw && npm run build:pwa:copy-manifest && npm run build:pwa:copy-icons && npm run build:pwa:copy-uploads && npm run build:pwa:copy-htaccess && npm run build:pwa:html",
+    "build:landing:dirs": "npx mkdirp docs",
+    "build:landing:copy": "npx cpx \"src/Views/CNAME\" \"src/Views/icon.ico\" docs/ || true",
+    "build:landing:html": "npx html-minifier-terser --collapse-whitespace --remove-comments --remove-optional-tags --minify-css true --minify-js true src/Views/index.html -o docs/index.html",
+    "build:landing": "npm run build:landing:dirs && npm run build:landing:copy && npm run build:landing:html",
+    "build:images": "npx mkdirp docs/images && npx cpx \"src/Views/images/*\" docs/images || true",
+    "build:all": "npm run prepare-dirs && npm run clean && npm run prepare-dirs && npm run build:static && npm run build:admin && npm run build:absensi && npm run build:pwa && npm run build:landing && npm run build:images",
+    "build": "npm run build:all"
+  },
+  "devDependencies": {
+    "cpx": "^1.2.1",
+    "esbuild": "^0.28.1",
+    "html-minifier-terser": "^7.0.0",
+    "mkdirp": "^3.0.1",
+    "rimraf": "^5.0.0"
+  }
+}

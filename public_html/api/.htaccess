@@ -1,0 +1,10 @@
+RewriteEngine On
+
+# 1. BARIS PENYELAMAT: Memaksa server meneruskan header Authorization ke PHP
+RewriteCond %{HTTP:Authorization} ^(.*)
+RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+
+# 2. Aturan FastRoute: Mengarahkan semua request ke index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
