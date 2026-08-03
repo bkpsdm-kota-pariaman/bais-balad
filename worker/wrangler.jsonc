@@ -1,0 +1,47 @@
+{
+  "name": "absensi-kegiatan-asn-worker",
+  "main": "src/index.js",
+  "workers_dev": true,
+  "preview_urls": true,
+  "compatibility_date": "2026-06-26",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true,
+      "head_sampling_rate": 1
+    }
+  },
+  "kv_namespaces": [
+    {
+      "id": "93df20ab114c4344be203868c380d7a2",
+      "binding": "JADWAL_KV"
+    },
+    {
+      "id": "21afac99b32b4c19a6289a3002f0ee97",
+      "binding": "OPD_KV"
+    },
+    {
+      "id": "1bdb1488a21b4c699aa53de6bbcb7b9d",
+      "binding": "PEGAWAI_KV"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "MY_QUEUE",
+        "queue": "absensi-kegiatan-asn-worker"
+      }
+    ]
+  }
+}
