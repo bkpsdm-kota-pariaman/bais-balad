@@ -43,7 +43,7 @@ class AdminJadwalController {
             Response::json(false, 404, "Jadwal tidak ditemukan.");
         }
 
-        $stmtOpd = $db->prepare("SELECT nama_opd FROM app_absensi_kegiatan_target_opd WHERE kode_akses = :kode_akses");
+        $stmtOpd = $db->prepare("SELECT opd FROM app_absensi_data_absensi WHERE kode_akses = :kode_akses AND opd IS NOT NULL AND opd != '' GROUP BY opd ORDER BY opd ASC");
         $stmtOpd->execute([':kode_akses' => $kodeAkses]);
         $jadwal['target_opd'] = $stmtOpd->fetchAll(PDO::FETCH_COLUMN, 0);
 
@@ -144,13 +144,7 @@ class AdminJadwalController {
                 ':kv_sync_status' => $kv_sync_status
             ]);
 
-            if (!empty($input['target_opd'])) {
-                $sqlOpd = "INSERT INTO app_absensi_kegiatan_target_opd (kode_akses, nama_opd) VALUES (:ka, :opd)";
-                $stmtOpd = $db->prepare($sqlOpd);
-                foreach ($input['target_opd'] as $opd) {
-                    $stmtOpd->execute([':ka' => $kodeAkses, ':opd' => $opd]);
-                }
-            }
+            // Tabel app_absensi_kegiatan_target_opd tidak lagi digunakan
 
             // --- LOGIKA BARU: Pre-seed data absensi dengan status ALPA ---
             $pegawaiToSeed = [];
@@ -244,20 +238,19 @@ class AdminJadwalController {
                 ':ka' => $kodeAkses
             ]);
 
-            // 2. Hapus semua target OPD lama
-            $stmtDeleteOpd = $db->prepare("DELETE FROM app_absensi_kegiatan_target_opd WHERE kode_akses = :ka");
-            $stmtDeleteOpd->execute([':ka' => $kodeAkses]);
-
-            // 3. Masukkan target OPD yang baru
-            if (!empty($input['target_opd'])) {
-                $sqlOpd = "INSERT INTO app_absensi_kegiatan_target_opd (kode_akses, nama_opd) VALUES (:ka, :opd)";
-                $stmtOpd = $db->prepare($sqlOpd);
-                foreach ($input['target_opd'] as $opd) {
-                    $stmtOpd->execute([':ka' => $kodeAkses, ':opd' => $opd]);
-                }
+            // 2. Hapus pre-seed data (waktu IS NULL) untuk OPD yang dihapus dari daftar target
+            $selectedOpds = $input['target_opd'] ?? [];
+            if (empty($selectedOpds)) {
+                $stmtDel = $db->prepare("DELETE FROM app_absensi_data_absensi WHERE kode_akses = :ka AND waktu IS NULL");
+                $stmtDel->execute([':ka' => $kodeAkses]);
+            } else {
+                $placeholders = implode(',', array_fill(0, count($selectedOpds), '?'));
+                $sqlDel = "DELETE FROM app_absensi_data_absensi WHERE kode_akses = ? AND waktu IS NULL AND opd NOT IN ($placeholders)";
+                $params = array_merge([$kodeAkses], $selectedOpds);
+                $stmtDel = $db->prepare($sqlDel);
+                $stmtDel->execute($params);
             }
 
-            // 4. Tambahkan peserta baru dari target OPD tanpa menghapus yang sudah ada.
             // a. Dapatkan daftar NIP yang sudah ada di rekap untuk jadwal ini.
             $stmtExistingNips = $db->prepare("SELECT nip FROM app_absensi_data_absensi WHERE kode_akses = :ka");
             $stmtExistingNips->execute([':ka' => $kodeAkses]);
@@ -315,9 +308,7 @@ class AdminJadwalController {
         try {
             $db->beginTransaction();
 
-            // Hapus dari tabel target opd
-            $stmtOpd = $db->prepare("DELETE FROM app_absensi_kegiatan_target_opd WHERE kode_akses = :ka");
-            $stmtOpd->execute([':ka' => $kodeAkses]);
+            // Hapus daftar target OPD (Tabel app_absensi_kegiatan_target_opd tidak lagi digunakan)
 
             // Hapus dari tabel jadwal utama
             $stmtJadwal = $db->prepare("DELETE FROM app_absensi_jadwal_kegiatan WHERE kode_akses = :ka");
@@ -363,7 +354,7 @@ class AdminJadwalController {
         }
 
         // Ambil target OPD
-        $stmtOpd = $db->prepare("SELECT nama_opd FROM app_absensi_kegiatan_target_opd WHERE kode_akses = :kode_akses");
+        $stmtOpd = $db->prepare("SELECT opd FROM app_absensi_data_absensi WHERE kode_akses = :kode_akses AND opd IS NOT NULL AND opd != '' GROUP BY opd ORDER BY opd ASC");
         $stmtOpd->execute([':kode_akses' => $kodeAkses]);
         $jadwal['target_opd'] = $stmtOpd->fetchAll(PDO::FETCH_COLUMN, 0);
 

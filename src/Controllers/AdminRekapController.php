@@ -23,15 +23,11 @@ class AdminRekapController {
             Response::json(false, 404, "Jadwal kegiatan tidak ditemukan.");
         }
 
-        // 2. Dapatkan Daftar OPD Target
-        $stmtOpd = $db->prepare("SELECT nama_opd FROM app_absensi_kegiatan_target_opd WHERE kode_akses = :ka");
-        $stmtOpd->execute([':ka' => $kodeAkses]);
-        $targetOpdList = $stmtOpd->fetchAll(PDO::FETCH_COLUMN, 0);
-        $jadwal['target_opd'] = $targetOpdList;
-
+        // 2. Dapatkan Daftar OPD Target (sekarang langsung dari data absensi)
         $stmtOpdFilter = $db->prepare("SELECT DISTINCT opd FROM app_absensi_data_absensi WHERE kode_akses = :ka AND opd IS NOT NULL ORDER BY opd");
         $stmtOpdFilter->execute([':ka' => $kodeAkses]);
         $opdForFilter = $stmtOpdFilter->fetchAll(PDO::FETCH_COLUMN, 0);
+        $jadwal['target_opd'] = $opdForFilter;
         $responsePayload = [
             'jadwal' => $jadwal,
             'opd_for_filter' => $opdForFilter
@@ -46,8 +42,20 @@ class AdminRekapController {
         $kodeAkses = $vars['kode_akses'] ?? null;
         $db = Database::getConnection();
 
-        // 1. Query semua data absensi untuk kegiatan ini
-        $sql = "SELECT opd, waktu, status_verifikasi, status_kehadiran FROM app_absensi_data_absensi WHERE kode_akses = ?";
+        // 1. Query agregasi data absensi per OPD
+        $sql = "
+            SELECT 
+                opd as opd_name,
+                COUNT(*) as target,
+                SUM(CASE WHEN waktu IS NOT NULL AND (status_verifikasi IS NULL OR status_verifikasi != 'Ditolak Oleh Admin') THEN 1 ELSE 0 END) as hadir,
+                SUM(CASE WHEN waktu IS NOT NULL AND (status_verifikasi IS NULL OR status_verifikasi != 'Ditolak Oleh Admin') AND (status_kehadiran = 'Hadir' OR status_kehadiran IS NULL) THEN 1 ELSE 0 END) as hadir_ideal,
+                SUM(CASE WHEN waktu IS NOT NULL AND (status_verifikasi IS NULL OR status_verifikasi != 'Ditolak Oleh Admin') AND status_kehadiran = 'Hadir Terlambat' THEN 1 ELSE 0 END) as terlambat,
+                SUM(CASE WHEN waktu IS NOT NULL AND (status_verifikasi IS NULL OR status_verifikasi != 'Ditolak Oleh Admin') AND status_kehadiran = 'Hadir Terlambat Diluar Lokasi' THEN 1 ELSE 0 END) as terlambat_diluar_lokasi,
+                SUM(CASE WHEN waktu IS NOT NULL AND (status_verifikasi IS NULL OR status_verifikasi != 'Ditolak Oleh Admin') AND status_kehadiran = 'Hadir Diluar Lokasi' THEN 1 ELSE 0 END) as diluar_lokasi
+            FROM app_absensi_data_absensi 
+            WHERE kode_akses = ? AND opd IS NOT NULL AND opd != ''
+            GROUP BY opd
+        ";
         $stmt = $db->prepare($sql);
         $stmt->execute([$kodeAkses]);
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -71,50 +79,7 @@ class AdminRekapController {
             return;
         }
 
-        // 2. Inisialisasi statistik
-        $perOpdStats = [];
-
-        // 3. Proses hasil query untuk kalkulasi statistik
-        foreach ($results as $pegawai) {
-            $opd = $pegawai['opd'];
-
-            // Lewati jika OPD null atau kosong
-            if (empty($opd)) {
-                continue;
-            }
-
-            // Inisialisasi statistik untuk OPD ini jika belum ada
-            if (!isset($perOpdStats[$opd])) {
-                $perOpdStats[$opd] = ['target' => 0, 'hadir' => 0, 'hadir_ideal' => 0, 'terlambat' => 0, 'diluar_lokasi' => 0, 'terlambat_diluar_lokasi' => 0];
-            }
-
-            $perOpdStats[$opd]['target']++;
-
-            $isHadir = $pegawai['waktu'] !== null && $pegawai['status_verifikasi'] !== 'Ditolak Oleh Admin';
-
-            if ($isHadir) {
-                $perOpdStats[$opd]['hadir']++;
-                $statusKehadiran = $pegawai['status_kehadiran'] ?? 'Hadir';
-                
-                // Gunakan switch untuk perbandingan lengkap dan eksklusif, memperbaiki bug double counting
-                switch ($statusKehadiran) {
-                    case 'Hadir':
-                        $perOpdStats[$opd]['hadir_ideal']++;
-                        break;
-                    case 'Hadir Terlambat':
-                        $perOpdStats[$opd]['terlambat']++;
-                        break;
-                    case 'Hadir Terlambat Diluar Lokasi':
-                        $perOpdStats[$opd]['terlambat_diluar_lokasi']++;
-                        break;
-                    case 'Hadir Diluar Lokasi':
-                        $perOpdStats[$opd]['diluar_lokasi']++;
-                        break;
-                }
-            }
-        }
-
-        // 4. Finalisasi format statistik per OPD
+        // 2. Finalisasi format statistik per OPD
         $finalPerOpdStats = [];
         $totalTarget = 0;
         $totalHadir = 0;
@@ -123,25 +88,28 @@ class AdminRekapController {
         $totalDiluarLokasi = 0;
         $totalTerlambatDiluarLokasi = 0;
 
-        foreach ($perOpdStats as $opdName => $stats) {
+        foreach ($results as $stats) {
+            // Casting SQL sum values back to int
+            $stats['target'] = (int)$stats['target'];
+            $stats['hadir'] = (int)$stats['hadir'];
+            $stats['hadir_ideal'] = (int)$stats['hadir_ideal'];
+            $stats['terlambat'] = (int)$stats['terlambat'];
+            $stats['terlambat_diluar_lokasi'] = (int)$stats['terlambat_diluar_lokasi'];
+            $stats['diluar_lokasi'] = (int)$stats['diluar_lokasi'];
+
             if ($stats['target'] > 0) {
-                $stats['opd_name'] = $opdName;
                 $stats['alpa'] = $stats['target'] - $stats['hadir'];
                 $stats['percentage'] = round(($stats['hadir'] / $stats['target']) * 100);
             
-            // PERBAIKAN: Pastikan semua kunci statistik ada di array, bahkan jika nilainya 0.
-            // Ini mencegah 'undefined' di frontend jika tidak ada pegawai dengan status tertentu.
-            $stats['terlambat_diluar_lokasi'] = $stats['terlambat_diluar_lokasi'] ?? 0;
-
                 $finalPerOpdStats[] = $stats;
 
                 // Akumulasi untuk total keseluruhan
                 $totalTarget += $stats['target'];
                 $totalHadir += $stats['hadir'];
-            $totalHadirIdeal += $stats['hadir_ideal'] ?? 0;
-            $totalTerlambat += $stats['terlambat'] ?? 0;
-            $totalDiluarLokasi += $stats['diluar_lokasi'] ?? 0;
-            $totalTerlambatDiluarLokasi += $stats['terlambat_diluar_lokasi'] ?? 0;
+                $totalHadirIdeal += $stats['hadir_ideal'];
+                $totalTerlambat += $stats['terlambat'];
+                $totalDiluarLokasi += $stats['diluar_lokasi'];
+                $totalTerlambatDiluarLokasi += $stats['terlambat_diluar_lokasi'];
             }
         }
         

@@ -91,7 +91,7 @@ class JadwalController {
         }
 
         // 5. Query untuk mengambil daftar OPD yang menjadi target
-        $sqlTargetOpd = "SELECT nama_opd FROM app_absensi_kegiatan_target_opd WHERE kode_akses = :kode_akses";
+        $sqlTargetOpd = "SELECT opd FROM app_absensi_data_absensi WHERE kode_akses = :kode_akses AND opd IS NOT NULL AND opd != '' GROUP BY opd ORDER BY opd ASC";
         $stmtTargetOpd = $db->prepare($sqlTargetOpd);
         $stmtTargetOpd->bindParam(':kode_akses', $kodeAkses);
         $stmtTargetOpd->execute();

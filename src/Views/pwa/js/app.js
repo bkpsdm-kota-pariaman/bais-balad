@@ -302,7 +302,7 @@ window.onload = async () => {
         localforage.config({
             name: `EabsenPariamanDB_${APP_ENV}`, // Contoh: EabsenPariamanDB_production atau EabsenPariamanDB_beta
             storeName: 'app_storage',
-            description: 'Penyimpanan persisten untuk aplikasi BAIS BALAD.',
+            description: 'Penyimpanan persisten untuk aplikasi BAIS Pariaman.',
         });
 
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;

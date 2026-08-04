@@ -48,5 +48,8 @@
     "html-minifier-terser": "^7.0.0",
     "mkdirp": "^3.0.1",
     "rimraf": "^5.0.0"
+  },
+  "dependencies": {
+    "gitnexus": "^1.6.9"
   }
 }
