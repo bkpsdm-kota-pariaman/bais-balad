@@ -1,6 +1,6 @@
 // js/app.js
 
-const ORIGIN_SERVER_URL = "https://api-esdm.pariamankota.go.id/bais-balad";
+const ORIGIN_SERVER_URL = "https://api-esdm.pariamankota.go.id/beta-bais-pariaman";
 const API_BASE_URL = `${ORIGIN_SERVER_URL}/api`;
 const WORKER_URL = "https://absensi-kegiatan-asn-worker.bidpp-bkpsdm.workers.dev";
 const APP_VERSION = 'v6.1.0'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
@@ -62,10 +62,10 @@ async function migrateStorage() {
 }
 
 window.addEventListener('beforeinstallprompt', (e) => {
-  // Prevent the mini-infobar from appearing on mobile
-  e.preventDefault();
-  // Stash the event so it can be triggered later.
-  deferredPrompt = e;
+    // Prevent the mini-infobar from appearing on mobile
+    e.preventDefault();
+    // Stash the event so it can be triggered later.
+    deferredPrompt = e;
 });
 let userQrCodeInstance = null; // Untuk QR Code di modal
 let qrCountdownInterval = null; // Untuk timer countdown QR
@@ -132,14 +132,14 @@ async function checkAuthStatus() {
             silentlyRefreshTokenIfNeeded();
             renderProfil();
             renderRiwayatLokal();
-            
+
             const cachedOpdVersion = await localforage.getItem('opd_cache_version');
             const listOpdExists = await localforage.getItem('list_opd');
             if (cachedOpdVersion !== APP_VERSION || !listOpdExists) {
                 // PERBAIKAN: Teruskan token yang sudah ada untuk konsistensi
                 await fetchAndCacheOpdList(token);
             }
-            
+
             getAppVersion();
             switchView('view-dashboard');
         } else {
@@ -169,16 +169,16 @@ if ('serviceWorker' in navigator) {
     // Definisikan di scope window agar bisa diakses dari mana saja
     window.updateToast = null;
 
-    navigator.serviceWorker.register(`./sw.js?v=${APP_VERSION}`).then(reg => {
+    navigator.serviceWorker.register(`./sw.min.js?v=${APP_VERSION}`).then(reg => {
         console.log('Service Worker terdaftar.', reg);
 
-    // **FIX PENTING: Mencegah update loop.**
-    // Jika halaman ini dimuat sebagai hasil dari proses update (ditandai oleh sessionStorage),
-    // jangan langsung cek `reg.waiting`. Ini mencegah race condition di mana `reg.waiting`
-    // mungkin masih ada sesaat setelah reload, yang akan memicu prompt update kedua.
-    if (isReloadingForUpdate) {
-        return;
-    }
+        // **FIX PENTING: Mencegah update loop.**
+        // Jika halaman ini dimuat sebagai hasil dari proses update (ditandai oleh sessionStorage),
+        // jangan langsung cek `reg.waiting`. Ini mencegah race condition di mana `reg.waiting`
+        // mungkin masih ada sesaat setelah reload, yang akan memicu prompt update kedua.
+        if (isReloadingForUpdate) {
+            return;
+        }
 
         // **FIX 1: Cek apakah service worker baru sudah menunggu.**
         // Ini menangani kasus jika pengguna mengabaikan prompt update sebelumnya.
@@ -245,7 +245,7 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-window.addEventListener('popstate', function(event) {
+window.addEventListener('popstate', function (event) {
     // Handler untuk tombol kembali browser.
     // Cek view mana yang sedang aktif dan panggil fungsi cleanup yang sesuai.
     if (!document.getElementById('view-scanner').classList.contains('hidden-view')) {
@@ -258,7 +258,7 @@ window.addEventListener('popstate', function(event) {
 });
 
 // Aksi tombol install utama
-document.getElementById('btnInstallApp')?.addEventListener('click', async () => { 
+document.getElementById('btnInstallApp')?.addEventListener('click', async () => {
     if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
@@ -367,12 +367,12 @@ function switchView(viewId) {
     // Sembunyikan semua elemen view
     document.querySelectorAll('[id^="view-"]').forEach(el => {
         el.classList.add('hidden-view');
-    }); 
+    });
     const viewToShow = document.getElementById(viewId);
     if (viewToShow) {
         viewToShow.classList.remove('hidden-view'); // Tampilkan view yang diminta
     }
-    window.scrollTo({ top: 0});
+    window.scrollTo({ top: 0 });
 
     // Tampilkan footer hanya di halaman login dan dashboard
     const appFooter = document.getElementById('app-footer');
@@ -397,9 +397,9 @@ function sembunyikanTutorialManual() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function showLoading(show, text="") {
+function showLoading(show, text = "") {
     const overlay = document.getElementById('loadingOverlay');
-    if(show) {
+    if (show) {
         document.getElementById('loadingText').innerText = text;
         overlay.classList.remove('hidden');
         overlay.classList.add('flex');
@@ -417,24 +417,24 @@ function showLoading(show, text="") {
 function formatTanggalWaktuIndonesia(tanggalString) {
     if (!tanggalString || typeof tanggalString !== 'string') return tanggalString;
 
-	try {
-		// PERBAIKAN: Selalu gunakan new Date() untuk parsing agar timezone (baik dari string ISO 'Z' atau string lokal) ditangani dengan benar.
-		// Hapus parsing manual dengan regex yang mengabaikan informasi timezone.
-		const d = new Date(tanggalString);
+    try {
+        // PERBAIKAN: Selalu gunakan new Date() untuk parsing agar timezone (baik dari string ISO 'Z' atau string lokal) ditangani dengan benar.
+        // Hapus parsing manual dengan regex yang mengabaikan informasi timezone.
+        const d = new Date(tanggalString);
 
-		// Cek jika tanggal tidak valid setelah parsing
-		if (isNaN(d.getTime())) {
-			return tanggalString; // Kembalikan string asli jika tidak bisa di-parse
-		}
+        // Cek jika tanggal tidak valid setelah parsing
+        if (isNaN(d.getTime())) {
+            return tanggalString; // Kembalikan string asli jika tidak bisa di-parse
+        }
 
-		// Gunakan toLocaleString yang akan mengkonversi ke zona waktu lokal browser pengguna.
-		// Format 'id-ID' akan menghasilkan format seperti "16 Jul 2026 14.00.00"
-		// .replace() digunakan untuk mengubah titik menjadi titik dua agar sesuai format jam.
-		return d.toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
-	} catch (e) {
-		console.error("Gagal memformat tanggal:", tanggalString, e);
-		return tanggalString; // Fallback jika ada error
-	}
+        // Gunakan toLocaleString yang akan mengkonversi ke zona waktu lokal browser pengguna.
+        // Format 'id-ID' akan menghasilkan format seperti "16 Jul 2026 14.00.00"
+        // .replace() digunakan untuk mengubah titik menjadi titik dua agar sesuai format jam.
+        return d.toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
+    } catch (e) {
+        console.error("Gagal memformat tanggal:", tanggalString, e);
+        return tanggalString; // Fallback jika ada error
+    }
 }
 
 /**
@@ -473,10 +473,10 @@ function parseJwt(token, validateExp = false) { // Add a flag
     try {
         const base64Url = token.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
-        
+
         const payload = JSON.parse(jsonPayload); // Get the full payload
 
         if (validateExp) {
@@ -484,7 +484,7 @@ function parseJwt(token, validateExp = false) { // Add a flag
             const nowInSeconds = Math.floor(Date.now() / 1000);
             // Tambahkan leeway (kelonggaran) 5 detik untuk mengatasi clock skew antara server dan client.
             // Token dianggap expired jika waktu kedaluwarsanya sudah lewat lebih dari 5 detik yang lalu.
-            const leeway = 5; 
+            const leeway = 5;
             if (payload.exp < (nowInSeconds - leeway)) {
                 console.error(`Token JWT sudah kedaluwarsa (dengan leeway ${leeway} detik).`);
                 return null; // Token expired
@@ -492,17 +492,17 @@ function parseJwt(token, validateExp = false) { // Add a flag
         }
 
         return payload.data; // Return only the data part if valid
-    } catch(e) { 
+    } catch (e) {
         console.error("Gagal mem-parsing JWT:", e);
-        return null; 
+        return null;
     }
 }
 
 async function renderProfil() {
     const token = await localforage.getItem("asn_jwt_token");
-    if(!token) return;
+    if (!token) return;
     const user = parseJwt(token);
-    if(user) {
+    if (user) {
         document.getElementById('dashNama').innerText = user.nama || "-";
         document.getElementById('dashNip').innerText = user.nip || "-";
         document.getElementById('dashPerangkatDaerah').innerText = user.opd || "-";
@@ -557,7 +557,7 @@ async function renderRiwayatLokal() {
     // Filter riwayat untuk pengguna yang sedang login
     const userHistory = allHistory.filter(h => h.nip === currentUserNip && h.waktu);
 
-    if(userHistory.length === 0) {
+    if (userHistory.length === 0) {
         return container.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">Belum ada riwayat absensi untuk Anda di perangkat ini.</div>';
     }
 
@@ -599,7 +599,7 @@ async function hapusRiwayatLokal() {
             await localforage.setItem('riwayat_absen', remainingHistory);
             // Render ulang untuk menampilkan daftar yang sudah kosong
             renderRiwayatLokal();
-            Swal.fire({toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, icon: 'success', title: 'Riwayat Anda telah dibersihkan.'});
+            Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, icon: 'success', title: 'Riwayat Anda telah dibersihkan.' });
         }
     });
 }
@@ -629,10 +629,10 @@ async function handleSuccessfulLogin(token) {
 }
 
 async function prosesLogin(e) {
-    if(e) e.preventDefault();
+    if (e) e.preventDefault();
     const nip = document.getElementById('logNip').value.trim();
     const nik = document.getElementById('logNik').value.trim();
-    if(!nip || !nik) return;
+    if (!nip || !nik) return;
 
     showLoading(true, "Memverifikasi...");
     const payload = { nip: nip, nik: nik };
@@ -733,43 +733,43 @@ async function fetchWithAuth(url, options = {}) {
 
 // Fungsi untuk mengambil list OPD dari API dan menyimpannya di localStorage
 async function fetchAndCacheOpdList(tokenOverride) {
-	// Gunakan token yang diberikan jika ada, jika tidak, ambil dari penyimpanan.
-	const tokenToUse = tokenOverride || (await localforage.getItem('asn_jwt_token'));
-	if (!tokenToUse) return;
+    // Gunakan token yang diberikan jika ada, jika tidak, ambil dari penyimpanan.
+    const tokenToUse = tokenOverride || (await localforage.getItem('asn_jwt_token'));
+    if (!tokenToUse) return;
 
-	const saveOpdList = async (list) => {
-		await localforage.setItem('list_opd', list);
-		await localforage.setItem('opd_cache_version', APP_VERSION);
-		console.log(`List OPD berhasil diunduh dan disimpan untuk versi ${APP_VERSION}.`);
-	};
+    const saveOpdList = async (list) => {
+        await localforage.setItem('list_opd', list);
+        await localforage.setItem('opd_cache_version', APP_VERSION);
+        console.log(`List OPD berhasil diunduh dan disimpan untuk versi ${APP_VERSION}.`);
+    };
 
-	try {
-		// 1. Coba ambil dari Worker terlebih dahulu
-		console.log('Mencoba mengambil daftar OPD dari Worker Cache...');
-		const workerResponse = await fetch(`${WORKER_URL}/api/opd/list`);
-		if (workerResponse.ok) {
-			const workerData = await workerResponse.json();
-			if (workerData.status && Array.isArray(workerData.data)) {
-				console.log('Berhasil mendapatkan daftar OPD dari Worker.');
-				await saveOpdList(workerData.data);
-				return; // Selesai
-			}
-		}
-		// Jika worker response tidak ok atau data tidak valid, akan jatuh ke blok catch.
-		throw new Error('Cache miss atau data worker tidak valid.');
-	} catch (workerError) {
-		// 2. Jika Worker gagal (cache miss, network error), fallback ke server utama
-		console.warn('Gagal mengambil OPD dari worker, fallback ke server utama:', workerError.message);
-		try {
-			const originResponse = await fetchWithAuth(`${API_BASE_URL}/opd/list`, { token: tokenToUse });
-			const originData = await originResponse.json();
-			if (originData.status && Array.isArray(originData.data)) {
-				await saveOpdList(originData.data);
-			}
-		} catch (originError) {
-			console.error('Gagal mengambil list OPD dari server utama:', originError);
-		}
-	}
+    try {
+        // 1. Coba ambil dari Worker terlebih dahulu
+        console.log('Mencoba mengambil daftar OPD dari Worker Cache...');
+        const workerResponse = await fetch(`${WORKER_URL}/api/opd/list`);
+        if (workerResponse.ok) {
+            const workerData = await workerResponse.json();
+            if (workerData.status && Array.isArray(workerData.data)) {
+                console.log('Berhasil mendapatkan daftar OPD dari Worker.');
+                await saveOpdList(workerData.data);
+                return; // Selesai
+            }
+        }
+        // Jika worker response tidak ok atau data tidak valid, akan jatuh ke blok catch.
+        throw new Error('Cache miss atau data worker tidak valid.');
+    } catch (workerError) {
+        // 2. Jika Worker gagal (cache miss, network error), fallback ke server utama
+        console.warn('Gagal mengambil OPD dari worker, fallback ke server utama:', workerError.message);
+        try {
+            const originResponse = await fetchWithAuth(`${API_BASE_URL}/opd/list`, { token: tokenToUse });
+            const originData = await originResponse.json();
+            if (originData.status && Array.isArray(originData.data)) {
+                await saveOpdList(originData.data);
+            }
+        } catch (originError) {
+            console.error('Gagal mengambil list OPD dari server utama:', originError);
+        }
+    }
 }
 
 // ==========================================
@@ -852,7 +852,7 @@ function bukaAbsenkanPegawai() {
     // Fungsi ini sekarang membuka view baru untuk alur absensi cepat oleh admin.
     switchView('view-admin-cepat');
     setupAdminCepatView();
-    history.pushState({view: 'view-admin-cepat'}, "Absensi Cepat", '#admin-cepat');
+    history.pushState({ view: 'view-admin-cepat' }, "Absensi Cepat", '#admin-cepat');
 }
 
 
@@ -974,7 +974,7 @@ async function silentlyRefreshTokenIfNeeded() {
         // Parse payload manually to get 'exp' without changing global parseJwt
         const base64Url = token.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
         const payload = JSON.parse(jsonPayload);
@@ -1063,7 +1063,7 @@ async function refreshProfil() {
 }
 
 async function bukaModalEditProfil() {
-    const token = await localforage.getItem("asn_jwt_token"); if(!token) return;
+    const token = await localforage.getItem("asn_jwt_token"); if (!token) return;
     const user = parseJwt(token);
     document.getElementById('editJabatan').value = user.jabatan || "";
 
@@ -1140,19 +1140,19 @@ async function simpanProfil(e) {
         const res = await response.json();
         // PERBAIKAN: Endpoint 'update' sekarang langsung mengembalikan token baru (karena memanggil refresh() di backend).
         // Tidak perlu lagi memanggil refreshProfil() secara terpisah.
-        if(res.status && res.data.token) { 
+        if (res.status && res.data.token) {
             tutupModalEditProfil();
             // Langsung simpan token baru yang diterima dari response
             await localforage.setItem("asn_jwt_token", res.data.token);
             // Render ulang profil di dashboard
             renderProfil();
             // Tampilkan pesan sukses dari server
-            Swal.fire({toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: res.message || 'Profil berhasil disimpan!'});
+            Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: res.message || 'Profil berhasil disimpan!' });
         } else {
             // Jika gagal, tampilkan pesan error dari server
             Swal.fire('Gagal', res.message, 'error');
         }
-    } catch(e) {
+    } catch (e) {
         Swal.fire('Gagal Menyimpan', 'Tidak dapat terhubung ke server untuk menyimpan profil. Periksa koneksi internet Anda.', 'error');
     }
     showLoading(false);
@@ -1161,7 +1161,7 @@ async function simpanProfil(e) {
 // ==========================================
 // 6. JADWAL & QR SCANNER (FLOW NORMAL & ADMIN)
 // ==========================================
-async function bukaScanner(isNormalFlow = false, title = 'Pindai Kode QR', showManualInput = true) {    
+async function bukaScanner(isNormalFlow = false, title = 'Pindai Kode QR', showManualInput = true) {
     // Alur admin lama (adminFlowState) tidak lagi digunakan, jadi tidak perlu di-reset.
     // Atur judul dan visibilitas tombol di tampilan scanner
     const scannerTitleEl = document.querySelector('#view-scanner .scanner-title');
@@ -1177,7 +1177,7 @@ async function bukaScanner(isNormalFlow = false, title = 'Pindai Kode QR', showM
         btnContainer.classList.replace('grid-cols-2', 'grid-cols-1');
     }
 
-    history.pushState({view: 'scanner'}, title, '#scanner');
+    history.pushState({ view: 'scanner' }, title, '#scanner');
     switchView('view-scanner');
 
     const cameraSelect = document.getElementById('camera-select');
@@ -1236,7 +1236,7 @@ async function _startScanner(deviceId) {
             // Semua hasil pindaian, baik normal maupun cepat, dilewatkan ke handler baru.
             handleScanSuccess(decodedText);
         },
-        () => {} // onScanFailure, sengaja dibiarkan kosong untuk mendukung continuous scan.
+        () => { } // onScanFailure, sengaja dibiarkan kosong untuk mendukung continuous scan.
     ).catch(err => {
         console.error("Gagal memulai pemindai QR:", err);
         Swal.fire("Error Kamera", "Gagal memulai kamera. Pastikan izin telah diberikan.", "error");
@@ -1347,11 +1347,11 @@ async function handleJwtValidation(jwt) {
     const now = new Date(); // Waktu lokal browser.
     // Buat objek Date untuk tanggal acara, pastikan diinterpretasikan sebagai waktu lokal.
     const eventDate = new Date(jadwalFromJwt.tanggal + "T00:00:00");
-    
+
     if (now.toDateString() !== eventDate.toDateString()) {
         throw new Error("Jadwal ini tidak berlaku untuk hari ini.");
     }
-    
+
     // --- LOGIKA BARU: Validasi Waktu Mulai di sisi klien ---
     // Buat objek Date untuk waktu mulai. Browser akan menginterpretasikannya di timezone lokal.
     const startTime = new Date(`${jadwalFromJwt.tanggal}T${jadwalFromJwt.jam_mulai}`);
@@ -1492,7 +1492,7 @@ async function cekLokasiOtomatis() {
     stGeo.classList.add('hidden-view'); // Pastikan div hasil disembunyikan
     stGeoLoading.classList.remove('hidden-view'); // Tampilkan loading besar
 
-    if(!navigator.geolocation) {
+    if (!navigator.geolocation) {
         stGeoLoading.classList.add('hidden-view');
         stGeo.classList.add('hidden-view');
         boxGagal.classList.remove('hidden-view');
@@ -1500,46 +1500,46 @@ async function cekLokasiOtomatis() {
     }
 
     navigator.geolocation.getCurrentPosition(async (pos) => {
-       stGeoLoading.classList.add('hidden-view'); // Sembunyikan loading besar
-       stGeo.classList.remove('hidden-view'); // Tampilkan div hasil
-       const rLat = pos.coords.latitude;
-       const rLng = pos.coords.longitude;
-       document.getElementById('lat').value = rLat;
-       document.getElementById('lng').value = rLng;
+        stGeoLoading.classList.add('hidden-view'); // Sembunyikan loading besar
+        stGeo.classList.remove('hidden-view'); // Tampilkan div hasil
+        const rLat = pos.coords.latitude;
+        const rLng = pos.coords.longitude;
+        document.getElementById('lat').value = rLat;
+        document.getElementById('lng').value = rLng;
 
-       // Mulai proses reverse geocoding untuk mendapatkan alamat
-       stGeo.innerHTML = `<span class="inline-block animate-spin mr-1">↻</span> Menerjemahkan alamat...`;
-       stGeo.className = "bg-blue-50 text-blue-700 py-2 px-4 rounded-lg text-xs font-bold border border-blue-200";
-       const alamat = await getAlamatFromKoordinat(rLat, rLng);
-       document.getElementById('alamat').value = alamat;
+        // Mulai proses reverse geocoding untuk mendapatkan alamat
+        stGeo.innerHTML = `<span class="inline-block animate-spin mr-1">↻</span> Menerjemahkan alamat...`;
+        stGeo.className = "bg-blue-50 text-blue-700 py-2 px-4 rounded-lg text-xs font-bold border border-blue-200";
+        const alamat = await getAlamatFromKoordinat(rLat, rLng);
+        document.getElementById('alamat').value = alamat;
 
-       if(currentJadwal.koordinat && currentJadwal.koordinat !== "-") {
-          const [tLat, tLng] = currentJadwal.koordinat.replace(/'/g, '').split(',');
-          const jarak = getDistanceInMeters(rLat, rLng, parseFloat(tLat), parseFloat(tLng));
-          const radius = parseFloat(currentJadwal.radius_meter);
+        if (currentJadwal.koordinat && currentJadwal.koordinat !== "-") {
+            const [tLat, tLng] = currentJadwal.koordinat.replace(/'/g, '').split(',');
+            const jarak = getDistanceInMeters(rLat, rLng, parseFloat(tLat), parseFloat(tLng));
+            const radius = parseFloat(currentJadwal.radius_meter);
 
-          if(jarak > radius) {
-              stGeo.className = "bg-yellow-50 text-yellow-700 py-2 px-4 rounded-lg text-xs font-bold border border-yellow-200";
-              stGeo.innerHTML = `Luar Batas (${Math.round(jarak)}m). <br><small class="font-normal">${alamat}</small>`;
-              isLuarRadius = true;
-          } else {
-              stGeo.className = "bg-green-50 text-green-700 py-2 px-4 rounded-lg text-xs font-bold border border-green-200";
-              stGeo.innerHTML = `Lokasi Sesuai (${Math.round(jarak)}m). <br><small class="font-normal">${alamat}</small>`;
-              isLuarRadius = false;
-          }
-       } else {
-           stGeo.className = "bg-green-50 text-green-700 py-2 px-4 rounded-lg text-xs font-bold border border-green-200";
-           stGeo.innerHTML = `Bebas Lokasi. <br><small class="font-normal">${alamat}</small>`;
-           isLuarRadius = false;
-       }
+            if (jarak > radius) {
+                stGeo.className = "bg-yellow-50 text-yellow-700 py-2 px-4 rounded-lg text-xs font-bold border border-yellow-200";
+                stGeo.innerHTML = `Luar Batas (${Math.round(jarak)}m). <br><small class="font-normal">${alamat}</small>`;
+                isLuarRadius = true;
+            } else {
+                stGeo.className = "bg-green-50 text-green-700 py-2 px-4 rounded-lg text-xs font-bold border border-green-200";
+                stGeo.innerHTML = `Lokasi Sesuai (${Math.round(jarak)}m). <br><small class="font-normal">${alamat}</small>`;
+                isLuarRadius = false;
+            }
+        } else {
+            stGeo.className = "bg-green-50 text-green-700 py-2 px-4 rounded-lg text-xs font-bold border border-green-200";
+            stGeo.innerHTML = `Bebas Lokasi. <br><small class="font-normal">${alamat}</small>`;
+            isLuarRadius = false;
+        }
 
-       // Setelah lokasi berhasil dideteksi, tampilkan sisa form (kamera, keterangan, dll).
-       tampilkanFormLanjutan();
+        // Setelah lokasi berhasil dideteksi, tampilkan sisa form (kamera, keterangan, dll).
+        tampilkanFormLanjutan();
     }, () => {
         stGeoLoading.classList.add('hidden-view');
         stGeo.classList.add('hidden-view');
         boxGagal.classList.remove('hidden-view');
-    }, {enableHighAccuracy: true, timeout: 10000});
+    }, { enableHighAccuracy: true, timeout: 10000 });
 }
 function cleanupAbsenForm() {
     // Matikan stream kamera selfie jika sedang aktif
@@ -1589,10 +1589,10 @@ async function kirimAbsensi() {
     } else {
         statusKehadiran = "Hadir";
     }
-    
+
     const statusVerifikasi = 'Terverifikasi Sistem';
     const useQueue = currentJadwal.aktifkan_antrian == 1;
-    
+
     showLoading(true, "Mengirim Absensi...");
 
     try {
@@ -1611,7 +1611,7 @@ async function kirimAbsensi() {
             formData.append('foto', new File([dataURItoBlob(b64)], "absen_selfie.jpg", { type: "image/jpeg" }));
             formData.append('status_kehadiran', statusKehadiran);
             formData.append('status_verifikasi', statusVerifikasi);
-            
+
             const originResponse = await fetchWithAuth(`${API_BASE_URL}/absen/submit`, { method: "POST", body: formData, token: token });
             return await originResponse.json();
         };
@@ -1673,7 +1673,7 @@ async function adminCepatKirimAbsensi(userToken) {
             Swal.fire({ toast: true, position: 'bottom', icon: 'error', title: `Token Pegawai Tidak Valid`, showConfirmButton: false, timer: 2000 });
             return;
         }
-        
+
         const kode = adminCepatState.jadwal.kode_akses;
         const statusKehadiran = adminCepatState.status_kehadiran;
         const statusVerifikasi = adminCepatState.status_verifikasi;
@@ -1708,7 +1708,7 @@ async function adminCepatKirimAbsensi(userToken) {
         } catch (workerError) {
             // 2. Jika Worker gagal, fallback ke server PHP
             console.warn("Gagal mengirim absensi cepat ke Worker, fallback ke server utama.", workerError.message);
-            
+
             const fallbackUrl = `${API_BASE_URL}/absen-cepat/submit`; // FIX: Gunakan URL absolut
             const fallbackBody = new FormData();
             fallbackBody.append('user_token', userToken);
@@ -1719,7 +1719,7 @@ async function adminCepatKirimAbsensi(userToken) {
             fallbackBody.append('keterangan', keteranganAdmin);
             fallbackBody.append('status_kehadiran', statusKehadiran);
             fallbackBody.append('status_verifikasi', statusVerifikasi);
-            
+
             response = await fetchWithAuth(fallbackUrl, { method: "POST", body: fallbackBody, token: adminToken });
             res = await response.json();
         }
@@ -1765,8 +1765,8 @@ function getDistanceInMeters(lat1, lon1, lat2, lon2) {
     const Δλ = (lon2 - lon1) * Math.PI / 180;
 
     const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return R * c; // Jarak dalam meter
@@ -1780,7 +1780,7 @@ function lanjutTanpaLokasiValid() {
     document.getElementById('lat').value = '0';
     document.getElementById('lng').value = '0';
     document.getElementById('alamat').value = 'Lokasi GPS tidak terdeteksi';
-    
+
     const stGeo = document.getElementById('statusGeo');
     const boxGagal = document.getElementById('boxLokasiGagal');
 
@@ -1789,7 +1789,7 @@ function lanjutTanpaLokasiValid() {
     stGeo.classList.remove('hidden-view');
     stGeo.className = "bg-yellow-50 text-yellow-700 py-2 px-4 rounded-lg text-xs font-bold border border-yellow-200";
     stGeo.innerHTML = `LOKASI TIDAK VALID. <br><small class="font-normal">Melanjutkan absensi dengan status "Di Luar Lokasi".</small>`;
-    
+
     // Show the rest of the form
     // Tampilkan sisa form (kamera, keterangan, dll) meskipun lokasi gagal.
     tampilkanFormLanjutan();
@@ -1810,7 +1810,7 @@ async function getAlamatFromKoordinat(lat, lng) {
     }
 }
 
-async function mulaiKameraSelfie() { 
+async function mulaiKameraSelfie() {
     const v = document.getElementById('kamera');
     const cameraSelect = document.getElementById('selfie-camera-select');
     const cameraContainer = document.getElementById('selfie-camera-selection-container');
@@ -1853,7 +1853,7 @@ async function mulaiKameraSelfie() {
                 const option = document.createElement('option');
                 option.value = device.deviceId;
                 option.text = device.label || `Kamera ${index + 1}`;
-                
+
                 // Heuristik pemilihan default: prioritaskan kamera depan.
                 const isFrontCamera = device.label.toLowerCase().includes('front') || device.label.toLowerCase().includes('depan') || device.label.toLowerCase().includes('user');
 
@@ -1879,52 +1879,52 @@ async function mulaiKameraSelfie() {
     }
 }
 
-function ambilFoto() { 
-    const v = document.getElementById('kamera'); 
+function ambilFoto() {
+    const v = document.getElementById('kamera');
     const canv = document.getElementById('canvas');
     // --- PENINGKATAN: MENGECILKAN UKURAN FOTO ---
     // Mengubah lebar canvas dari 400 menjadi 320 akan mengurangi resolusi dan ukuran file secara signifikan.
-    canv.width = 320; 
-    canv.height = (v.videoHeight / v.videoWidth) * canv.width; 
-    canv.getContext('2d').drawImage(v, 0, 0, canv.width, canv.height); 
-    
+    canv.width = 320;
+    canv.height = (v.videoHeight / v.videoWidth) * canv.width;
+    canv.getContext('2d').drawImage(v, 0, 0, canv.width, canv.height);
+
     // Mengubah kualitas JPEG dari 0.6 menjadi 0.5 juga akan mengurangi ukuran file.
     // Nilai antara 0.4 - 0.6 biasanya merupakan kompromi yang baik antara ukuran dan kualitas.
-    const b64 = canv.toDataURL('image/jpeg', 0.5); 
-    document.getElementById('fotoBase64').value = b64; 
-    document.getElementById('hasilFoto').src = b64; 
-    
-    v.classList.add('hidden-view'); 
-    document.getElementById('hasilFoto').classList.remove('hidden-view'); 
-    document.getElementById('btnJepret').classList.add('hidden-view'); 
-    document.getElementById('btnUlang').classList.remove('hidden-view'); 
-    validasiTombolKirim(); 
+    const b64 = canv.toDataURL('image/jpeg', 0.5);
+    document.getElementById('fotoBase64').value = b64;
+    document.getElementById('hasilFoto').src = b64;
+
+    v.classList.add('hidden-view');
+    document.getElementById('hasilFoto').classList.remove('hidden-view');
+    document.getElementById('btnJepret').classList.add('hidden-view');
+    document.getElementById('btnUlang').classList.remove('hidden-view');
+    validasiTombolKirim();
 }
 
-function ulangFoto() { 
-    document.getElementById('fotoBase64').value = ""; 
-    document.getElementById('hasilFoto').classList.add('hidden-view'); 
-    document.getElementById('kamera').classList.remove('hidden-view'); 
-    document.getElementById('btnJepret').classList.remove('hidden-view'); 
-    document.getElementById('btnUlang').classList.add('hidden-view'); 
-    validasiTombolKirim(); 
+function ulangFoto() {
+    document.getElementById('fotoBase64').value = "";
+    document.getElementById('hasilFoto').classList.add('hidden-view');
+    document.getElementById('kamera').classList.remove('hidden-view');
+    document.getElementById('btnJepret').classList.remove('hidden-view');
+    document.getElementById('btnUlang').classList.add('hidden-view');
+    validasiTombolKirim();
 }
 
-function validasiTombolKirim() { 
-    const b64 = document.getElementById('fotoBase64').value; 
-    const latValue = document.getElementById('lat').value; 
+function validasiTombolKirim() {
+    const b64 = document.getElementById('fotoBase64').value;
+    const latValue = document.getElementById('lat').value;
     const btnKirim = document.getElementById('btnKirim');
 
     let isFormValid = false;
 
     // Validasi untuk alur normal
-    const ket = document.getElementById('keterangan').value.trim(); 
+    const ket = document.getElementById('keterangan').value.trim();
     const wajibKeterangan = isLuarRadius || isTerlambat;
     const isKoordinatOk = latValue !== null && latValue !== '';
     const isKeteranganOk = !wajibKeterangan || ket !== '';
     isFormValid = b64 && isKoordinatOk && isKeteranganOk;
-    
-    if(isFormValid) {
+
+    if (isFormValid) {
         btnKirim.disabled = false;
         btnKirim.className = "w-full bg-red-700 active:scale-95 text-white font-extrabold py-4 rounded-xl shadow-[0_5px_15px_rgba(185,28,28,0.4)] transition-all flex items-center justify-center gap-2";
     } else {
@@ -1962,7 +1962,7 @@ function dataURItoBlob(dataURI) {
     for (let i = 0; i < byteString.length; i++) {
         ia[i] = byteString.charCodeAt(i);
     }
-    return new Blob([ab], {type: mimeString});
+    return new Blob([ab], { type: mimeString });
 }
 
 /**
@@ -1996,8 +1996,8 @@ async function setupAbsenForm(jadwalData) {
     document.getElementById('keterangan').value = '';
 
     // Tambahkan state ke history browser untuk navigasi tombol kembali
-    history.pushState({view: 'form'}, "Konfirmasi Kehadiran", '#form');
-    
+    history.pushState({ view: 'form' }, "Konfirmasi Kehadiran", '#form');
+
     ulangFoto(); // Reset tampilan kamera
     switchView('view-form');
     cekLokasiOtomatis(); // Mulai deteksi lokasi

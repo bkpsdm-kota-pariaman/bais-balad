@@ -1,6 +1,6 @@
 // File: public_html/admin.js
 
-const ORIGIN_SERVER_URL = 'https://api-esdm.pariamankota.go.id/bais-balad';
+const ORIGIN_SERVER_URL = 'https://api-esdm.pariamankota.go.id/beta-bais-pariaman';
 const API_BASE_URL = `${ORIGIN_SERVER_URL}/api`;
 const WORKER_URL = "https://absensi-kegiatan-asn-worker.bidpp-bkpsdm.workers.dev";
 let allOpdList = [];
@@ -82,9 +82,9 @@ async function prosesLogin() {
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('dashboardContainer').classList.remove('d-none');
             document.getElementById('navButtons').classList.remove('d-none');
-            
+
             // Di sini Anda bisa memanggil fungsi untuk memuat data awal dashboard, contoh:
-            loadJadwalKegiatan(); 
+            loadJadwalKegiatan();
         } else {
             // Jika login gagal, tampilkan pesan error
             alert(`Login Gagal: ${result.message}`);
@@ -519,7 +519,7 @@ async function downloadQrCode() {
         const kodeBgWidth = kodeTextMetrics.width + 40;
         const kodeBgHeight = kodeFontSize + 20;
         const kodeBgX = (canvas.width - kodeBgWidth) / 2;
-        
+
         ctx.fillStyle = '#e9f5ee'; // Latar hijau muda
         ctx.strokeStyle = '#d1e7dd'; // Border hijau lebih muda
         ctx.lineWidth = 1;
@@ -561,7 +561,7 @@ function drawRoundRect(ctx, x, y, width, height, radius) {
 function printQrCode() {
     const printContents = document.getElementById('qrPrintArea').innerHTML;
     const printWindow = window.open('', '', 'height=600,width=800');
-    
+
     printWindow.document.write('<html><head><title>Cetak QR Code</title>');
     printWindow.document.write('<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">');
     printWindow.document.write('<style>body { padding-top: 50px; } #qrcode img { margin: 0 auto; display: block; }</style>');
@@ -680,10 +680,10 @@ function lokasiSayaSaatIni(mode) {
     }
 
     map.locate({ setView: true, maxZoom: 16 });
-    map.once('locationfound', function(e) {
+    map.once('locationfound', function (e) {
         marker.setLatLng(e.latlng).fire('dragend');
     });
-    map.once('locationerror', function(e) {
+    map.once('locationerror', function (e) {
         alert("Gagal mendapatkan lokasi Anda. Pastikan izin lokasi telah diberikan untuk situs ini.");
     });
 }
@@ -738,29 +738,29 @@ function initMap(mode) {
     const marker = L.marker(initialCoords, { draggable: true }).addTo(map);
     const circle = L.circle(initialCoords, { radius: Number(document.getElementById(radiusInputId).value) }).addTo(map);
 
-    if (isAddMode) { mapAdd = map; markerAdd = marker; circleAdd = circle; } 
+    if (isAddMode) { mapAdd = map; markerAdd = marker; circleAdd = circle; }
     else { mapEdit = map; markerEdit = marker; circleEdit = circle; }
 
-    marker.on('dragend', function() {
+    marker.on('dragend', function () {
         const pos = marker.getLatLng();
         latLngInput.value = `${pos.lat.toFixed(6)},${pos.lng.toFixed(6)}`;
         circle.setLatLng(pos);
         map.panTo(pos);
     });
 
-    document.getElementById(radiusInputId).addEventListener('input', function() {
+    document.getElementById(radiusInputId).addEventListener('input', function () {
         circle.setRadius(Number(this.value));
     });
 
     // Tambahkan listener untuk input manual koordinat
-    latLngInput.addEventListener('input', function() {
+    latLngInput.addEventListener('input', function () {
         const latlngStr = this.value.trim();
         // Regex untuk memvalidasi format "lat,lng", memperbolehkan spasi di sekitar koma
         const latLngRegex = /^-?\d{1,3}(\.\d+)?\s*,\s*-?\d{1,3}(\.\d+)?$/;
 
         if (latLngRegex.test(latlngStr)) {
             const [lat, lng] = latlngStr.split(',').map(s => parseFloat(s.trim()));
-            
+
             // Validasi tambahan untuk rentang koordinat yang valid
             if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
                 const newPos = [lat, lng];
@@ -873,7 +873,7 @@ function bukaHalamanPegawai() {
     document.getElementById('rekapContainer').classList.add('d-none');
     document.getElementById('opdContainer').classList.add('d-none');
     document.getElementById('pegawaiContainer').classList.remove('d-none');
-    
+
     // Reset tampilan dan isi filter, jangan load data dulu
     document.getElementById('pegawaiTableBody').innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih filter di atas dan tekan "Cari" untuk menampilkan data pegawai.</td></tr>';
     document.getElementById('pegawaiFilterOpd').value = '';
@@ -908,7 +908,7 @@ async function lihatRekap(kodeAkses) {
     tableView.classList.remove('d-none');
     photoGridView.classList.add('d-none');
     photoGridView.innerHTML = ''; // Kosongkan grid foto
-    
+
     // Tampilkan loading di tabel
     tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm"></div> Memuat data awal...</td></tr>';
 
@@ -1191,7 +1191,7 @@ function renderOpdTable(opdList) {
 function bukaModalTambahOpd() {
     currentOpdMode = 'add';
     document.getElementById('formOpd').reset();
-    
+
     const header = document.getElementById('modalOpdHeader');
     const title = document.getElementById('modalOpdTitle');
     const button = document.getElementById('btnSimpanOpd');
@@ -1207,7 +1207,7 @@ function bukaModalTambahOpd() {
 function bukaModalEditOpd(opd) {
     currentOpdMode = 'edit';
     document.getElementById('formOpd').reset();
-    
+
     const header = document.getElementById('modalOpdHeader');
     const title = document.getElementById('modalOpdTitle');
     const button = document.getElementById('btnSimpanOpd');
@@ -1304,7 +1304,7 @@ async function syncOpdList() {
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/opd/sync-kv`, { method: 'POST' });
             showAdminLoading(false);
             if (res.status) {
-                Swal.fire({toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, icon: 'success', title: res.message});
+                Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, icon: 'success', title: res.message });
             } else {
                 Swal.fire('Gagal', res.message, 'error');
             }
@@ -1319,7 +1319,7 @@ function renderRekapTable(filteredPegawai) {
     const tbody = document.getElementById('rekapTableBody');
     document.getElementById('rekapTableView').classList.remove('d-none');
     document.getElementById('rekapPhotoGridView').classList.add('d-none');
-    
+
     const checkAllHeader = document.getElementById('rekapPilihSemua').parentElement;
     document.getElementById('rekapPilihSemua').checked = false;
     document.getElementById('btnHapusTerpilih').classList.add('d-none');
@@ -1345,8 +1345,8 @@ function renderRekapTable(filteredPegawai) {
 
                 let kehadiranBadge = '';
                 const statusHadir = p.status_kehadiran || 'Hadir';
-                
-                switch(statusHadir) {
+
+                switch (statusHadir) {
                     case 'Hadir':
                         kehadiranBadge = `<span class="badge bg-success">Hadir</span>`;
                         break;
@@ -1374,7 +1374,7 @@ function renderRekapTable(filteredPegawai) {
             let verifikasiBadge = '';
             const statusVerif = p.status_verifikasi || 'ALPA';
 
-            switch(statusVerif) {
+            switch (statusVerif) {
                 case 'Terverifikasi Oleh Admin':
                     verifikasiBadge = `<span class="badge bg-primary">Disahkan Admin</span>`;
                     break;
@@ -1390,10 +1390,10 @@ function renderRekapTable(filteredPegawai) {
                     break;
             }
 
-            const fotoLink = (p.nama_file_foto && p.nama_file_foto !== 'MANUAL_INPUT.jpg') 
-                ? `<a href="${ORIGIN_SERVER_URL}/uploads/foto_absensi/${p.nama_file_foto}" target="_blank" class="d-block small text-decoration-none mt-1"><i class="bi bi-camera-fill"></i> Lihat Foto</a>` 
+            const fotoLink = (p.nama_file_foto && p.nama_file_foto !== 'MANUAL_INPUT.jpg')
+                ? `<a href="${ORIGIN_SERVER_URL}/uploads/foto_absensi/${p.nama_file_foto}" target="_blank" class="d-block small text-decoration-none mt-1"><i class="bi bi-camera-fill"></i> Lihat Foto</a>`
                 : '';
-            
+
             const keteranganText = p.keterangan ? `<div class="small text-muted mt-1 fst-italic" title="Keterangan">"${p.keterangan}"</div>` : '';
 
             const statusKeteranganInfo = `${verifikasiBadge}${fotoLink}${keteranganText}`;
@@ -1439,9 +1439,9 @@ function renderFotoKehadiranGrid(filteredPegawai) {
 
     photos.forEach(p => {
         const waktu = new Date(p.waktu_absen).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        
+
         let statusKehadiranBadge = '';
-        switch(p.status_kehadiran) {
+        switch (p.status_kehadiran) {
             case 'Hadir':
                 statusKehadiranBadge = `<span class="badge bg-success">Hadir</span>`;
                 break;
@@ -1519,7 +1519,7 @@ async function hapusDataAbsensi(nip, nama, kodeAkses) {
 
             if (result.status) {
                 Swal.fire('Terhapus!', result.message, 'success');
-                
+
                 // Hapus dari data cache dan render ulang
                 currentRekapData.filtered_pegawai = currentRekapData.filtered_pegawai.filter(p => p.nip !== nip);
                 const selectedView = document.getElementById('rekapFilterView').value;
@@ -1540,7 +1540,7 @@ async function hapusDataAbsensi(nip, nama, kodeAkses) {
 
 async function bukaModalVerifikasi(pegawai) {
     document.getElementById('formVerifikasi').reset();
-    
+
     document.getElementById('verifNama').value = pegawai.nama_pegawai;
     document.getElementById('verifNip').value = pegawai.nip;
     document.getElementById('verifKodeAkses').value = currentRekapData.jadwal.kode_akses;
@@ -1610,7 +1610,7 @@ async function submitVerifikasi(event) {
         if (result.status) {
             modalVerifikasi.hide();
             Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, icon: 'success', title: 'Status berhasil diperbarui!' });
-            
+
             // Ambil daftar OPD terbaru untuk filter, karena mungkin berubah setelah edit.
             try {
                 const opdResult = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/opd-list/${payload.kode_akses}`);
@@ -1642,7 +1642,7 @@ async function submitVerifikasi(event) {
 async function bukaModalTambahPeserta() {
     const searchInput = document.getElementById('tambahPesertaSearch');
     document.getElementById('tambahPesertaKodeAkses').value = currentRekapData.jadwal.kode_akses;
-    
+
     // Reset state
     tambahPesertaState = { available: [], selected: [] };
 
@@ -1661,7 +1661,7 @@ async function bukaModalTambahPeserta() {
     }
     tambahPesertaOpdFilterSelect.clear();
     tambahPesertaOpdFilterSelect.clearOptions();
-    
+
     await loadAllOpdList(); // Memastikan allOpdList terisi
     tambahPesertaOpdFilterSelect.addOption(allOpdList.map(opd => ({ value: opd, text: opd })));
 
@@ -1686,7 +1686,7 @@ async function cariEligiblePegawai() {
     const selectedOpds = tambahPesertaOpdFilterSelect.getValue();
 
     availableContainer.innerHTML = '<div class="list-group-item text-center text-muted"><div class="spinner-border spinner-border-sm"></div> Mencari pegawai...</div>';
-    
+
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/eligible-pegawai/${kodeAkses}`, {
             method: 'POST',
@@ -1731,7 +1731,7 @@ function renderTambahPesertaView() {
                 const btnClass = isSelectedList ? 'list-group-item-success' : '';
                 const onClickAction = `movePegawai('${p.nip}', '${action}')`;
 
-                 return `
+                return `
                     <button type="button" class="list-group-item list-group-item-action py-2 px-2 ${btnClass}" onclick="${onClickAction}">
                         <strong class="d-block">${p.nama_pegawai}</strong>
                         <small class="text-muted d-block">NIP: ${p.nip}</small>
@@ -1772,8 +1772,8 @@ function moveAllPegawai(action) {
 
     if (action === 'select') {
         // Move only the currently filtered items
-        const itemsToMove = tambahPesertaState.available.filter(p => 
-            p.nama_pegawai.toLowerCase().includes(availableFilter) || 
+        const itemsToMove = tambahPesertaState.available.filter(p =>
+            p.nama_pegawai.toLowerCase().includes(availableFilter) ||
             p.nip.toLowerCase().includes(availableFilter)
         );
         tambahPesertaState.selected.push(...itemsToMove);
@@ -1791,7 +1791,7 @@ function moveAllPegawai(action) {
 async function submitTambahPesertaBulk() {
     const btn = document.getElementById('btnSimpanTambahPeserta');
     const kodeAkses = document.getElementById('tambahPesertaKodeAkses').value;
-    
+
     if (tambahPesertaState.selected.length === 0) {
         Swal.fire('Tidak Ada yang Dipilih', 'Silakan centang minimal satu pegawai untuk ditambahkan.', 'warning');
         return;
@@ -2033,7 +2033,7 @@ async function populatePegawaiFilterOpd() {
     await loadAllOpdList(); // Memastikan daftar OPD sudah dimuat
     const select = document.getElementById('pegawaiFilterOpd');
     // Simpan value yang sedang dipilih jika ada
-    const selectedValue = select.value; 
+    const selectedValue = select.value;
     select.innerHTML = '<option value="">-- Semua OPD --</option>'; // Opsi untuk tidak memfilter by OPD
     allOpdList.forEach(opd => {
         const option = document.createElement('option');
@@ -2113,8 +2113,8 @@ function renderPegawaiTable(pegawaiList) {
             `;
         }
 
-        const roleBadge = p.role === 'Admin' 
-            ? `<span class="badge bg-danger">${p.role}</span>` 
+        const roleBadge = p.role === 'Admin'
+            ? `<span class="badge bg-danger">${p.role}</span>`
             : `<span class="badge bg-secondary">${p.role}</span>`;
 
         return `
@@ -2158,7 +2158,7 @@ async function syncPegawaiKv(nip, nama) {
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/pegawai/sync-kv/${nip}`, { method: 'POST' });
             showAdminLoading(false);
             if (res.status) {
-                Swal.fire({toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, icon: 'success', title: res.message});
+                Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, icon: 'success', title: res.message });
                 loadPegawai(); // Muat ulang data tabel untuk melihat status baru
             } else {
                 Swal.fire('Gagal', res.message, 'error');
@@ -2188,7 +2188,7 @@ async function syncJadwalKv(kodeAkses, judul) {
             const res = await fetchWithAuth(`${API_BASE_URL}/admin/jadwal/sync-kv/${kodeAkses}`, { method: 'POST' });
             showAdminLoading(false);
             if (res.status) {
-                Swal.fire({toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, icon: 'success', title: res.message});
+                Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, icon: 'success', title: res.message });
                 loadJadwalKegiatan(); // Muat ulang data tabel untuk melihat status baru
             } else {
                 Swal.fire('Gagal', res.message, 'error');
@@ -2255,7 +2255,7 @@ async function bukaModalEditPegawai(pegawai) {
     currentPegawaiMode = 'edit';
     document.getElementById('formPegawai').reset();
     document.getElementById('pegawaiNip').readOnly = true;
-    
+
     const header = document.getElementById('modalPegawaiHeader');
     const title = document.getElementById('modalPegawaiTitle');
     const button = document.getElementById('btnSimpanPegawai');
@@ -2272,7 +2272,7 @@ async function bukaModalEditPegawai(pegawai) {
     document.getElementById('pegawaiJabatan').value = pegawai.jabatan || '';
     document.getElementById('pegawaiJenisAsn').value = pegawai.jenis_asn;
     document.getElementById('pegawaiRole').value = pegawai.role;
-    
+
     await loadAllOpdList();
     populateOpdDropdown('pegawaiOpd', pegawai.perangkat_daerah);
 
