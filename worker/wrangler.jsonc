@@ -42,6 +42,14 @@
         "binding": "MY_QUEUE",
         "queue": "absensi-kegiatan-asn-worker"
       }
+    ],
+    "consumers": [
+      {
+        "queue": "absensi-kegiatan-asn-worker",
+        "max_batch_size": 10, // Berapa maksimal pesan yang diproses sekaligus per eksekusi worker (1-100)
+        "max_batch_timeout": 5, // Maksimal waktu tunggu (detik) sebelum batch diproses walau belum penuh (0-60)
+        "max_retries": 5 // Maksimal percobaan ulang jika terjadi error (default: 3)
+      }
     ]
   }
 }

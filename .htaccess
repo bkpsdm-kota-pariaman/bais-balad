@@ -1,1 +1,12 @@
 Options -Indexes
+
+RewriteEngine On
+
+# Mengizinkan akses ke direktori utama (opsional)
+RewriteRule ^$ - [L]
+
+# Mengizinkan akses ke folder docs dan public_html beserta isinya
+RewriteRule ^(docs|public_html)(/.*)?$ - [L]
+
+# Memblokir akses ke semua file dan folder lain (seperti src, database, vendor, dll)
+RewriteRule ^(.*)$ - [F,L]
