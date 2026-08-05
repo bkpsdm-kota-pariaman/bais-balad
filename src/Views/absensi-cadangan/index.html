@@ -169,6 +169,15 @@
                                 <input type="radio" name="inpKeterangan" value="Data absensi tidak tersimpan/error" class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
                                 <span class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">11. Data absensi tidak tersimpan/error</span>
                             </label>
+
+                            <label class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-100 transition shadow-sm">
+                                <input type="radio" name="inpKeterangan" value="Lainnya" class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
+                                <span class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">12. Lainnya (tulis manual)</span>
+                            </label>
+                            
+                            <div id="boxKeteranganLainnya" class="hidden-view mt-2">
+                                <textarea id="inpKeteranganLainnya" rows="2" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-400 outline-none font-semibold text-gray-700 transition text-xs" placeholder="Tuliskan keterangan kendala Anda secara detail di sini..."></textarea>
+                            </div>
                         </div>
                     </div>
 
@@ -228,6 +237,18 @@
 
             deteksiLokasi();
             loadOpdList();
+
+            // Toggle textarea untuk opsi Lainnya
+            document.querySelectorAll('input[name="inpKeterangan"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const boxLainnya = document.getElementById('boxKeteranganLainnya');
+                    if (this.value === 'Lainnya') {
+                        boxLainnya.classList.remove('hidden-view');
+                    } else {
+                        boxLainnya.classList.add('hidden-view');
+                    }
+                });
+            });
         };
 
         function showLoading(show, text="Memproses...") { 
@@ -405,6 +426,15 @@
                 return;
             }
 
+            let nilaiKeterangan = keteranganDipilih.value;
+            if (nilaiKeterangan === 'Lainnya') {
+                nilaiKeterangan = document.getElementById('inpKeteranganLainnya').value.trim();
+                if (!nilaiKeterangan) {
+                    Swal.fire('Peringatan', 'Mohon isi keterangan kendala Anda pada kolom Lainnya.', 'warning');
+                    return;
+                }
+            }
+
             const fotoData = document.getElementById('fotoBase64').value;
             if (!fotoData) {
                 Swal.fire('Peringatan', 'Anda harus mengambil swafoto (selfie) terlebih dahulu!', 'warning');
@@ -422,7 +452,7 @@
                 nama: document.getElementById('inpNama').value.trim(),
                 jabatan: document.getElementById('inpJabatan').value.trim(),
                 opd: document.getElementById('inpOpd').value,
-                keterangan: keteranganDipilih.value, // Mengambil nilai dari radio button
+                keterangan: nilaiKeterangan, // Mengambil nilai dari radio button atau input manual
                 lat: document.getElementById('lat').value,
                 lng: document.getElementById('lng').value,
                 lokasi: document.getElementById('lokasi').value,
@@ -450,6 +480,7 @@
                         confirmButtonText: 'Tutup'
                     }).then(() => {
                         document.getElementById('formAbsenCadangan').reset();
+                        document.getElementById('boxKeteranganLainnya').classList.add('hidden-view');
                         document.getElementById('inpOpd').tomselect.clear();
                         ulangFoto();
                         deteksiLokasi();
