@@ -279,6 +279,118 @@ class AdminRekapController {
         Response::json(true, 200, "Data rekap keseluruhan berhasil difilter", $detailPegawai);
     }
 
+    public function getStatistikKehadiran() {
+        AdminAuthHelper::validate();
+        $db = Database::getConnection();
+
+        $inputJSON = file_get_contents('php://input');
+        $filters = json_decode($inputJSON, true);
+        
+        $startDate = $filters['start_date'] ?? null;
+        $endDate = $filters['end_date'] ?? null;
+        $opdList = $filters['opd_list'] ?? [];
+        $statusKehadiran = $filters['status_kehadiran'] ?? 'alpa';
+
+        if (!$startDate || !$endDate) {
+            Response::json(false, 400, "Tanggal mulai dan selesai wajib diisi.");
+            return;
+        }
+
+        $sql = "
+            SELECT 
+                a.nip, 
+                a.nama_pegawai, 
+                a.opd AS perangkat_daerah,
+                SUM(
+                    CASE 
+                        WHEN ? = 'alpa' THEN 
+                            CASE WHEN a.waktu IS NULL OR a.status_verifikasi = 'Ditolak Oleh Admin' THEN 1 ELSE 0 END
+                        WHEN ? = 'Hadir' THEN
+                            CASE WHEN a.waktu IS NOT NULL AND a.status_verifikasi != 'Ditolak Oleh Admin' AND (a.status_kehadiran = 'Hadir' OR a.status_kehadiran IS NULL) THEN 1 ELSE 0 END
+                        ELSE 
+                            CASE WHEN a.waktu IS NOT NULL AND a.status_verifikasi != 'Ditolak Oleh Admin' AND a.status_kehadiran = ? THEN 1 ELSE 0 END
+                    END
+                ) as jumlah
+            FROM app_absensi_data_absensi a
+            INNER JOIN app_absensi_jadwal_kegiatan j ON a.kode_akses = j.kode_akses
+            WHERE j.tanggal BETWEEN ? AND ?
+        ";
+        
+        $params = [
+            $statusKehadiran, 
+            $statusKehadiran, 
+            $statusKehadiran, 
+            $startDate, 
+            $endDate
+        ];
+
+        if (!empty($opdList)) {
+            $placeholders = implode(',', array_fill(0, count($opdList), '?'));
+            $sql .= " AND a.opd IN ($placeholders)";
+            array_push($params, ...$opdList);
+        }
+
+        $sql .= " GROUP BY a.nip, a.nama_pegawai, a.opd HAVING jumlah > 0 ORDER BY jumlah DESC";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        Response::json(true, 200, "Data statistik kehadiran berhasil diambil", $results);
+    }
+
+    public function getStatistikDetail() {
+        AdminAuthHelper::validate();
+        $db = Database::getConnection();
+
+        $inputJSON = file_get_contents('php://input');
+        $filters = json_decode($inputJSON, true);
+        
+        $startDate = $filters['start_date'] ?? null;
+        $endDate = $filters['end_date'] ?? null;
+        $nip = $filters['nip'] ?? null;
+        $statusKehadiran = $filters['status_kehadiran'] ?? 'alpa';
+
+        if (!$startDate || !$endDate || !$nip) {
+            Response::json(false, 400, "Parameter tidak lengkap.");
+            return;
+        }
+
+        $sql = "
+            SELECT 
+                j.judul AS judul_kegiatan,
+                j.tanggal,
+                j.jam_mulai,
+                j.jam_selesai,
+                a.waktu AS waktu_absen,
+                a.lokasi AS lokasi_absen,
+                a.status_verifikasi
+            FROM app_absensi_data_absensi a
+            INNER JOIN app_absensi_jadwal_kegiatan j ON a.kode_akses = j.kode_akses
+            WHERE j.tanggal BETWEEN ? AND ? AND a.nip = ?
+        ";
+        
+        $params = [$startDate, $endDate, $nip];
+
+        // Apply status condition exactly like the SUM query
+        if ($statusKehadiran === 'alpa') {
+            $sql .= " AND (a.waktu IS NULL OR a.status_verifikasi = 'Ditolak Oleh Admin')";
+        } elseif ($statusKehadiran === 'Hadir') {
+            $sql .= " AND a.waktu IS NOT NULL AND a.status_verifikasi != 'Ditolak Oleh Admin' AND (a.status_kehadiran = 'Hadir' OR a.status_kehadiran IS NULL)";
+        } else {
+            $sql .= " AND a.waktu IS NOT NULL AND a.status_verifikasi != 'Ditolak Oleh Admin' AND a.status_kehadiran = ?";
+            $params[] = $statusKehadiran;
+        }
+
+        $sql .= " ORDER BY j.tanggal DESC";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        Response::json(true, 200, "Data detail statistik berhasil diambil", $results);
+    }
+
     public function getRekapOpdList($vars) {
         AdminAuthHelper::validate();
         $kodeAkses = $vars['kode_akses'] ?? null;

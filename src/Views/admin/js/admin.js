@@ -2364,6 +2364,7 @@ async function hapusPegawai(nip, nama) {
             Swal.fire('Koneksi Gagal', 'Gagal menghapus pegawai. Periksa koneksi internet Anda.', 'error');
         }
     }
+}
 
 // =========================================================================
 // FITUR REKAP KESELURUHAN
@@ -2656,4 +2657,221 @@ function exportRekapKeseluruhanToExcel() {
     const fileName = `Rekap_Keseluruhan_Absensi_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(workbook, fileName);
 }
+
+// =========================================================================
+// FITUR STATISTIK KEHADIRAN
+// =========================================================================
+
+let statistikFilterOpdSelect;
+let currentStatistikData = [];
+
+function initStatistikUI() {
+    if (!statistikFilterOpdSelect) {
+        statistikFilterOpdSelect = new TomSelect('#statistikFilterOpd', {
+            plugins: ['remove_button', 'checkbox_options'],
+            create: false,
+            sortField: { field: 'text', direction: 'asc' },
+            placeholder: 'Pilih OPD...'
+        });
+        
+        flatpickr("#statistikStartDate", {
+            locale: "id",
+            dateFormat: "Y-m-d",
+            defaultDate: new Date()
+        });
+        
+        flatpickr("#statistikEndDate", {
+            locale: "id",
+            dateFormat: "Y-m-d",
+            defaultDate: new Date()
+        });
+    }
+}
+
+async function bukaHalamanStatistikKehadiran() {
+    document.getElementById('dashboardContainer').classList.add('d-none');
+    document.getElementById('rekapContainer').classList.add('d-none');
+    document.getElementById('pegawaiContainer').classList.add('d-none');
+    document.getElementById('opdContainer').classList.add('d-none');
+    document.getElementById('rekapKeseluruhanContainer').classList.add('d-none');
+    document.getElementById('statistikKehadiranContainer').classList.remove('d-none');
+
+    initStatistikUI();
+    
+    // Load OPD list if not already
+    if (allOpdList.length === 0) {
+        await loadAllOpdList();
+    }
+    
+    statistikFilterOpdSelect.clear();
+    statistikFilterOpdSelect.clearOptions();
+    statistikFilterOpdSelect.addOption(allOpdList.map(opd => ({ value: opd, text: opd })));
+}
+
+function selectAllOpdStatistik() {
+    const allOptions = Object.keys(statistikFilterOpdSelect.options);
+    statistikFilterOpdSelect.setValue(allOptions);
+}
+
+function resetStatistikFilters() {
+    statistikFilterOpdSelect.clear();
+    document.getElementById('statAlpaKes').checked = true;
+}
+
+async function terapkanFilterStatistik() {
+    const startDate = document.getElementById('statistikStartDate').value;
+    const endDate = document.getElementById('statistikEndDate').value;
+    
+    if (!startDate || !endDate) {
+        Swal.fire('Input Tidak Lengkap', 'Pilih Tanggal Mulai dan Tanggal Selesai terlebih dahulu.', 'warning');
+        return;
+    }
+
+    const selectedOpds = statistikFilterOpdSelect.getValue();
+    const statusKehadiran = document.querySelector('input[name="statistikStatusKehadiran"]:checked').value;
+
+    const tbody = document.getElementById('statistikTableBody');
+    const tableView = document.getElementById('statistikTableView');
+    const btnDownload = document.getElementById('btnDownloadExcelStatistik');
+
+    tableView.classList.remove('d-none');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm"></div> Memuat data statistik...</td></tr>';
+
+    btnDownload.classList.add('d-none');
+
+    try {
+        const result = await fetchWithAuth(`${API_BASE_URL}/admin/statistik`, {
+            method: 'POST',
+            body: JSON.stringify({
+                start_date: startDate,
+                end_date: endDate,
+                opd_list: selectedOpds,
+                status_kehadiran: statusKehadiran
+            })
+        });
+
+        if (result.status) {
+            currentStatistikData = result.data;
+            renderStatistikTable(currentStatistikData, statusKehadiran);
+
+            if (result.data.length > 0) {
+                btnDownload.classList.remove('d-none');
+            }
+        } else {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Gagal memuat data: ${result.message}</td></tr>`;
+        }
+    } catch (error) {
+        console.error('Error fetching statistik kehadiran:', error);
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Terjadi kesalahan koneksi.</td></tr>`;
+    }
+}
+
+function renderStatistikTable(data, statusKehadiranLabel) {
+    const tbody = document.getElementById('statistikTableBody');
+    document.getElementById('statistikTableView').classList.remove('d-none');
+
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Tidak ada data statistik yang ditemukan.</td></tr>';
+        return;
+    }
+
+    let humanStatus = statusKehadiranLabel;
+    if (statusKehadiranLabel === 'alpa') humanStatus = 'Alpa';
+
+    tbody.innerHTML = data.map((p, i) => {
+        return `<tr>
+            <td class="text-center align-middle">${i + 1}</td>
+            <td class="align-middle">${p.nip}</td>
+            <td class="align-middle fw-bold">${p.nama_pegawai}</td>
+            <td class="align-middle">${p.perangkat_daerah}</td>
+            <td class="text-center align-middle h5">
+                <div class="d-flex align-items-center justify-content-center gap-2">
+                    <span class="badge bg-primary rounded-pill px-3 py-2">${p.jumlah}x ${humanStatus}</span>
+                    <button class="btn btn-sm btn-outline-info" onclick="lihatDetailStatistik('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}')"><i class="bi bi-eye"></i> Detail</button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function lihatDetailStatistik(nip, namaPegawai) {
+    const startDate = document.getElementById('statistikStartDate').value;
+    const endDate = document.getElementById('statistikEndDate').value;
+    const statusKehadiran = document.querySelector('input[name="statistikStatusKehadiran"]:checked').value;
+
+    document.getElementById('detailStatistikNama').innerText = namaPegawai;
+    const tbody = document.getElementById('detailStatistikTableBody');
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalDetailStatistik'));
+    modal.show();
+
+    try {
+        const result = await fetchWithAuth(`${API_BASE_URL}/admin/statistik/detail`, {
+            method: 'POST',
+            body: JSON.stringify({
+                start_date: startDate,
+                end_date: endDate,
+                nip: nip,
+                status_kehadiran: statusKehadiran
+            })
+        });
+
+        if (result.status && result.data.length > 0) {
+            tbody.innerHTML = result.data.map((d, i) => {
+                const tanggalFmt = d.tanggal.split('-').reverse().join('-');
+                let waktuAbsen = d.waktu_absen ? d.waktu_absen.split(' ')[1] : '<span class="text-danger fw-bold">Belum Absen</span>';
+                if (statusKehadiran === 'alpa' || d.status_verifikasi === 'Ditolak Oleh Admin' || !d.waktu_absen) {
+                    waktuAbsen = '<span class="text-danger fw-bold">Tidak Hadir / Alpa</span>';
+                }
+                const lokasi = d.lokasi_absen ? `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${d.lokasi_absen}</small>` : '';
+                return `<tr>
+                    <td class="ps-3">${i + 1}</td>
+                    <td class="fw-bold">${d.judul_kegiatan}</td>
+                    <td>${tanggalFmt}<br><small class="text-muted">${d.jam_mulai} - ${d.jam_selesai}</small></td>
+                    <td>${waktuAbsen}${lokasi}</td>
+                </tr>`;
+            }).join('');
+        } else {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">Tidak ada detail kegiatan yang ditemukan.</td></tr>`;
+        }
+    } catch (error) {
+        console.error('Error fetching statistik detail:', error);
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-4">Terjadi kesalahan koneksi.</td></tr>`;
+    }
+}
+
+function exportStatistikToExcel() {
+    if (currentStatistikData.length === 0) {
+        Swal.fire('Data Kosong', 'Tidak ada data untuk diekspor.', 'warning');
+        return;
+    }
+
+    let statusKehadiranLabel = document.querySelector('input[name="statistikStatusKehadiran"]:checked').value;
+    if (statusKehadiranLabel === 'alpa') statusKehadiranLabel = 'Alpa';
+
+    const dataForExcel = currentStatistikData.map((p, index) => {
+        return {
+            'No': index + 1,
+            'NIP': p.nip,
+            'Nama Pegawai': p.nama_pegawai,
+            'Perangkat Daerah (OPD)': p.perangkat_daerah,
+            [`Jumlah ${statusKehadiranLabel}`]: p.jumlah
+        };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dataForExcel);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Statistik Kehadiran');
+
+    worksheet['!cols'] = [
+        { wch: 5 },  // No
+        { wch: 20 }, // NIP
+        { wch: 35 }, // Nama Pegawai
+        { wch: 40 }, // OPD
+        { wch: 15 }  // Jumlah
+    ];
+
+    const fileName = `Statistik_Kehadiran_${statusKehadiranLabel}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
 }

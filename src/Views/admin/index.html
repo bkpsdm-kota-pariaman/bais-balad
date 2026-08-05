@@ -22,6 +22,7 @@
     th { background-color: #f8f9fa !important; color: #495057; font-weight: 600; }
     #map, #mapGeofence, #editMapGeofence { height: 65vh; width: 100%; border-radius: 0 0 10px 10px; z-index: 1; }
     #mapGeofence, #editMapGeofence { height: 300px; border-radius: 10px; border: 2px solid #dee2e6; margin-bottom: 15px;}
+    .ts-control { max-height: 120px; overflow-y: auto; }
   </style>
 </head>
 <body>
@@ -46,9 +47,10 @@
         <h3 class="fw-bold mb-0"><i class="bi bi-laptop me-2"></i> Sistem Absensi Kegiatan</h3>
       </div>
       <div id="navButtons" class="d-none d-flex gap-2">
-        <button class="btn btn-light btn-sm fw-bold px-3" onclick="bukaHalamanRekapKeseluruhan()">Rekap Keseluruhan</button>
-        <button class="btn btn-light btn-sm fw-bold px-3" onclick="bukaHalamanPegawai()">Data Pegawai</button>
-        <button class="btn btn-light btn-sm fw-bold px-3" onclick="bukaHalamanOpd()">Data OPD</button>
+          <button class="btn btn-light btn-sm fw-bold px-3" onclick="bukaHalamanRekapKeseluruhan()" title="Rekap Kehadiran"><i class="bi bi-calendar2-week"></i> Rekap Kehadiran</button>
+          <button class="btn btn-light btn-sm fw-bold px-3" onclick="bukaHalamanStatistikKehadiran()" title="Statistik Kehadiran"><i class="bi bi-bar-chart-fill"></i> Statistik Kehadiran</button>
+          <button class="btn btn-light btn-sm fw-bold px-3" onclick="bukaHalamanPegawai()" title="Data Pegawai"><i class="bi bi-people"></i> Data Pegawai</button>
+          <button class="btn btn-light btn-sm fw-bold px-3" onclick="bukaHalamanOpd()" title="Data Perangkat Daerah"><i class="bi bi-building"></i> Data OPD</button>
         <button class="btn btn-danger btn-sm fw-bold px-3" onclick="logout()">Keluar</button>
       </div>
     </div>
@@ -165,12 +167,12 @@
       </div>
     </div>
 
-    <!-- REKAP KESELURUHAN -->
+    <!-- KONTEN REKAP KEHADIRAN -->
     <div id="rekapKeseluruhanContainer" class="d-none">
       <button class="btn btn-secondary btn-sm fw-bold mb-3 shadow-sm" onclick="kembaliKeDaftar()"><i class="bi bi-arrow-left"></i> Kembali ke Daftar Jadwal</button>
       
       <div class="box-container mb-4">
-        <h4 class="fw-bold mb-1"><i class="bi bi-collection-fill"></i> Rekap Absen Keseluruhan</h4>
+        <h4 class="fw-bold mb-1"><i class="bi bi-collection-fill"></i> Rekap Kehadiran</h4>
         <p class="mb-0 text-muted">Menampilkan rekapitulasi data absensi dari berbagai kegiatan berdasarkan rentang tanggal.</p>
       </div>
     
@@ -204,19 +206,20 @@
                 <div class="col-md-6">
                     <label class="form-label fw-bold small mb-1">Status Kehadiran</label>
                     <div id="rekapKeseluruhanFilterStatusContainer" class="p-2 border rounded bg-white d-flex flex-wrap gap-3" style="font-size: 0.9rem;">
-                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir" id="statusHadirKes"><label class="form-check-label" for="statusHadirKes">Hadir</label></div>
-                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Terlambat" id="statusTerlambatKes"><label class="form-check-label" for="statusTerlambatKes">Terlambat</label></div>
-                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Diluar Lokasi" id="statusLuarLokasiKes"><label class="form-check-label" for="statusLuarLokasiKes">Luar Lokasi</label></div>
-                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Terlambat Diluar Lokasi" id="statusTerlambatLuarLokasiKes"><label class="form-check-label" for="statusTerlambatLuarLokasiKes">Terlambat & Luar Lokasi</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir" id="statusHadirKes" checked><label class="form-check-label" for="statusHadirKes">Hadir</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Terlambat" id="statusTerlambatKes" checked><label class="form-check-label" for="statusTerlambatKes">Terlambat</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Diluar Lokasi" id="statusLuarLokasiKes" checked><label class="form-check-label" for="statusLuarLokasiKes">Luar Lokasi</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Terlambat Diluar Lokasi" id="statusTerlambatLuarLokasiKes" checked><label class="form-check-label" for="statusTerlambatLuarLokasiKes">Terlambat & Luar Lokasi</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="alpa" id="statusAlpaKes" checked><label class="form-check-label" for="statusAlpaKes">Tidak Hadir (Alpa)</label></div>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold small mb-1">Status Verifikasi</label>
                     <div id="rekapKeseluruhanFilterVerifikasiContainer" class="p-2 border rounded bg-white d-flex flex-wrap gap-3" style="font-size: 0.9rem;">
-                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Terverifikasi Sistem" id="verifSistemKes"><label class="form-check-label" for="verifSistemKes">Sistem</label></div>
-                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Terverifikasi Oleh Admin" id="verifAdminKes"><label class="form-check-label" for="verifAdminKes">Disahkan Admin</label></div>
-                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Ditolak Oleh Admin" id="verifDitolakKes"><label class="form-check-label" for="verifDitolakKes">Ditolak Admin</label></div>
-                        <div class="form-check"><input class="form-check-input" type="checkbox" value="ALPA" id="verifAlpaKes"><label class="form-check-label" for="verifAlpaKes">Belum Diverifikasi</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Terverifikasi Sistem" id="verifSistemKes" checked><label class="form-check-label" for="verifSistemKes">Sistem</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Terverifikasi Oleh Admin" id="verifAdminKes" checked><label class="form-check-label" for="verifAdminKes">Disahkan Admin</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Ditolak Oleh Admin" id="verifDitolakKes" checked><label class="form-check-label" for="verifDitolakKes">Ditolak Admin</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="ALPA" id="verifAlpaKes" checked><label class="form-check-label" for="verifAlpaKes">Belum Diverifikasi</label></div>
                     </div>
                 </div>
                 <div class="col-12 d-flex justify-content-end gap-2">
@@ -238,6 +241,71 @@
                     </tr>
                 </thead>
                   <tbody id="rekapKeseluruhanTableBody"><tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih rentang tanggal, filter, dan tekan "Tampilkan Data".</td></tr></tbody>
+              </table>
+          </div>
+      </div>
+    </div>
+
+    <!-- KONTEN STATISTIK KEHADIRAN -->
+    <div id="statistikKehadiranContainer" class="d-none">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h5 mb-0"><i class="bi bi-bar-chart-fill text-primary"></i> Statistik Kehadiran</h2>
+          <button class="btn btn-sm btn-outline-secondary" onclick="kembaliKeDaftar()"><i class="bi bi-arrow-left"></i> Kembali</button>
+      </div>
+      
+      <div class="bg-light p-3 rounded mb-3 shadow-sm border">
+          <div class="row g-3 align-items-end">
+              <div class="col-md-3">
+                  <label class="form-label fw-bold small">Tanggal Mulai</label>
+                  <input type="text" id="statistikStartDate" class="form-control bg-white" placeholder="Pilih Tanggal Mulai">
+              </div>
+              <div class="col-md-3">
+                  <label class="form-label fw-bold small">Tanggal Selesai</label>
+                  <input type="text" id="statistikEndDate" class="form-control bg-white" placeholder="Pilih Tanggal Selesai">
+              </div>
+              <div class="col-md-6">
+                  <label class="form-label fw-bold small d-flex justify-content-between">
+                      <span>Perangkat Daerah (OPD)</span>
+                      <a href="#" class="text-decoration-none small" onclick="selectAllOpdStatistik(); return false;">Pilih Semua</a>
+                  </label>
+                  <select id="statistikFilterOpd" class="form-select" multiple></select>
+              </div>
+              
+              <div class="col-md-12">
+                  <label class="form-label fw-bold small mb-1">Status Kehadiran (Pilih Satu)</label>
+                  <div id="statistikFilterStatusContainer" class="p-2 border rounded bg-white d-flex flex-wrap gap-3" style="font-size: 0.9rem;">
+                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Hadir" id="statHadirKes"><label class="form-check-label" for="statHadirKes">Hadir</label></div>
+                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Hadir Terlambat" id="statTerlambatKes"><label class="form-check-label" for="statTerlambatKes">Terlambat</label></div>
+                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Hadir Diluar Lokasi" id="statLuarLokasiKes"><label class="form-check-label" for="statLuarLokasiKes">Luar Lokasi</label></div>
+                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Hadir Terlambat Diluar Lokasi" id="statTerlambatLuarLokasiKes"><label class="form-check-label" for="statTerlambatLuarLokasiKes">Terlambat & Luar Lokasi</label></div>
+                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="alpa" id="statAlpaKes" checked><label class="form-check-label" for="statAlpaKes">Tidak Hadir (Alpa)</label></div>
+                  </div>
+              </div>
+              
+              <div class="col-12 d-flex justify-content-end gap-2">
+                  <button class="btn btn-outline-secondary" onclick="resetStatistikFilters()"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
+                  <button class="btn btn-primary" onclick="terapkanFilterStatistik()"><i class="bi bi-search"></i> Tampilkan Statistik</button>
+              </div>
+          </div>
+      </div>
+
+      <div class="d-flex justify-content-end mb-3">
+          <button id="btnDownloadExcelStatistik" class="btn btn-success btn-sm d-none" onclick="exportStatistikToExcel()"><i class="bi bi-file-earmark-excel"></i> Export Excel</button>
+      </div>
+
+      <div class="bg-white p-3 rounded shadow-sm border">
+          <div id="statistikTableView" class="table-responsive">
+              <table class="table table-hover table-bordered align-middle" id="statistikDataTable">
+                  <thead>
+                    <tr>
+                        <th class="text-center" style="width: 5%;">No</th>
+                        <th style="width: 25%;">NIP</th>
+                        <th style="width: 35%;">Nama Pegawai</th>
+                        <th style="width: 25%;">Perangkat Daerah (OPD)</th>
+                        <th class="text-center" style="width: 10%;">Jumlah</th>
+                    </tr>
+                </thead>
+                  <tbody id="statistikTableBody"><tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih rentang tanggal, filter status, dan tekan "Tampilkan Statistik".</td></tr></tbody>
               </table>
           </div>
       </div>
@@ -761,6 +829,38 @@
             </div>
         </div>
     </div>
+  </div>
+
+  <!-- MODAL DETAIL STATISTIK -->
+  <div class="modal fade" id="modalDetailStatistik" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+          <div class="modal-content">
+              <div class="modal-header">
+                  <h5 class="modal-title"><i class="bi bi-list-check"></i> Detail Kehadiran: <span id="detailStatistikNama"></span></h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body p-0">
+                  <div class="table-responsive">
+                      <table class="table table-hover table-striped mb-0 text-sm">
+                          <thead class="table-light">
+                              <tr>
+                                  <th class="ps-3" style="width: 5%;">No</th>
+                                  <th style="width: 35%;">Kegiatan</th>
+                                  <th style="width: 25%;">Tanggal / Jam</th>
+                                  <th style="width: 35%;">Waktu & Lokasi Absen</th>
+                              </tr>
+                          </thead>
+                          <tbody id="detailStatistikTableBody">
+                              <!-- Data will be populated here -->
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+              <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+              </div>
+          </div>
+      </div>
   </div>
 
   <!-- Javascript Library Eksternal -->

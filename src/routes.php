@@ -53,8 +53,8 @@ return function(RouteCollector $r) {
     // API baru untuk detail pegawai yang difilter
     $r->addRoute('POST', '/admin/rekap/details/{kode_akses}', ['App\Controllers\AdminRekapController', 'getRekapDetails']);
     $r->addRoute('POST', '/admin/rekap/keseluruhan', ['App\Controllers\AdminRekapController', 'getRekapKeseluruhan']);
-
-    // API baru untuk mendapatkan list OPD yang ada di rekap (untuk filter)
+    $r->addRoute('POST', '/admin/statistik', ['App\Controllers\AdminRekapController', 'getStatistikKehadiran']);
+    $r->addRoute('POST', '/admin/statistik/detail', ['App\Controllers\AdminRekapController', 'getStatistikDetail']);
     $r->addRoute('GET', '/admin/rekap/opd-list/{kode_akses}', ['App\Controllers\AdminRekapController', 'getRekapOpdList']);
 
     // Rute untuk CRUD data pegawai
