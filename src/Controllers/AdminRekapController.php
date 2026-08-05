@@ -204,6 +204,81 @@ class AdminRekapController {
         Response::json(true, 200, "Detail rekap berhasil diambil", $detailPegawai);
     }
 
+    // New function for Rekap Keseluruhan
+    public function getRekapKeseluruhan() {
+        AdminAuthHelper::validate();
+        $db = Database::getConnection();
+
+        $inputJSON = file_get_contents('php://input');
+        $filters = json_decode($inputJSON, true);
+        
+        $startDate = $filters['start_date'] ?? null;
+        $endDate = $filters['end_date'] ?? null;
+        $opdList = $filters['opd_list'] ?? [];
+        $statusKehadiranList = $filters['status_kehadiran'] ?? [];
+        $statusVerifikasiList = $filters['status_verifikasi'] ?? [];
+        $searchFilter = $filters['search'] ?? null;
+
+        if (!$startDate || !$endDate) {
+            Response::json(false, 400, "Tanggal mulai dan selesai wajib diisi.");
+            return;
+        }
+
+        $sql = "
+            SELECT
+                a.nip, a.nama_pegawai, a.opd AS perangkat_daerah, a.jabatan,
+                a.waktu AS waktu_absen, a.status_verifikasi, a.keterangan,
+                a.nama_file_foto, a.lokasi AS lokasi_absen, a.status_kehadiran,
+                j.kode_akses, j.judul AS judul_kegiatan, j.tanggal, j.jam_mulai, j.jam_selesai
+            FROM
+                app_absensi_data_absensi a
+            INNER JOIN
+                app_absensi_jadwal_kegiatan j ON a.kode_akses = j.kode_akses
+            WHERE
+                j.tanggal BETWEEN ? AND ?
+        ";
+        
+        $params = [$startDate, $endDate];
+
+        if (!empty($opdList)) {
+            $placeholders = implode(',', array_fill(0, count($opdList), '?'));
+            $sql .= " AND a.opd IN ($placeholders)";
+            array_push($params, ...$opdList);
+        }
+
+        if (!empty($searchFilter)) {
+            $sql .= " AND (a.nip LIKE ? OR a.nama_pegawai LIKE ? OR a.jabatan LIKE ?)";
+            $params[] = '%' . $searchFilter . '%';
+            $params[] = '%' . $searchFilter . '%';
+            $params[] = '%' . $searchFilter . '%';
+        }
+
+        $sql .= " ORDER BY j.tanggal DESC, a.waktu DESC";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $detailPegawai = [];
+        foreach ($results as $pegawai) {
+            $status_kehadiran_efektif = 'alpa';
+            if ($pegawai['waktu_absen'] !== null && $pegawai['status_verifikasi'] !== 'Ditolak Oleh Admin') {
+                $status_kehadiran_efektif = $pegawai['status_kehadiran'] ?? 'Hadir';
+            }
+
+            $status_verifikasi_efektif = $pegawai['status_verifikasi'] ?? 'ALPA';
+
+            $kehadiranMatch = empty($statusKehadiranList) || in_array($status_kehadiran_efektif, $statusKehadiranList);
+            $verifikasiMatch = empty($statusVerifikasiList) || in_array($status_verifikasi_efektif, $statusVerifikasiList);
+
+            if ($kehadiranMatch && $verifikasiMatch) {
+                $detailPegawai[] = $pegawai;
+            }
+        }
+
+        Response::json(true, 200, "Data rekap keseluruhan berhasil difilter", $detailPegawai);
+    }
+
     public function getRekapOpdList($vars) {
         AdminAuthHelper::validate();
         $kodeAkses = $vars['kode_akses'] ?? null;

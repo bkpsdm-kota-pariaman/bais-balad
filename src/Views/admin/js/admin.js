@@ -1390,9 +1390,13 @@ function renderRekapTable(filteredPegawai) {
                     break;
             }
 
-            const fotoLink = (p.nama_file_foto && p.nama_file_foto !== 'MANUAL_INPUT.jpg')
-                ? `<a href="${ORIGIN_SERVER_URL}/uploads/foto_absensi/${p.nama_file_foto}" target="_blank" class="d-block small text-decoration-none mt-1"><i class="bi bi-camera-fill"></i> Lihat Foto</a>`
-                : '';
+            let fotoLink = '';
+            if (p.nama_file_foto && p.nama_file_foto !== 'MANUAL_INPUT.jpg') {
+                const isDrive = p.nama_file_foto.startsWith('http://') || p.nama_file_foto.startsWith('https://');
+                const urlFoto = isDrive ? p.nama_file_foto : `${ORIGIN_SERVER_URL}/uploads/foto_absensi/${p.nama_file_foto}`;
+                const icon = isDrive ? '<i class="bi bi-google"></i> Link Drive' : '<i class="bi bi-camera-fill"></i> Lihat Foto';
+                fotoLink = `<a href="${urlFoto}" target="_blank" class="d-block small text-decoration-none mt-1">${icon}</a>`;
+            }
 
             const keteranganText = p.keterangan ? `<div class="small text-muted mt-1 fst-italic" title="Keterangan">"${p.keterangan}"</div>` : '';
 
@@ -1471,10 +1475,22 @@ function renderFotoKehadiranGrid(filteredPegawai) {
 
         const pegawaiData = JSON.stringify(p).replace(/"/g, '&quot;');
 
+        const isDrive = p.nama_file_foto.startsWith('http://') || p.nama_file_foto.startsWith('https://');
+        let mediaHtml = '';
+        if (isDrive) {
+            mediaHtml = `<div class="d-flex flex-column align-items-center justify-content-center bg-light border-bottom" style="height: 200px;">
+                            <i class="bi bi-google fs-1 text-primary mb-2"></i>
+                            <span class="text-muted small">Foto dari Google Drive</span>
+                            <a href="${p.nama_file_foto}" target="_blank" class="btn btn-sm btn-outline-primary mt-2">Buka Tautan</a>
+                         </div>`;
+        } else {
+            mediaHtml = `<img src="${ORIGIN_SERVER_URL}/uploads/foto_absensi/${p.nama_file_foto}" class="card-img-top" alt="Foto Absensi ${p.nama_pegawai}" style="height: 200px; object-fit: cover; cursor: pointer;" onclick="Swal.fire({ title: 'Foto Kehadiran: ${p.nama_pegawai.replace(/'/g, `\\'`)}', imageUrl: '${ORIGIN_SERVER_URL}/uploads/foto_absensi/${p.nama_file_foto}', imageWidth: '90vw', imageHeight: 'auto', showCloseButton: true, confirmButtonText: 'Tutup' })">`;
+        }
+
         const cardHtml = `
             <div class="col">
                 <div class="card h-100 shadow-sm">
-                    <img src="${ORIGIN_SERVER_URL}/uploads/foto_absensi/${p.nama_file_foto}" class="card-img-top" alt="Foto Absensi ${p.nama_pegawai}" style="height: 200px; object-fit: cover; cursor: pointer;" onclick="Swal.fire({ title: 'Foto Kehadiran: ${p.nama_pegawai.replace(/'/g, `\\'`)}', imageUrl: '${ORIGIN_SERVER_URL}/uploads/foto_absensi/${p.nama_file_foto}', imageWidth: '90vw', imageHeight: 'auto', showCloseButton: true, confirmButtonText: 'Tutup' })">
+                    ${mediaHtml}
                     <div class="card-body d-flex flex-column">
                         <h6 class="card-title fw-bold mb-1">${p.nama_pegawai}</h6>
                         <p class="card-text small text-muted mb-2">${p.perangkat_daerah}</p>
@@ -1567,7 +1583,9 @@ async function bukaModalVerifikasi(pegawai) {
     const verifTanpaFoto = document.getElementById('verifTanpaFoto');
 
     if (pegawai.nama_file_foto && pegawai.nama_file_foto !== 'MANUAL_INPUT.jpg') {
-        verifLinkFoto.href = `${ORIGIN_SERVER_URL}/uploads/foto_absensi/${pegawai.nama_file_foto}`;
+        const isDrive = pegawai.nama_file_foto.startsWith('http://') || pegawai.nama_file_foto.startsWith('https://');
+        verifLinkFoto.href = isDrive ? pegawai.nama_file_foto : `${ORIGIN_SERVER_URL}/uploads/foto_absensi/${pegawai.nama_file_foto}`;
+        verifLinkFoto.innerHTML = isDrive ? '<i class="bi bi-google"></i> Buka Link Drive' : '<i class="bi bi-box-arrow-up-right"></i> Buka di Tab Baru';
         verifLinkFoto.classList.remove('d-none');
         verifTanpaFoto.classList.add('d-none');
     } else {
@@ -2346,4 +2364,296 @@ async function hapusPegawai(nip, nama) {
             Swal.fire('Koneksi Gagal', 'Gagal menghapus pegawai. Periksa koneksi internet Anda.', 'error');
         }
     }
+
+// =========================================================================
+// FITUR REKAP KESELURUHAN
+// =========================================================================
+
+let rekapKeseluruhanFilterOpdSelect;
+let currentRekapKeseluruhanData = [];
+
+function initRekapKeseluruhanUI() {
+    if (!rekapKeseluruhanFilterOpdSelect) {
+        rekapKeseluruhanFilterOpdSelect = new TomSelect('#rekapKeseluruhanFilterOpd', {
+            plugins: ['remove_button', 'checkbox_options'],
+            create: false,
+            sortField: { field: 'text', direction: 'asc' },
+            placeholder: 'Pilih OPD...'
+        });
+        
+        flatpickr("#rekapKeseluruhanStartDate", {
+            locale: "id",
+            dateFormat: "Y-m-d",
+            defaultDate: new Date()
+        });
+        
+        flatpickr("#rekapKeseluruhanEndDate", {
+            locale: "id",
+            dateFormat: "Y-m-d",
+            defaultDate: new Date()
+        });
+    }
+}
+
+async function bukaHalamanRekapKeseluruhan() {
+    document.getElementById('dashboardContainer').classList.add('d-none');
+    document.getElementById('rekapContainer').classList.add('d-none');
+    document.getElementById('pegawaiContainer').classList.add('d-none');
+    document.getElementById('opdContainer').classList.add('d-none');
+    document.getElementById('rekapKeseluruhanContainer').classList.remove('d-none');
+
+    initRekapKeseluruhanUI();
+    
+    // Load OPD list if not already
+    if (allOpdList.length === 0) {
+        await loadAllOpdList();
+    }
+    
+    rekapKeseluruhanFilterOpdSelect.clear();
+    rekapKeseluruhanFilterOpdSelect.clearOptions();
+    rekapKeseluruhanFilterOpdSelect.addOption(allOpdList.map(opd => ({ value: opd, text: opd })));
+}
+
+function selectAllOpdFilterKeseluruhan() {
+    const allOptions = Object.keys(rekapKeseluruhanFilterOpdSelect.options);
+    rekapKeseluruhanFilterOpdSelect.setValue(allOptions);
+}
+
+function resetRekapKeseluruhanFilters() {
+    rekapKeseluruhanFilterOpdSelect.clear();
+    document.getElementById('rekapKeseluruhanSearchInput').value = '';
+    document.querySelectorAll('#rekapKeseluruhanFilterStatusContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
+    document.querySelectorAll('#rekapKeseluruhanFilterVerifikasiContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
+}
+
+async function terapkanFilterRekapKeseluruhan() {
+    const startDate = document.getElementById('rekapKeseluruhanStartDate').value;
+    const endDate = document.getElementById('rekapKeseluruhanEndDate').value;
+    
+    if (!startDate || !endDate) {
+        Swal.fire('Input Tidak Lengkap', 'Pilih Tanggal Mulai dan Tanggal Selesai terlebih dahulu.', 'warning');
+        return;
+    }
+
+    const selectedOpds = rekapKeseluruhanFilterOpdSelect.getValue();
+    const statusKehadiran = Array.from(document.querySelectorAll('#rekapKeseluruhanFilterStatusContainer input:checked')).map(cb => cb.value);
+    const statusVerifikasi = Array.from(document.querySelectorAll('#rekapKeseluruhanFilterVerifikasiContainer input:checked')).map(cb => cb.value);
+    const searchInput = document.getElementById('rekapKeseluruhanSearchInput').value;
+
+    const tbody = document.getElementById('rekapKeseluruhanTableBody');
+    const tableView = document.getElementById('rekapKeseluruhanTableView');
+    const btnDownload = document.getElementById('btnDownloadExcelKeseluruhan');
+
+    if (statusKehadiran.length === 0 || statusVerifikasi.length === 0) {
+        Swal.fire('Filter Tidak Lengkap', 'Anda harus memilih minimal satu Status Kehadiran dan Status Verifikasi.', 'warning');
+        return;
+    }
+
+    tableView.classList.remove('d-none');
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm"></div> Memuat data keseluruhan...</td></tr>';
+
+    btnDownload.classList.add('d-none');
+
+    try {
+        const result = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/keseluruhan`, {
+            method: 'POST',
+            body: JSON.stringify({
+                start_date: startDate,
+                end_date: endDate,
+                opd_list: selectedOpds,
+                status_kehadiran: statusKehadiran,
+                status_verifikasi: statusVerifikasi,
+                search: searchInput
+            })
+        });
+
+        if (result.status) {
+            currentRekapKeseluruhanData = result.data;
+            renderRekapKeseluruhanTable(currentRekapKeseluruhanData);
+
+            if (result.data.length > 0) {
+                btnDownload.classList.remove('d-none');
+            }
+        } else {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Gagal memuat data: ${result.message}</td></tr>`;
+        }
+    } catch (error) {
+        console.error('Error fetching rekap keseluruhan:', error);
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Terjadi kesalahan koneksi.</td></tr>`;
+    }
+}
+
+function renderRekapKeseluruhanTable(data) {
+    const tbody = document.getElementById('rekapKeseluruhanTableBody');
+    document.getElementById('rekapKeseluruhanTableView').classList.remove('d-none');
+
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Tidak ada data yang cocok dengan filter.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.map((p, i) => {
+        const kegiatanInfo = `
+            <strong class="d-block text-primary">${p.judul_kegiatan}</strong>
+            <small class="text-muted"><i class="bi bi-upc-scan"></i> ${p.kode_akses}</small>
+            <small class="d-block text-muted"><i class="bi bi-calendar"></i> ${p.tanggal} (${p.jam_mulai} - ${p.jam_selesai})</small>
+        `;
+
+        const pegawaiInfo = `
+            <strong class="d-block">${p.nama_pegawai}</strong>
+            <small class="text-muted">NIP: ${p.nip}</small>
+            <small class="d-block text-muted">OPD: <span class="fw-medium">${p.perangkat_daerah}</span></small>
+        `;
+
+        const waktu = new Date(p.waktu_absen).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        let kehadiranBadge = '';
+        const statusHadir = p.status_kehadiran || 'Hadir';
+
+        switch (statusHadir) {
+            case 'Hadir': kehadiranBadge = `<span class="badge bg-success">Hadir</span>`; break;
+            case 'Hadir Terlambat': kehadiranBadge = `<span class="badge bg-warning text-dark">Hadir Terlambat</span>`; break;
+            case 'Hadir Diluar Lokasi': kehadiranBadge = `<span class="badge bg-info text-dark">Hadir Diluar Lokasi</span>`; break;
+            case 'Hadir Terlambat Diluar Lokasi': kehadiranBadge = `<span class="badge bg-danger">Terlambat &amp; Diluar Lokasi</span>`; break;
+            default: kehadiranBadge = `<span class="badge bg-secondary">${statusHadir}</span>`;
+        }
+
+        const detailAbsensiInfo = `
+            <strong class="d-block">${waktu} WIB</strong>
+            <div class="mt-1">${kehadiranBadge}</div>
+            <small class="text-muted d-block mt-1" title="Alamat Absen">${p.lokasi_absen || 'Lokasi tidak tercatat'}</small>
+        `;
+
+        let verifikasiBadge = '';
+        const statusVerif = p.status_verifikasi || 'ALPA';
+
+        switch (statusVerif) {
+            case 'Terverifikasi Oleh Admin': verifikasiBadge = `<span class="badge bg-primary">Disahkan Admin</span>`; break;
+            case 'Terverifikasi Sistem': verifikasiBadge = `<span class="badge bg-success">Terverifikasi Sistem</span>`; break;
+            case 'Ditolak Oleh Admin': verifikasiBadge = `<span class="badge bg-danger">Ditolak Admin</span>`; break;
+            default: verifikasiBadge = `<span class="badge bg-secondary">Alpa</span>`; break;
+        }
+
+        let fotoLink = '';
+        if (p.nama_file_foto && p.nama_file_foto !== 'MANUAL_INPUT.jpg') {
+            const isDrive = p.nama_file_foto.startsWith('http://') || p.nama_file_foto.startsWith('https://');
+            const urlFoto = isDrive ? p.nama_file_foto : `${ORIGIN_SERVER_URL}/uploads/foto_absensi/${p.nama_file_foto}`;
+            const icon = isDrive ? '<i class="bi bi-google"></i> Link Drive' : '<i class="bi bi-camera-fill"></i> Lihat Foto';
+            fotoLink = `<a href="${urlFoto}" target="_blank" class="d-block small text-decoration-none mt-1">${icon}</a>`;
+        }
+
+        const keteranganText = p.keterangan ? `<div class="small text-muted mt-1 fst-italic" title="Keterangan">"${p.keterangan}"</div>` : '';
+        const statusKeteranganInfo = `${verifikasiBadge}${fotoLink}${keteranganText}`;
+
+        return `<tr>
+            <td class="text-center align-middle">${i + 1}</td>
+            <td class="align-middle">${kegiatanInfo}</td>
+            <td class="align-middle">${pegawaiInfo}</td>
+            <td class="align-middle">${detailAbsensiInfo}</td>
+            <td class="align-middle">${statusKeteranganInfo}</td>
+            <td class="text-center align-middle">
+                <!-- Gunakan sistem modal verifikasi yang sudah ada, tapi inject currentRekapData sementara -->
+                <button class="btn btn-sm btn-outline-primary" onclick='bukaModalVerifikasiKeseluruhan(${JSON.stringify(p).replace(/"/g, "&quot;")})' title="Edit Status">
+                    <i class="bi bi-pencil-square"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger ms-1" onclick="hapusDataAbsensiKeseluruhan('${p.nip}', '${p.nama_pegawai}', '${p.kode_akses}')" title="Hapus Data">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function hapusDataAbsensiKeseluruhan(nip, nama, kodeAkses) {
+    const confirmation = await Swal.fire({
+        title: 'Anda Yakin?',
+        html: `Anda akan menghapus <b>${nama}</b> (NIP: ${nip}) dari rekap kegiatan ini. <br><br><strong class="text-danger">Aksi ini tidak dapat dibatalkan dan akan menghilangkan data kehadiran/ketidakhadiran pegawai ini dari rekap.</strong>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal'
+    });
+
+    if (confirmation.isConfirmed) {
+        try {
+            const result = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/entry/${kodeAkses}/${nip}`, {
+                method: 'DELETE'
+            });
+
+            if (result.status) {
+                Swal.fire('Terhapus!', result.message, 'success');
+                // Refresh data dengan filter yang sama
+                terapkanFilterRekapKeseluruhan();
+            } else {
+                Swal.fire('Gagal', result.message, 'error');
+            }
+        } catch (error) {
+            Swal.fire('Koneksi Gagal', 'Gagal menghapus data. Periksa koneksi internet Anda.', 'error');
+        }
+    }
+}
+
+function bukaModalVerifikasiKeseluruhan(pegawai) {
+    // Inject sementara currentRekapData agar bukaModalVerifikasi() bisa bekerja dengan baik
+    currentRekapData = { jadwal: { kode_akses: pegawai.kode_akses } };
+    bukaModalVerifikasi(pegawai);
+}
+
+function exportRekapKeseluruhanToExcel() {
+    if (currentRekapKeseluruhanData.length === 0) {
+        Swal.fire('Data Kosong', 'Tidak ada data untuk diekspor.', 'warning');
+        return;
+    }
+
+    const dataToExport = currentRekapKeseluruhanData.map((p, index) => {
+        let absensiInfo = 'Belum Absen';
+        if (p.waktu_absen) {
+            absensiInfo = new Date(p.waktu_absen).toLocaleString('id-ID');
+        }
+
+        return {
+            'No': index + 1,
+            'Kode Kegiatan': p.kode_akses,
+            'Nama Kegiatan': p.judul_kegiatan,
+            'Tanggal Kegiatan': p.tanggal,
+            'Nama Pegawai': p.nama_pegawai,
+            'NIP': p.nip,
+            'Jabatan': p.jabatan || '-',
+            'Perangkat Daerah (OPD)': p.perangkat_daerah,
+            'Waktu Absen': absensiInfo,
+            'Status Kehadiran': p.status_kehadiran || '-',
+            'Status Verifikasi': p.status_verifikasi || 'ALPA',
+            'Keterangan': p.keterangan || '-',
+            'Lokasi Absen': p.lokasi_absen || '-',
+            'Link Foto': (p.nama_file_foto && p.nama_file_foto !== 'MANUAL_INPUT.jpg') ? 
+                (p.nama_file_foto.startsWith('http') ? p.nama_file_foto : `${ORIGIN_SERVER_URL}/uploads/foto_absensi/${p.nama_file_foto}`) : '-'
+        };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Keseluruhan");
+
+    // Atur lebar kolom agar rapi
+    worksheet['!cols'] = [
+        { wch: 5 },  // No
+        { wch: 15 }, // Kode
+        { wch: 40 }, // Kegiatan
+        { wch: 15 }, // Tanggal
+        { wch: 35 }, // Nama Pegawai
+        { wch: 20 }, // NIP
+        { wch: 35 }, // Jabatan
+        { wch: 40 }, // OPD
+        { wch: 20 }, // Waktu Absen
+        { wch: 25 }, // Status Kehadiran
+        { wch: 25 }, // Status Verifikasi
+        { wch: 40 }, // Keterangan
+        { wch: 40 }, // Lokasi
+        { wch: 60 }  // Link Foto
+    ];
+
+    const fileName = `Rekap_Keseluruhan_Absensi_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+}
 }

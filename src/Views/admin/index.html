@@ -46,6 +46,7 @@
         <h3 class="fw-bold mb-0"><i class="bi bi-laptop me-2"></i> Sistem Absensi Kegiatan</h3>
       </div>
       <div id="navButtons" class="d-none d-flex gap-2">
+        <button class="btn btn-light btn-sm fw-bold px-3" onclick="bukaHalamanRekapKeseluruhan()">Rekap Keseluruhan</button>
         <button class="btn btn-light btn-sm fw-bold px-3" onclick="bukaHalamanPegawai()">Data Pegawai</button>
         <button class="btn btn-light btn-sm fw-bold px-3" onclick="bukaHalamanOpd()">Data OPD</button>
         <button class="btn btn-danger btn-sm fw-bold px-3" onclick="logout()">Keluar</button>
@@ -163,6 +164,85 @@
           </div>
       </div>
     </div>
+
+    <!-- REKAP KESELURUHAN -->
+    <div id="rekapKeseluruhanContainer" class="d-none">
+      <button class="btn btn-secondary btn-sm fw-bold mb-3 shadow-sm" onclick="kembaliKeDaftar()"><i class="bi bi-arrow-left"></i> Kembali ke Daftar Jadwal</button>
+      
+      <div class="box-container mb-4">
+        <h4 class="fw-bold mb-1"><i class="bi bi-collection-fill"></i> Rekap Absen Keseluruhan</h4>
+        <p class="mb-0 text-muted">Menampilkan rekapitulasi data absensi dari berbagai kegiatan berdasarkan rentang tanggal.</p>
+      </div>
+    
+      <!-- Filter dan Tabel Data Pegawai -->
+      <div class="box-container table-responsive">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <h5 class="fw-bold mb-0">Filter Data</h5>
+            <button id="btnDownloadExcelKeseluruhan" class="btn btn-outline-success d-none" onclick="exportRekapKeseluruhanToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>
+          </div>
+            <div class="row g-3 p-3 mb-3 bg-light border rounded">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small d-block">Tanggal Mulai</label>
+                    <input type="text" id="rekapKeseluruhanStartDate" class="form-control" placeholder="Pilih Tanggal Mulai...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small d-block">Tanggal Selesai</label>
+                    <input type="text" id="rekapKeseluruhanEndDate" class="form-control" placeholder="Pilih Tanggal Selesai...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small d-block">Filter OPD</label>
+                    <div class="input-group">
+                        <select id="rekapKeseluruhanFilterOpd" multiple placeholder="Pilih satu atau lebih OPD..."></select>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm mt-1 w-100" type="button" onclick="selectAllOpdFilterKeseluruhan()">Pilih Semua OPD</button>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small">Cari (NIP/Nama)</label>
+                    <input type="text" id="rekapKeseluruhanSearchInput" class="form-control" placeholder="Ketik NIP atau Nama...">
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label fw-bold small mb-1">Status Kehadiran</label>
+                    <div id="rekapKeseluruhanFilterStatusContainer" class="p-2 border rounded bg-white d-flex flex-wrap gap-3" style="font-size: 0.9rem;">
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir" id="statusHadirKes"><label class="form-check-label" for="statusHadirKes">Hadir</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Terlambat" id="statusTerlambatKes"><label class="form-check-label" for="statusTerlambatKes">Terlambat</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Diluar Lokasi" id="statusLuarLokasiKes"><label class="form-check-label" for="statusLuarLokasiKes">Luar Lokasi</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Terlambat Diluar Lokasi" id="statusTerlambatLuarLokasiKes"><label class="form-check-label" for="statusTerlambatLuarLokasiKes">Terlambat & Luar Lokasi</label></div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold small mb-1">Status Verifikasi</label>
+                    <div id="rekapKeseluruhanFilterVerifikasiContainer" class="p-2 border rounded bg-white d-flex flex-wrap gap-3" style="font-size: 0.9rem;">
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Terverifikasi Sistem" id="verifSistemKes"><label class="form-check-label" for="verifSistemKes">Sistem</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Terverifikasi Oleh Admin" id="verifAdminKes"><label class="form-check-label" for="verifAdminKes">Disahkan Admin</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Ditolak Oleh Admin" id="verifDitolakKes"><label class="form-check-label" for="verifDitolakKes">Ditolak Admin</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="ALPA" id="verifAlpaKes"><label class="form-check-label" for="verifAlpaKes">Belum Diverifikasi</label></div>
+                    </div>
+                </div>
+                <div class="col-12 d-flex justify-content-end gap-2">
+                    <button class="btn btn-outline-secondary" onclick="resetRekapKeseluruhanFilters()"><i class="bi bi-arrow-counterclockwise"></i> Reset Filter</button>
+                    <button class="btn btn-primary flex-grow-1" onclick="terapkanFilterRekapKeseluruhan()"><i class="bi bi-funnel-fill"></i> Tampilkan Data</button>
+                </div>
+            </div>
+          
+          <div id="rekapKeseluruhanTableView" class="table-responsive">
+              <table class="table table-hover table-bordered align-middle" id="rekapKeseluruhanDataTable">
+                  <thead>
+                    <tr>
+                        <th class="text-center" style="width: 5%;">No</th>
+                        <th style="width: 20%;">Kegiatan & Tanggal</th>
+                        <th style="width: 20%;">Pegawai & OPD</th>
+                        <th style="width: 20%;">Detail Absensi</th>
+                        <th style="width: 15%;">Status Verifikasi</th>
+                        <th class="text-center" style="width: 10%;">Aksi</th>
+                    </tr>
+                </thead>
+                  <tbody id="rekapKeseluruhanTableBody"><tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih rentang tanggal, filter, dan tekan "Tampilkan Data".</td></tr></tbody>
+              </table>
+          </div>
+      </div>
+    </div>
+
 
     <!-- MANAJEMEN PEGAWAI -->
     <div id="pegawaiContainer" class="d-none">
