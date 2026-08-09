@@ -35,7 +35,7 @@
     "build:pwa:copy-htaccess": "npx cpx \"src/Views/pwa/**/.htaccess\" docs/pwa || exit 0",
     "build:pwa:copy-uploads": "npx cpx \"src/Views/pwa/uploads/**\" docs/pwa/uploads || true",
     "build:pwa:html": "npx html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js true src/Views/pwa/index.html -o docs/pwa/index.html",
-    "build:pwa": "npm run build:pwa:dirs && npm run build:pwa:js-app && npm run build:pwa:css && npm run build:pwa:tailwind && npm run build:pwa:copy-fonts && npm run build:pwa:sw && npm run build:pwa:copy-manifest && npm run build:pwa:copy-icons && npm run build:pwa:copy-uploads && npm run build:pwa:copy-htaccess && npm run build:pwa:html",
+    "build:pwa": "node scripts/update-version.js && npm run build:pwa:dirs && npm run build:pwa:js-app && npm run build:pwa:css && npm run build:pwa:tailwind && npm run build:pwa:copy-fonts && npm run build:pwa:sw && npm run build:pwa:copy-manifest && npm run build:pwa:copy-icons && npm run build:pwa:copy-uploads && npm run build:pwa:copy-htaccess && npm run build:pwa:html",
     "build:landing:dirs": "npx mkdirp docs",
     "build:landing:copy": "npx cpx \"src/Views/CNAME\" \"src/Views/icon.ico\" docs/ || true",
     "build:landing:html": "npx html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js true src/Views/index.html -o docs/index.html",

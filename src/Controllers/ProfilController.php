@@ -218,19 +218,6 @@ class ProfilController {
             }
         }
         
-        // --- LOGIKA BARU: Lakukan sinkronisasi SEBELUM menulis ke DB ---
-        $payloadForKv = [
-            'nip' => $nip,
-            'nik' => $pegawaiDbData['nik'], // Ambil dari data DB yang sudah ada
-            'nama_pegawai' => $pegawaiDbData['nama_pegawai'], // Ambil dari data DB yang sudah ada
-            'perangkat_daerah' => $opdBaru ?: $pegawaiData['opd'], // Gunakan yang baru jika ada, jika tidak, gunakan yang lama dari token
-            'jabatan' => $jabatanBaru ?: $pegawaiData['jabatan'], // Gunakan yang baru jika ada, jika tidak, gunakan yang lama dari token
-            'jenis_asn' => $pegawaiDbData['jenis_asn'], // Ambil dari data DB yang sudah ada
-            'role' => $pegawaiData['role'] ?? ['asn'] // Ambil dari token saat ini
-        ];
-        $syncSuccess = $this->syncPegawaiToKv('PUT', $nip, $payloadForKv, true); // Blocking call
-        $kv_sync_status = $syncSuccess ? 1 : 0;
-        
         $updates = [];
         $params = [];
         if ($jabatanBaru) {
@@ -245,10 +232,9 @@ class ProfilController {
         // Tambahkan timestamp update profil ke dalam query
         $now = new DateTime('now', new DateTimeZone('Asia/Jakarta'));
         $updates[] = "updated_at = :updated_at";
-        // Tandai data sebagai 'belum sinkron' karena akan diubah
-        $updates[] = "kv_sync_status = :kv_sync_status";
+        // Set awal sebagai belum sinkron
+        $updates[] = "kv_sync_status = 0";
         $params[':updated_at'] = $now->format('Y-m-d H:i:s');
-        $params[':kv_sync_status'] = $kv_sync_status;
 
         $params[':nip'] = $nip;
         
@@ -257,6 +243,22 @@ class ProfilController {
         
         // Eksekusi update.
         $stmt->execute($params);
+
+        // --- LOGIKA BARU: Lakukan sinkronisasi SETELAH menulis ke DB ---
+        $payloadForKv = [
+            'nip' => $nip,
+            'nik' => $pegawaiDbData['nik'],
+            'nama_pegawai' => $pegawaiDbData['nama_pegawai'],
+            'perangkat_daerah' => $opdBaru ?: $pegawaiData['opd'],
+            'jabatan' => $jabatanBaru ?: $pegawaiData['jabatan'],
+            'jenis_asn' => $pegawaiDbData['jenis_asn'],
+            'role' => $pegawaiData['role'] ?? ['asn']
+        ];
+        $syncSuccess = $this->syncPegawaiToKv('PUT', $nip, $payloadForKv, true);
+        
+        if ($syncSuccess) {
+            $db->prepare("UPDATE app_absensi_data_pegawai SET kv_sync_status = 1 WHERE nip = :nip")->execute([':nip' => $nip]);
+        }
 
         // --- LOGIKA BARU: Generate token baru secara langsung, tanpa memanggil refresh() ---
         // Ini untuk menghindari sinkronisasi ganda ke KV.

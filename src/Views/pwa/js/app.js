@@ -3,7 +3,7 @@
 const ORIGIN_SERVER_URL = "https://api-esdm.pariamankota.go.id/beta-bais-pariaman";
 const API_BASE_URL = `${ORIGIN_SERVER_URL}/api`;
 const WORKER_URL = "https://absensi-kegiatan-asn-worker.bidpp-bkpsdm.workers.dev";
-const APP_VERSION = 'v6.1.0'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
+const APP_VERSION = 'v6.1.6'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
 
 /**
  * =================================================================
@@ -642,7 +642,7 @@ async function prosesLogin(e) {
         try {
             // 1. Coba login via Worker
             console.log("Mencoba login via Worker...");
-            response = await fetch(`${WORKER_URL}/api/login-asn`, {
+            response = await fetch(`${WORKER_URL}/api/login-asn?cb=${Date.now()}`, {
                 method: "POST",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -651,7 +651,7 @@ async function prosesLogin(e) {
         } catch (workerError) {
             // 2. Jika worker gagal (error jaringan, timeout, atau status error), fallback ke server PHP.
             console.warn("Login via Worker gagal, fallback ke server utama.", workerError.message);
-            response = await fetch(`${API_BASE_URL}/login-asn`, {
+            response = await fetch(`${API_BASE_URL}/login-asn?cb=${Date.now()}`, {
                 method: "POST",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -719,7 +719,9 @@ async function fetchWithAuth(url, options = {}) {
 
     const fetchOptions = { ...options, headers: { 'Authorization': `Bearer ${token}`, ...(!(options.body instanceof FormData) && { 'Content-Type': 'application/json' }), ...options.headers, }, };
 
-    const response = await fetch(url, fetchOptions);
+    const urlObj = new URL(url);
+    urlObj.searchParams.append('cb', Date.now());
+    const response = await fetch(urlObj.toString(), fetchOptions);
 
     if (response.status === 401) {
         // Jika server mengembalikan 401 (Unauthorized), berarti token
@@ -746,7 +748,7 @@ async function fetchAndCacheOpdList(tokenOverride) {
     try {
         // 1. Coba ambil dari Worker terlebih dahulu
         console.log('Mencoba mengambil daftar OPD dari Worker Cache...');
-        const workerResponse = await fetch(`${WORKER_URL}/api/opd/list`);
+        const workerResponse = await fetch(`${WORKER_URL}/api/opd/list?cb=${Date.now()}`);
         if (workerResponse.ok) {
             const workerData = await workerResponse.json();
             if (workerData.status && Array.isArray(workerData.data)) {
@@ -1031,18 +1033,11 @@ async function refreshProfil() {
     showLoading(true, "Menyinkronkan...");
 
     try {
-        let response;
-        try {
-            // 1. Coba sinkronisasi via Worker
-            console.log("Mencoba sinkronisasi profil via Worker...");
-            response = await fetchWithAuth(`${WORKER_URL}/api/profil/sync`, { method: "POST" });
-            if (!response.ok) {
-                throw new Error(`Worker merespon dengan status ${response.status}`);
-            }
-        } catch (workerError) {
-            // 2. Jika worker gagal (error jaringan, timeout, atau status error), fallback ke server PHP.
-            console.warn("Sinkronisasi profil via Worker gagal, fallback ke server utama.", workerError.message);
-            response = await fetchWithAuth(`${API_BASE_URL}/profil/refresh`); // GET request
+        // Hanya ambil sinkronisasi dari Worker tanpa fallback
+        console.log("Mencoba sinkronisasi profil via Worker...");
+        const response = await fetchWithAuth(`${WORKER_URL}/api/profil/sync`, { method: "POST" });
+        if (!response.ok) {
+            throw new Error(`Worker merespon dengan status ${response.status}`);
         }
 
         const res = await response.json();
@@ -1344,18 +1339,20 @@ async function handleJwtValidation(jwt) {
     }
 
     // Validasi tanggal di sisi klien untuk memberikan feedback cepat.
-    const now = new Date(); // Waktu lokal browser.
-    // Buat objek Date untuk tanggal acara, pastikan diinterpretasikan sebagai waktu lokal.
-    const eventDate = new Date(jadwalFromJwt.tanggal + "T00:00:00");
-
-    if (now.toDateString() !== eventDate.toDateString()) {
+    const nowTime = Date.now();
+    
+    // Konversi UTC tersinkronisasi ke string tanggal Jakarta (Y-M-D)
+    const jakartaDateString = new Date(nowTime).toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+    
+    if (jakartaDateString !== jadwalFromJwt.tanggal) {
         throw new Error("Jadwal ini tidak berlaku untuk hari ini.");
     }
 
-    // --- LOGIKA BARU: Validasi Waktu Mulai di sisi klien ---
-    // Buat objek Date untuk waktu mulai. Browser akan menginterpretasikannya di timezone lokal.
-    const startTime = new Date(`${jadwalFromJwt.tanggal}T${jadwalFromJwt.jam_mulai}`);
-    if (now < startTime) {
+    // --- LOGIKA BARU: Validasi Waktu Mulai di sisi klien tersinkronisasi ---
+    const eventStartStr = `${jadwalFromJwt.tanggal}T${jadwalFromJwt.jam_mulai}:00+07:00`;
+    const startTime = new Date(eventStartStr).getTime();
+    
+    if (nowTime < startTime) {
         throw new Error(`Absensi untuk kegiatan ini belum dibuka. Silakan coba lagi pada atau setelah pukul ${jadwalFromJwt.jam_mulai} WIB.`);
     }
 
@@ -1519,7 +1516,24 @@ async function cekLokasiOtomatis() {
             const radius = parseFloat(currentJadwal.radius_meter);
 
             if (jarak > radius) {
-                stGeo.className = "bg-yellow-50 text-yellow-700 py-2 px-4 rounded-lg text-xs font-bold border border-yellow-200";
+                if (currentJadwal.is_strict_location == 1) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Lokasi Tidak Sesuai',
+                        text: `Anda berada di luar lokasi (${Math.round(jarak)}m). Kegiatan ini tidak mengizinkan absen di luar lokasi. Anda hanya dapat mengajukan Izin/Keterangan.`,
+                        confirmButtonColor: '#b91c1c'
+                    });
+                    const elTipe = document.getElementById('tipeKehadiran');
+                    if (elTipe) {
+                        elTipe.querySelector('option[value="hadir"]').disabled = true;
+                        elTipe.value = 'izin';
+                        document.getElementById('flowHadir').classList.add('hidden-view');
+                        document.getElementById('flowIzin').classList.remove('hidden-view');
+                        checkIzinForm();
+                    }
+                    return;
+                }
+                stGeo.className = "bg-red-50 text-red-700 py-2 px-4 rounded-lg text-xs font-bold border border-red-200";
                 stGeo.innerHTML = `Luar Batas (${Math.round(jarak)}m). <br><small class="font-normal">${alamat}</small>`;
                 isLuarRadius = true;
             } else {
@@ -1539,6 +1553,12 @@ async function cekLokasiOtomatis() {
         stGeoLoading.classList.add('hidden-view');
         stGeo.classList.add('hidden-view');
         boxGagal.classList.remove('hidden-view');
+        
+        // Sembunyikan tombol "Lanjutkan" jika strict location
+        const btnLanjut = boxGagal.querySelector('button[onclick="lanjutTanpaLokasiValid()"]');
+        if (btnLanjut) {
+            btnLanjut.style.display = (currentJadwal.is_strict_location == 1) ? 'none' : 'flex';
+        }
     }, { enableHighAccuracy: true, timeout: 10000 });
 }
 function cleanupAbsenForm() {
@@ -1569,28 +1589,48 @@ function cleanupAbsenForm() {
     document.getElementById('keterangan').value = '';
 }
 async function kirimAbsensi() {
+    const tipeKehadiran = document.getElementById('tipeKehadiran') ? document.getElementById('tipeKehadiran').value : 'hadir';
+    
     // Ambil semua data yang dibutuhkan dari elemen form
     const b64 = document.getElementById('fotoBase64').value;
     const lat = document.getElementById('lat').value;
     const lng = document.getElementById('lng').value;
     const alamat = document.getElementById('alamat').value;
-    const keterangan = (isLuarRadius || isTerlambat) ? document.getElementById('keterangan').value.trim() : "-";
     const token = await localforage.getItem("asn_jwt_token");
     const kode = currentJadwal.kode_akses;
 
     // Tentukan status kehadiran berdasarkan kondisi
     let statusKehadiran;
-    if (isTerlambat && isLuarRadius) {
-        statusKehadiran = "Hadir Terlambat Diluar Lokasi";
-    } else if (isTerlambat) {
-        statusKehadiran = "Hadir Terlambat";
-    } else if (isLuarRadius) {
-        statusKehadiran = "Hadir Diluar Lokasi";
+    let keterangan;
+    let statusVerifikasi;
+    
+    if (tipeKehadiran === 'izin') {
+        const alasan = document.getElementById('alasanIzin').value;
+        const ket = document.getElementById('keteranganIzin').value.trim();
+        statusKehadiran = alasan; // Set Cuti, Dinas Luar, dsb. langsung
+        keterangan = ket || "-";
+        statusVerifikasi = "Menunggu Verifikasi Admin";
     } else {
-        statusKehadiran = "Hadir";
+        const baseKeterangan = document.getElementById('keterangan').value.trim();
+        if (isTerlambat && isLuarRadius) {
+            statusKehadiran = "Alpa";
+            statusVerifikasi = "Menunggu Verifikasi Admin";
+            keterangan = "Hadir Terlambat Diluar Lokasi - " + baseKeterangan;
+        } else if (isTerlambat) {
+            statusKehadiran = "Alpa";
+            statusVerifikasi = "Menunggu Verifikasi Admin";
+            keterangan = "Hadir Terlambat - " + baseKeterangan;
+        } else if (isLuarRadius) {
+            statusKehadiran = "Alpa";
+            statusVerifikasi = "Menunggu Verifikasi Admin";
+            keterangan = "Hadir Diluar Lokasi - " + baseKeterangan;
+        } else {
+            statusKehadiran = "Hadir";
+            statusVerifikasi = "Terverifikasi Sistem";
+            keterangan = "-";
+        }
     }
 
-    const statusVerifikasi = 'Terverifikasi Sistem';
     const useQueue = currentJadwal.aktifkan_antrian == 1;
 
     showLoading(true, "Mengirim Absensi...");
@@ -1604,19 +1644,30 @@ async function kirimAbsensi() {
             console.log("Mengirim absensi via: Direct API (Server Utama)");
             const formData = new FormData();
             formData.append('kode_akses', kode);
-            formData.append('lat', lat);
-            formData.append('lng', lng);
-            formData.append('lokasi', alamat);
+            formData.append('lat', tipeKehadiran === 'izin' ? '0' : lat);
+            formData.append('lng', tipeKehadiran === 'izin' ? '0' : lng);
+            formData.append('lokasi', tipeKehadiran === 'izin' ? 'Tidak Hadir / Izin' : alamat);
             formData.append('keterangan', keterangan);
-            formData.append('foto', new File([dataURItoBlob(b64)], "absen_selfie.jpg", { type: "image/jpeg" }));
             formData.append('status_kehadiran', statusKehadiran);
             formData.append('status_verifikasi', statusVerifikasi);
+            
+            if (tipeKehadiran === 'izin') {
+                const fileInput = document.getElementById('buktiIzin');
+                if (fileInput.files.length > 0) {
+                    formData.append('foto', fileInput.files[0]);
+                }
+            } else {
+                const isPdf = b64.includes('application/pdf');
+                const fileExt = isPdf ? 'pdf' : 'jpg';
+                const mimeType = isPdf ? 'application/pdf' : 'image/jpeg';
+                formData.append('foto', new File([dataURItoBlob(b64)], `absen_selfie.${fileExt}`, { type: mimeType }));
+            }
 
             const originResponse = await fetchWithAuth(`${API_BASE_URL}/absen/submit`, { method: "POST", body: formData, token: token });
             return await originResponse.json();
         };
 
-        if (useQueue) {
+        if (useQueue && tipeKehadiran !== 'izin') {
             try {
                 // 1. Coba kirim ke Worker/Queue
                 console.log("Mengirim absensi via: Cloudflare Queue");
@@ -1773,6 +1824,24 @@ function getDistanceInMeters(lat1, lon1, lat2, lon2) {
 }
 
 function lanjutTanpaLokasiValid() {
+    if (currentJadwal && currentJadwal.is_strict_location == 1) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Lokasi Diwajibkan',
+            text: 'Kegiatan ini mewajibkan Anda berada di lokasi. Absen tanpa lokasi tidak diizinkan, Anda hanya dapat mengajukan Izin/Keterangan.',
+            confirmButtonColor: '#b91c1c'
+        });
+        const elTipe = document.getElementById('tipeKehadiran');
+        if (elTipe) {
+            elTipe.querySelector('option[value="hadir"]').disabled = true;
+            elTipe.value = 'izin';
+            document.getElementById('flowHadir').classList.add('hidden-view');
+            document.getElementById('flowIzin').classList.remove('hidden-view');
+            checkIzinForm();
+        }
+        return;
+    }
+
     document.getElementById('statusGeoLoading').classList.add('hidden-view');
     isLuarRadius = true; // Force status to be 'luar lokasi'
 
@@ -1896,16 +1965,58 @@ function ambilFoto() {
 
     v.classList.add('hidden-view');
     document.getElementById('hasilFoto').classList.remove('hidden-view');
+    document.getElementById('pdfPreviewContainer').classList.add('hidden-view');
     document.getElementById('btnJepret').classList.add('hidden-view');
+    document.getElementById('btnUploadManual').classList.add('hidden-view');
     document.getElementById('btnUlang').classList.remove('hidden-view');
     validasiTombolKirim();
+}
+
+async function handleManualUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.size > 1048576) {
+        Swal.fire('Error', 'Ukuran file maksimal 1MB', 'error');
+        event.target.value = '';
+        return;
+    }
+
+    const isPdf = file.type === 'application/pdf';
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const b64 = e.target.result;
+        document.getElementById('fotoBase64').value = b64;
+        
+        document.getElementById('kamera').classList.add('hidden-view');
+        document.getElementById('btnJepret').classList.add('hidden-view');
+        document.getElementById('btnUploadManual').classList.add('hidden-view');
+        document.getElementById('btnUlang').classList.remove('hidden-view');
+        
+        if (isPdf) {
+            document.getElementById('hasilFoto').classList.add('hidden-view');
+            document.getElementById('pdfPreviewContainer').classList.remove('hidden-view');
+            document.getElementById('pdfFileName').textContent = file.name;
+        } else {
+            document.getElementById('pdfPreviewContainer').classList.add('hidden-view');
+            document.getElementById('hasilFoto').classList.remove('hidden-view');
+            document.getElementById('hasilFoto').src = b64;
+        }
+        
+        validasiTombolKirim();
+    };
+    reader.readAsDataURL(file);
 }
 
 function ulangFoto() {
     document.getElementById('fotoBase64').value = "";
     document.getElementById('hasilFoto').classList.add('hidden-view');
+    document.getElementById('pdfPreviewContainer').classList.add('hidden-view');
+    document.getElementById('fileUploadManual').value = "";
     document.getElementById('kamera').classList.remove('hidden-view');
     document.getElementById('btnJepret').classList.remove('hidden-view');
+    document.getElementById('btnUploadManual').classList.remove('hidden-view');
     document.getElementById('btnUlang').classList.add('hidden-view');
     validasiTombolKirim();
 }
@@ -1973,11 +2084,22 @@ async function setupAbsenForm(jadwalData) {
     showLoading(false); // Pastikan loading disembunyikan
     currentJadwal = jadwalData;
 
-    const now = getCurrentServerTime();
-    const [endHour, endMinute] = currentJadwal.jam_selesai.split(':');
-    const endTime = new Date(currentJadwal.tanggal);
-    endTime.setHours(endHour, endMinute, 0, 0);
-    isTerlambat = now > endTime;
+    const nowTime = Date.now();
+    const eventEndStr = `${currentJadwal.tanggal}T${currentJadwal.jam_selesai}:00+07:00`;
+    const endTime = new Date(eventEndStr).getTime();
+    isTerlambat = nowTime > endTime;
+
+    let forceIzin = false;
+    if (isTerlambat && currentJadwal.is_strict_time == 1) {
+        showLoading(false);
+        Swal.fire({
+            icon: 'warning',
+            title: 'Waktu Habis',
+            text: 'Waktu absensi telah berakhir untuk kegiatan ini. Anda hanya dapat mengajukan Izin/Keterangan.',
+            confirmButtonColor: '#b91c1c'
+        });
+        forceIzin = true;
+    }
 
     // Isi detail jadwal ke dalam elemen-elemen di form
     document.getElementById('formJudul').innerText = currentJadwal.judul;
@@ -1994,13 +2116,35 @@ async function setupAbsenForm(jadwalData) {
     document.getElementById('statusGeo').classList.add('hidden-view');
     document.getElementById('statusGeoLoading').classList.remove('hidden-view');
     document.getElementById('keterangan').value = '';
+    
+    // Reset Tipe Kehadiran & form Izin
+    const elTipe = document.getElementById('tipeKehadiran');
+    if (elTipe) {
+        elTipe.querySelector('option[value="hadir"]').disabled = forceIzin;
+        elTipe.value = forceIzin ? 'izin' : 'hadir';
+        
+        if (forceIzin) {
+            document.getElementById('flowHadir').classList.add('hidden-view');
+            document.getElementById('flowIzin').classList.remove('hidden-view');
+        } else {
+            document.getElementById('flowHadir').classList.remove('hidden-view');
+            document.getElementById('flowIzin').classList.add('hidden-view');
+        }
+        
+        document.getElementById('alasanIzin').value = '';
+        document.getElementById('keteranganIzin').value = '';
+        document.getElementById('buktiIzin').value = '';
+        checkIzinForm(); // panggil untuk disable/enable tombol kirim
+    }
 
     // Tambahkan state ke history browser untuk navigasi tombol kembali
     history.pushState({ view: 'form' }, "Konfirmasi Kehadiran", '#form');
 
     ulangFoto(); // Reset tampilan kamera
     switchView('view-form');
-    cekLokasiOtomatis(); // Mulai deteksi lokasi
+    if (!forceIzin) {
+        cekLokasiOtomatis(); // Mulai deteksi lokasi hanya jika boleh hadir
+    }
 }
 /**
  * Handler utama setelah QR code berhasil dipindai.
@@ -2060,5 +2204,68 @@ async function handleScanSuccess(decodedText) {
             await html5QrCode.stop().catch(err => console.warn("Gagal menghentikan scanner setelah sukses.", err));
         }
         handleDecodedQrText(decodedText);
+    }
+}
+
+// ==========================================
+// FUNGSI UNTUK ALUR TIDAK HADIR (IZIN/CUTI)
+// ==========================================
+function toggleTipeKehadiran() {
+    const tipe = document.getElementById('tipeKehadiran').value;
+    const flowHadir = document.getElementById('flowHadir');
+    const flowIzin = document.getElementById('flowIzin');
+    const btnKirim = document.getElementById('btnKirim');
+    
+    if (tipe === 'hadir') {
+        flowHadir.classList.remove('hidden-view');
+        flowIzin.classList.add('hidden-view');
+        // btnKirim disabled diserahkan pada alur ambil lokasi & kamera
+        btnKirim.disabled = true;
+        btnKirim.className = "w-full bg-gray-300 text-gray-500 font-extrabold py-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2";
+    } else {
+        flowHadir.classList.add('hidden-view');
+        flowIzin.classList.remove('hidden-view');
+        checkIzinForm(); // cek form izin untuk enable btnKirim
+    }
+}
+
+function checkIzinForm() {
+    const tipe = document.getElementById('tipeKehadiran').value;
+    if (tipe !== 'izin') return;
+    
+    const alasan = document.getElementById('alasanIzin').value;
+    const ket = document.getElementById('keteranganIzin').value.trim();
+    const bukti = document.getElementById('buktiIzin');
+    const btnKirim = document.getElementById('btnKirim');
+    
+    // Validasi dasar
+    let isValid = true;
+    if (!alasan || alasan === "") isValid = false;
+    if (ket === "") isValid = false;
+    if (bukti.files.length === 0) isValid = false;
+    
+    // Validasi File
+    if (bukti.files.length > 0) {
+        const file = bukti.files[0];
+        const fileSizeMB = file.size / (1024 * 1024);
+        const fileExt = file.name.split('.').pop().toLowerCase();
+        
+        if (fileSizeMB > 1.05) {
+            isValid = false;
+            Swal.fire('File Terlalu Besar', 'Ukuran maksimal file bukti dukung adalah 1 MB.', 'warning');
+            bukti.value = '';
+        } else if (!['jpg', 'jpeg', 'png', 'pdf'].includes(fileExt)) {
+            isValid = false;
+            Swal.fire('Format Tidak Sesuai', 'File harus berupa gambar (JPG/PNG) atau PDF.', 'warning');
+            bukti.value = '';
+        }
+    }
+    
+    if (isValid) {
+        btnKirim.disabled = false;
+        btnKirim.className = "w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer";
+    } else {
+        btnKirim.disabled = true;
+        btnKirim.className = "w-full bg-gray-300 text-gray-500 font-extrabold py-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2";
     }
 }

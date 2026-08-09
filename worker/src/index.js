@@ -53,14 +53,49 @@ export default {
 				headers: corsHeaders,
 			});
 		}
-		
+
 		const url = new URL(request.url);
-		const { pathname } = url;
+		const pathname = url.pathname;
+
+		// Helper validasi jadwal
+		const validateJadwalAbsen = async (kodeAkses, payload) => {
+			if (!kodeAkses || !env.JADWAL_KV) return null;
+			const cachedJadwal = await env.JADWAL_KV.get(`jadwal:${kodeAkses}`, 'json');
+			if (!cachedJadwal) return null;
+			
+			const now = new Date();
+			const todayYMD = now.toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });
+			if (cachedJadwal.tanggal !== todayYMD) {
+				return { error: true, code: 403, message: "Gagal: Jadwal ini tidak berlaku untuk hari ini." };
+			}
+			
+			const startTime = new Date(`${cachedJadwal.tanggal}T${cachedJadwal.jam_mulai}+07:00`);
+			if (now < startTime) {
+				return { error: true, code: 403, message: `Gagal: Absensi belum dibuka. Silakan tunggu hingga pukul ${cachedJadwal.jam_mulai} WIB.` };
+			}
+
+			const status = (payload.status_kehadiran || "").toLowerCase();
+
+			if (cachedJadwal.is_strict_time && cachedJadwal.is_strict_time == 1) {
+				if (status.includes("terlambat")) {
+					return { error: true, code: 403, message: "Gagal: Absensi terlambat tidak diizinkan untuk kegiatan ini (Strict Time)." };
+				}
+			}
+
+			if (cachedJadwal.is_strict_location && cachedJadwal.is_strict_location == 1) {
+				if (status.includes("diluar lokasi")) {
+					return { error: true, code: 403, message: "Gagal: Absensi di luar lokasi tidak diizinkan untuk kegiatan ini (Strict Location)." };
+				}
+			}
+
+			return null;
+		};
 
 		// =================================================================
 		// RUTE LOGIN ASN (DENGAN KV CACHE)
 		// =================================================================
 		if (pathname.endsWith('/api/login-asn')) {
+
 			if (request.method !== 'POST') {
 				return new Response(JSON.stringify({ status: false, code: 405, message: 'Metode request yang diharapkan adalah POST' }), { status: 405, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
 			}
@@ -321,30 +356,30 @@ export default {
 				// 2. Jika data ada di cache (Cache HIT)
 				if (profilKv) {
 					console.log(`[Profil Refresh Token] Cache HIT untuk NIP ${nip}. Membuat token baru.`);
-					
-                    const issuedAt = Math.floor(Date.now() / 1000);
-                    const expirationTime = issuedAt + 3600 * 24 * 30; // 30 hari
-                    const payload = {
-                        data: {
-                            nip: profilKv.nip,
-                            nama: profilKv.nama_pegawai,
-                            opd: profilKv.perangkat_daerah,
-                            jabatan: profilKv.jabatan,
-                            role: profilKv.role || ['asn'],
-                            jenis_asn: profilKv.jenis_asn
-                        },
-                    };
-                    const newJwt = await new SignJWT(payload)
-                        .setProtectedHeader({ alg: 'HS256' })
-                        .setIssuedAt(issuedAt)
-                        .setExpirationTime(expirationTime)
-                        .setIssuer('bais-balad-apps')
-                        .sign(secret);
 
-                    const responseData = {
-                        token: newJwt,
-                    };
-					
+					const issuedAt = Math.floor(Date.now() / 1000);
+					const expirationTime = issuedAt + 3600 * 24 * 30; // 30 hari
+					const payload = {
+						data: {
+							nip: profilKv.nip,
+							nama: profilKv.nama_pegawai,
+							opd: profilKv.perangkat_daerah,
+							jabatan: profilKv.jabatan,
+							role: profilKv.role || ['asn'],
+							jenis_asn: profilKv.jenis_asn
+						},
+					};
+					const newJwt = await new SignJWT(payload)
+						.setProtectedHeader({ alg: 'HS256' })
+						.setIssuedAt(issuedAt)
+						.setExpirationTime(expirationTime)
+						.setIssuer('bais-balad-apps')
+						.sign(secret);
+
+					const responseData = {
+						token: newJwt,
+					};
+
 					return new Response(JSON.stringify({
 						status: true, message: 'Token berhasil diperbarui dari cache.',
 						data: responseData
@@ -405,36 +440,36 @@ export default {
 				// 2. Jika data ada di cache (Cache HIT)
 				if (profilKv) {
 					console.log(`[Profil Sync] Cache HIT untuk NIP ${nip}. Membuat token baru dari data KV.`);
-					
-                    // Buat token baru dari data KV
-                    const issuedAt = Math.floor(Date.now() / 1000);
-                    const expirationTime = issuedAt + 3600 * 24 * 30; // 30 hari
-                    const payload = {
-                        data: {
-                            nip: profilKv.nip,
-                            nama: profilKv.nama_pegawai,
-                            opd: profilKv.perangkat_daerah,
-                            jabatan: profilKv.jabatan,
-                            role: profilKv.role || ['asn'],
-                            jenis_asn: profilKv.jenis_asn
-                        },
-                    };
-                    const newJwt = await new SignJWT(payload)
-                        .setProtectedHeader({ alg: 'HS256' })
-                        .setIssuedAt(issuedAt)
-                        .setExpirationTime(expirationTime)
-                        .setIssuer('bais-balad-apps')
-                        .sign(secret);
 
-                    const responseData = {
-                        token: newJwt,
-                        user: {
-                            nama: profilKv.nama_pegawai,
-                            jabatan: profilKv.jabatan,
-                            opd: profilKv.perangkat_daerah
-                        }
-                    };
-					
+					// Buat token baru dari data KV
+					const issuedAt = Math.floor(Date.now() / 1000);
+					const expirationTime = issuedAt + 3600 * 24 * 30; // 30 hari
+					const payload = {
+						data: {
+							nip: profilKv.nip,
+							nama: profilKv.nama_pegawai,
+							opd: profilKv.perangkat_daerah,
+							jabatan: profilKv.jabatan,
+							role: profilKv.role || ['asn'],
+							jenis_asn: profilKv.jenis_asn
+						},
+					};
+					const newJwt = await new SignJWT(payload)
+						.setProtectedHeader({ alg: 'HS256' })
+						.setIssuedAt(issuedAt)
+						.setExpirationTime(expirationTime)
+						.setIssuer('bais-balad-apps')
+						.sign(secret);
+
+					const responseData = {
+						token: newJwt,
+						user: {
+							nama: profilKv.nama_pegawai,
+							jabatan: profilKv.jabatan,
+							opd: profilKv.perangkat_daerah
+						}
+					};
+
 					return new Response(JSON.stringify({
 						status: true, message: 'Profil berhasil disinkronkan dari cache.',
 						data: responseData
@@ -608,12 +643,12 @@ export default {
 				// Lakukan operasi put secara blocking (await) untuk memastikan data benar-benar tersimpan.
 				const bulkPutPromises =
 					pegawaiList
-					.filter(p => p && p.nip) // Abaikan item yang tidak valid
-					.map(pegawaiData => {
-						const kvKey = `pegawai:${pegawaiData.nip}`;
-						// Simpan secara permanen (tanpa TTL)
-						return env.PEGAWAI_KV.put(kvKey, JSON.stringify(pegawaiData));
-					});
+						.filter(p => p && p.nip) // Abaikan item yang tidak valid
+						.map(pegawaiData => {
+							const kvKey = `pegawai:${pegawaiData.nip}`;
+							// Simpan secara permanen (tanpa TTL)
+							return env.PEGAWAI_KV.put(kvKey, JSON.stringify(pegawaiData));
+						});
 
 				await Promise.all(bulkPutPromises);
 
@@ -709,6 +744,12 @@ export default {
 					return new Response(JSON.stringify({ status: false, code: 400, message: "Token pegawai yang diabsenkan tidak ada dalam request body." }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
 				}
 
+				// Validasi waktu mulai jadwal
+				const validationError = await validateJadwalWaktuMulai(payload.kode_akses);
+				if (validationError) {
+					return new Response(JSON.stringify({ status: false, code: validationError.code, message: validationError.message }), { status: validationError.code, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+				}
+
 				// Hapus user_token dari payload utama agar tidak terkirim ke PHP jika ada fallback
 				delete payload.user_token;
 
@@ -752,6 +793,13 @@ export default {
 
 			try {
 				const payload = await request.json();
+
+				// Validasi jadwal (waktu mulai, strict time, strict location)
+				const validationError = await validateJadwalAbsen(payload.kode_akses, payload);
+				if (validationError) {
+					return new Response(JSON.stringify({ status: false, code: validationError.code, message: validationError.message }), { status: validationError.code, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+				}
+
 				const queuePayload = { ...payload, jwt_token: token, submittedAt: new Date().toISOString() };
 				await env.MY_QUEUE.send(queuePayload);
 

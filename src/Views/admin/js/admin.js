@@ -81,7 +81,7 @@ async function prosesLogin() {
             // Sembunyikan overlay login dan tampilkan konten admin
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('dashboardContainer').classList.remove('d-none');
-            document.getElementById('navButtons').classList.remove('d-none');
+            document.getElementById('adminNavbar').classList.remove('d-none');
 
             // Di sini Anda bisa memanggil fungsi untuk memuat data awal dashboard, contoh:
             loadJadwalKegiatan();
@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Jika token ada, anggap sudah login. Sembunyikan overlay.
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('dashboardContainer').classList.remove('d-none');
-        document.getElementById('navButtons').classList.remove('d-none');
+        document.getElementById('adminNavbar').classList.remove('d-none');
         loadJadwalKegiatan();
     }
     // Jika tidak ada token, overlay login akan tampil secara default.
@@ -196,9 +196,13 @@ async function fetchWithAuth(url, options = {}) {
     const token = localStorage.getItem('admin_jwt_token');
     const headers = {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
         ...options.headers,
     };
+
+    // Auto set application/json if body is string, else let browser set it (for FormData)
+    if (typeof options.body === 'string' && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
 
     const response = await fetch(url, { ...options, headers });
 
@@ -249,7 +253,7 @@ function renderJadwalTable(jadwalList) {
     jadwalList.forEach((jadwal, index) => {
         let antrianBadge = '';
         if (jadwal.aktifkan_antrian === '1') {
-            antrianBadge = '<span class="badge bg-primary">Antrian: Aktif</span>';
+            antrianBadge = '<span class="badge bg-danger">Antrian: Aktif</span>';
         } else if (jadwal.aktifkan_antrian === '0') {
             antrianBadge = '<span class="badge bg-secondary">Antrian: Non-Aktif</span>';
         }
@@ -258,7 +262,7 @@ function renderJadwalTable(jadwalList) {
         if (jadwal.kv_sync_status == 1) {
             syncStatusHtml = `
                 <div class="d-flex flex-column align-items-center gap-1">
-                    <span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Sinkron</span>
+                    <span class="badge bg-danger"><i class="bi bi-check-circle-fill"></i> Sinkron</span>
                     <button class="btn btn-sm btn-outline-info mt-1" onclick="syncJadwalKv('${jadwal.kode_akses}', '${jadwal.judul.replace(/'/g, `\\'`)}')" title="Sinkron Ulang Cache"><i class="bi bi-arrow-repeat"></i> Sinkron Ulang</button>
                 </div>
             `;
@@ -266,7 +270,7 @@ function renderJadwalTable(jadwalList) {
             syncStatusHtml = `
                 <div class="d-flex flex-column align-items-center gap-1">
                     <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill"></i> Belum Sinkron</span>
-                    <button class="btn btn-sm btn-outline-primary mt-1" onclick="syncJadwalKv('${jadwal.kode_akses}', '${jadwal.judul.replace(/'/g, `\\'`)}')" title="Sinkronkan Cache"><i class="bi bi-arrow-repeat"></i> Sinkronkan</button>
+                    <button class="btn btn-sm btn-outline-danger mt-1" onclick="syncJadwalKv('${jadwal.kode_akses}', '${jadwal.judul.replace(/'/g, `\\'`)}')" title="Sinkronkan Cache"><i class="bi bi-arrow-repeat"></i> Sinkronkan</button>
                 </div>
             `;
         }
@@ -283,9 +287,9 @@ function renderJadwalTable(jadwalList) {
                 <td class="text-center">${syncStatusHtml}</td>
                 <td class="text-center" style="min-width: 160px;">
                     <div class="d-flex flex-column gap-2">
-                        <button class="btn btn-primary btn-sm" onclick="lihatRekap('${jadwal.kode_akses}')"><i class="bi bi-pie-chart-fill"></i> Lihat Rekap</button>
+                        <button class="btn btn-danger btn-sm" onclick="lihatRekap('${jadwal.kode_akses}')"><i class="bi bi-pie-chart-fill"></i> Lihat Rekap</button>
                         <div class="btn-group btn-group-sm w-100">
-                            <button class="btn btn-outline-success" onclick="cetakQrCode('${jadwal.kode_akses}', '${jadwal.judul.replace(/'/g, "\\'")}', '${jadwal.tanggal}', '${jadwal.jam_mulai}', '${jadwal.jam_selesai}')" title="Cetak QR Code"><i class="bi bi-qr-code"></i> QR</button>
+                            <button class="btn btn-outline-danger" onclick="cetakQrCode('${jadwal.kode_akses}', '${jadwal.judul.replace(/'/g, "\\'")}', '${jadwal.tanggal}', '${jadwal.jam_mulai}', '${jadwal.jam_selesai}')" title="Cetak QR Code"><i class="bi bi-qr-code"></i> QR</button>
                             <button class="btn btn-outline-warning" onclick="bukaModalEdit('${jadwal.kode_akses}')" title="Edit Jadwal"><i class="bi bi-pencil-fill"></i> Edit</button>
                             <button class="btn btn-outline-danger" onclick="hapusKegiatan('${jadwal.kode_akses}')" title="Hapus Jadwal"><i class="bi bi-trash-fill"></i> Hapus</button>
                         </div>
@@ -310,6 +314,8 @@ async function bukaModalBuatKegiatan() {
         const pariamanCoords = [-0.6276, 100.1209];
         document.getElementById('geoLatLang').value = '';
         document.getElementById('geoRadius').value = '100';
+        document.getElementById('addStrictLocation').checked = false;
+        document.getElementById('addStrictTime').checked = false;
         markerAdd.setLatLng(pariamanCoords);
         circleAdd.setLatLng(pariamanCoords);
         circleAdd.setRadius(100);
@@ -362,6 +368,8 @@ async function submitKegiatanBaru(event) {
         jam_selesai: document.getElementById('newJamSelesai').value,
         koordinat: document.getElementById('geoLatLang').value || '-',
         radius_meter: document.getElementById('geoRadius').value || '100',
+        is_strict_location: document.getElementById('addStrictLocation').checked ? 1 : 0,
+        is_strict_time: document.getElementById('addStrictTime').checked ? 1 : 0,
         target_opd: opdState.add.selected,
         aktifkan_antrian: document.getElementById('newAktifkanAntrian').value
     };
@@ -418,7 +426,7 @@ async function hapusKegiatan(kodeAkses) {
 async function cetakQrCode(kodeAkses, judul, tanggal, jamMulai, jamSelesai) {
     currentQrData = { kode: kodeAkses, judul: judul };
     const qrContainer = document.getElementById('qrcode');
-    qrContainer.innerHTML = '<div class="spinner-border text-success" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Membuat QR Code...</p>';
+    qrContainer.innerHTML = '<div class="spinner-border text-danger" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Membuat QR Code...</p>';
     qrContainer.removeAttribute('data-qr-text');
 
     modalQrCode.show();
@@ -597,6 +605,8 @@ async function bukaModalEdit(kodeAkses) {
         document.getElementById('editJamSelesai').value = jadwal.jam_selesai;
         document.getElementById('editGeoLatLang').value = (jadwal.koordinat && jadwal.koordinat !== '-') ? jadwal.koordinat : '';
         document.getElementById('editGeoRadius').value = jadwal.radius_meter || '100';
+        document.getElementById('editStrictLocation').checked = (jadwal.is_strict_location == 1);
+        document.getElementById('editStrictTime').checked = (jadwal.is_strict_time == 1);
 
         // Sembunyikan dan atur nilai untuk pengaturan lanjutan
         document.getElementById('advancedSettingsEdit').classList.add('d-none');
@@ -633,6 +643,8 @@ async function submitEditKegiatan(event) {
         jam_selesai: document.getElementById('editJamSelesai').value,
         koordinat: document.getElementById('editGeoLatLang').value || '-',
         radius_meter: document.getElementById('editGeoRadius').value || '100',
+        is_strict_location: document.getElementById('editStrictLocation').checked ? 1 : 0,
+        is_strict_time: document.getElementById('editStrictTime').checked ? 1 : 0,
         target_opd: opdState.edit.selected,
         aktifkan_antrian: document.getElementById('editAktifkanAntrian').value
     };
@@ -864,6 +876,8 @@ function kembaliKeDaftar() {
     document.getElementById('opdContainer').classList.add('d-none');
     document.getElementById('pegawaiContainer').classList.add('d-none');
     document.getElementById('rekapContainer').classList.add('d-none');
+    document.getElementById('rekapKeseluruhanContainer').classList.add('d-none');
+    document.getElementById('statistikKehadiranContainer').classList.add('d-none');
     document.getElementById('dashboardContainer').classList.remove('d-none');
     loadJadwalKegiatan();
 }
@@ -871,6 +885,8 @@ function kembaliKeDaftar() {
 function bukaHalamanPegawai() {
     document.getElementById('dashboardContainer').classList.add('d-none');
     document.getElementById('rekapContainer').classList.add('d-none');
+    document.getElementById('rekapKeseluruhanContainer').classList.add('d-none');
+    document.getElementById('statistikKehadiranContainer').classList.add('d-none');
     document.getElementById('opdContainer').classList.add('d-none');
     document.getElementById('pegawaiContainer').classList.remove('d-none');
 
@@ -887,6 +903,8 @@ function bukaHalamanPegawai() {
 function bukaHalamanOpd() {
     document.getElementById('dashboardContainer').classList.add('d-none');
     document.getElementById('rekapContainer').classList.add('d-none');
+    document.getElementById('rekapKeseluruhanContainer').classList.add('d-none');
+    document.getElementById('statistikKehadiranContainer').classList.add('d-none');
     document.getElementById('pegawaiContainer').classList.add('d-none');
     document.getElementById('opdContainer').classList.remove('d-none');
     loadOpdData();
@@ -895,6 +913,8 @@ function bukaHalamanOpd() {
 async function lihatRekap(kodeAkses) {
     // Pindah ke tampilan rekap
     document.getElementById('dashboardContainer').classList.add('d-none');
+    document.getElementById('rekapKeseluruhanContainer').classList.add('d-none');
+    document.getElementById('statistikKehadiranContainer').classList.add('d-none');
     document.getElementById('rekapContainer').classList.remove('d-none');
     currentRekapData = { jadwal: null, filtered_pegawai: [] }; // Reset data cache
     resetRekapFilters();
@@ -956,86 +976,66 @@ function renderRekapSummary(summaryData, containerId) {
         return;
     }
 
-    let html = perOpdSummary.map(opd => `
+    let html = perOpdSummary.map(opd => {
+        const opdHadir = opd.statuses['Hadir'] || 0;
+        const opdPercentage = opd.target > 0 ? Math.round((opdHadir / opd.target) * 100) : 0;
+        return `
         <div class="mb-3 border-bottom pb-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <span class="fw-bold">${opd.opd_name}</span>
-                <span class="fw-bold ${opd.hadir === opd.target ? 'text-success' : 'text-dark'}">${opd.hadir} / ${opd.target} Pegawai (${opd.percentage}%)</span>
+                <span class="fw-bold ${opdHadir === opd.target ? 'text-danger' : 'text-dark'}">${opdHadir} / ${opd.target} Pegawai (${opdPercentage}%)</span>
             </div>
-            <div class="progress" style="height: 20px;"><div class="progress-bar bg-success" role="progressbar" style="width: ${opd.percentage}%;" aria-valuenow="${opd.percentage}">${opd.percentage > 0 ? opd.percentage + '%' : ''}</div></div>
+            <div class="progress" style="height: 20px;"><div class="progress-bar bg-danger" role="progressbar" style="width: ${opdPercentage}%;" aria-valuenow="${opdPercentage}">${opdPercentage > 0 ? opdPercentage + '%' : ''}</div></div>
             <div class="row gx-2 gy-1 small mt-2 text-center">
-                <div class="col">
-                    <div class="p-2 bg-success-subtle rounded h-100">
-                        <div class="fw-bold fs-6">${opd.hadir_ideal}</div>
-                        <div class="text-success-emphasis" style="font-size: 0.7rem;">Hadir Tepat Waktu</div>
+                ${Object.entries(opd.statuses).map(([statusName, count]) => {
+                    let badgeClass = 'bg-secondary-subtle';
+                    let textClass = 'text-secondary-emphasis';
+                    if (statusName === 'Hadir') { badgeClass = 'bg-success-subtle'; textClass = 'text-success-emphasis'; }
+                    else if (statusName === 'Belum Absen' || statusName === 'Alpa') { badgeClass = 'bg-danger-subtle'; textClass = 'text-danger-emphasis'; }
+                    else if (statusName.includes('Terlambat')) { badgeClass = 'bg-warning-subtle'; textClass = 'text-warning-emphasis'; }
+                    else if (statusName.includes('Lokasi')) { badgeClass = 'bg-info-subtle'; textClass = 'text-info-emphasis'; }
+                    else { badgeClass = 'bg-primary-subtle'; textClass = 'text-primary-emphasis'; }
+                    return `
+                    <div class="col">
+                        <div class="p-2 ${badgeClass} rounded h-100">
+                            <div class="fw-bold fs-6">${count}</div>
+                            <div class="${textClass}" style="font-size: 0.7rem;">${statusName}</div>
+                        </div>
                     </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 bg-danger-subtle rounded h-100">
-                        <div class="fw-bold fs-6">${opd.alpa}</div>
-                        <div class="text-danger-emphasis" style="font-size: 0.7rem;">Tidak Hadir</div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 bg-warning-subtle rounded h-100">
-                        <div class="fw-bold fs-6">${opd.terlambat}</div>
-                        <div class="text-warning-emphasis" style="font-size: 0.7rem;">Terlambat</div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 bg-info-subtle rounded h-100">
-                        <div class="fw-bold fs-6">${opd.diluar_lokasi}</div>
-                        <div class="text-info-emphasis" style="font-size: 0.7rem;">Di Luar Lokasi</div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 bg-danger-subtle rounded h-100">
-                        <div class="fw-bold fs-6">${opd.terlambat_diluar_lokasi}</div>
-                        <div class="text-danger-emphasis" style="font-size: 0.7rem;">Terlambat &amp; Luar Lokasi</div>
-                    </div>
-                </div>
+                    `;
+                }).join('')}
             </div>
         </div>
-    `).join('');
+    `}).join('');
 
+    const totalHadir = (overallSummary.statuses['Hadir'] || 0);
+    const percentage = overallSummary.total_target > 0 ? Math.round((totalHadir / overallSummary.total_target) * 100) : 0;
+    
     const summaryHeader = `
         <div class="mb-4 p-3 bg-light rounded border">
-            <div class="d-flex justify-content-between align-items-center mb-2"><span class="fw-bold h5">Total Keseluruhan</span><span class="fw-bold h5">${overallSummary.total_hadir} / ${overallSummary.total_target} Pegawai (${overallSummary.percentage_hadir}%)</span></div>
-            <div class="progress" style="height: 25px;"><div class="progress-bar progress-bar-striped bg-primary" role="progressbar" style="width: ${overallSummary.percentage_hadir}%;">${overallSummary.percentage_hadir}% Hadir</div></div>
+            <div class="d-flex justify-content-between align-items-center mb-2"><span class="fw-bold h5">Total Keseluruhan</span><span class="fw-bold h5">${totalHadir} / ${overallSummary.total_target} Pegawai (${percentage}%)</span></div>
+            <div class="progress" style="height: 25px;"><div class="progress-bar progress-bar-striped bg-danger" role="progressbar" style="width: ${percentage}%;">${percentage}% Hadir</div></div>
             <div class="row gx-2 gy-1 small mt-2 text-center">
-                <div class="col">
-                    <div class="p-2 bg-success-subtle rounded h-100">
-                        <div class="fw-bold fs-6">${overallSummary.total_hadir_ideal}</div>
-                        <div class="text-success-emphasis" style="font-size: 0.7rem;">Hadir Tepat Waktu</div>
+                ${Object.entries(overallSummary.statuses).map(([statusName, count]) => {
+                    let badgeClass = 'bg-secondary-subtle';
+                    let textClass = 'text-secondary-emphasis';
+                    if (statusName === 'Hadir') { badgeClass = 'bg-success-subtle'; textClass = 'text-success-emphasis'; }
+                    else if (statusName === 'Belum Absen' || statusName === 'Alpa') { badgeClass = 'bg-danger-subtle'; textClass = 'text-danger-emphasis'; }
+                    else if (statusName.includes('Terlambat')) { badgeClass = 'bg-warning-subtle'; textClass = 'text-warning-emphasis'; }
+                    else if (statusName.includes('Lokasi')) { badgeClass = 'bg-info-subtle'; textClass = 'text-info-emphasis'; }
+                    else { badgeClass = 'bg-primary-subtle'; textClass = 'text-primary-emphasis'; }
+                    return `
+                    <div class="col">
+                        <div class="p-2 ${badgeClass} rounded h-100">
+                            <div class="fw-bold fs-6">${count}</div>
+                            <div class="${textClass}" style="font-size: 0.7rem;">${statusName}</div>
+                        </div>
                     </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 bg-danger-subtle rounded h-100">
-                        <div class="fw-bold fs-6">${overallSummary.total_alpa}</div>
-                        <div class="text-danger-emphasis" style="font-size: 0.7rem;">Tidak Hadir</div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 bg-warning-subtle rounded h-100">
-                        <div class="fw-bold fs-6">${overallSummary.total_terlambat}</div>
-                        <div class="text-warning-emphasis" style="font-size: 0.7rem;">Terlambat</div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 bg-info-subtle rounded h-100">
-                        <div class="fw-bold fs-6">${overallSummary.total_diluar_lokasi}</div>
-                        <div class="text-info-emphasis" style="font-size: 0.7rem;">Di Luar Lokasi</div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="p-2 bg-danger-subtle rounded h-100">
-                        <div class="fw-bold fs-6">${overallSummary.total_terlambat_diluar_lokasi}</div>
-                        <div class="text-danger-emphasis" style="font-size: 0.7rem;">Terlambat &amp; Luar Lokasi</div>
-                    </div>
-                </div>
+                    `;
+                }).join('')}
             </div>
-        </div>`;
-
+        </div>
+    `;
     container.innerHTML = summaryHeader + html;
 }
 
@@ -1196,9 +1196,9 @@ function bukaModalTambahOpd() {
     const title = document.getElementById('modalOpdTitle');
     const button = document.getElementById('btnSimpanOpd');
 
-    header.className = 'modal-header bg-success text-white border-0';
+    header.className = 'modal-header bg-danger text-white border-0';
     title.innerHTML = '<i class="bi bi-building"></i> Tambah OPD Baru';
-    button.className = 'btn btn-success w-100 fw-bold py-2';
+    button.className = 'btn btn-danger w-100 fw-bold py-2';
     button.innerHTML = '<i class="bi bi-plus-circle"></i> Tambah OPD';
 
     modalOpd.show();
@@ -1317,8 +1317,24 @@ async function syncOpdList() {
 
 function renderRekapTable(filteredPegawai) {
     const tbody = document.getElementById('rekapTableBody');
-    document.getElementById('rekapTableView').classList.remove('d-none');
+    const tableView = document.getElementById('rekapTableView');
+    tableView.classList.remove('d-none');
     document.getElementById('rekapPhotoGridView').classList.add('d-none');
+
+    // Injeksi Banner Warning
+    let warningContainer = document.getElementById('rekap-warning-container');
+    if (!warningContainer) {
+        warningContainer = document.createElement('div');
+        warningContainer.id = 'rekap-warning-container';
+        tableView.parentNode.insertBefore(warningContainer, tableView);
+    }
+    
+    const pendingCount = filteredPegawai.filter(p => p.status_verifikasi === 'Menunggu Verifikasi Admin').length;
+    if (pendingCount > 0) {
+        warningContainer.innerHTML = `<div class="alert alert-warning shadow-sm border-warning mb-3"><i class="bi bi-exclamation-triangle-fill me-2"></i>Terdapat <strong>${pendingCount}</strong> absensi yang <strong>Menunggu Verifikasi Admin</strong> pada tabel di bawah ini. Harap segera periksa.</div>`;
+    } else {
+        warningContainer.innerHTML = '';
+    }
 
     const checkAllHeader = document.getElementById('rekapPilihSemua').parentElement;
     document.getElementById('rekapPilihSemua').checked = false;
@@ -1348,7 +1364,7 @@ function renderRekapTable(filteredPegawai) {
 
                 switch (statusHadir) {
                     case 'Hadir':
-                        kehadiranBadge = `<span class="badge bg-success">Hadir</span>`;
+                        kehadiranBadge = `<span class="badge bg-danger">Hadir</span>`;
                         break;
                     case 'Hadir Terlambat':
                         kehadiranBadge = `<span class="badge bg-warning text-dark">Hadir Terlambat</span>`;
@@ -1376,13 +1392,16 @@ function renderRekapTable(filteredPegawai) {
 
             switch (statusVerif) {
                 case 'Terverifikasi Oleh Admin':
-                    verifikasiBadge = `<span class="badge bg-primary">Disahkan Admin</span>`;
+                    verifikasiBadge = `<span class="badge bg-danger">Disahkan Admin</span>`;
                     break;
                 case 'Terverifikasi Sistem':
-                    verifikasiBadge = `<span class="badge bg-success">Terverifikasi Sistem</span>`;
+                    verifikasiBadge = `<span class="badge bg-danger">Terverifikasi Sistem</span>`;
                     break;
                 case 'Ditolak Oleh Admin':
                     verifikasiBadge = `<span class="badge bg-danger">Ditolak Admin</span>`;
+                    break;
+                case 'Menunggu Verifikasi Admin':
+                    verifikasiBadge = `<span class="badge bg-warning text-dark border border-warning"><i class="bi bi-hourglass-split"></i> Menunggu Verifikasi</span>`;
                     break;
                 case 'ALPA':
                 default:
@@ -1413,7 +1432,7 @@ function renderRekapTable(filteredPegawai) {
                 <td>${statusKeteranganInfo}</td>
                 <td class="text-center">
                     <div class="btn-group btn-group-sm" role="group">
-                        <button class="btn btn-outline-primary" onclick='bukaModalVerifikasi(${pegawaiData})' title="Edit Status">
+                        <button class="btn btn-outline-danger" onclick='bukaModalVerifikasi(${pegawaiData})' title="Edit Status">
                             <i class="bi bi-pencil-square"></i>
                         </button>
                         <button class="btn btn-outline-danger" onclick="hapusDataAbsensi('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}', '${currentRekapData.jadwal.kode_akses}')" title="Hapus dari Rekap">
@@ -1447,7 +1466,7 @@ function renderFotoKehadiranGrid(filteredPegawai) {
         let statusKehadiranBadge = '';
         switch (p.status_kehadiran) {
             case 'Hadir':
-                statusKehadiranBadge = `<span class="badge bg-success">Hadir</span>`;
+                statusKehadiranBadge = `<span class="badge bg-danger">Hadir</span>`;
                 break;
             case 'Hadir Terlambat':
                 statusKehadiranBadge = `<span class="badge bg-warning text-dark">Hadir Terlambat</span>`;
@@ -1466,7 +1485,7 @@ function renderFotoKehadiranGrid(filteredPegawai) {
         let verifStatusBadge = '';
         switch (p.status_verifikasi) {
             case 'Terverifikasi Oleh Admin':
-                verifStatusBadge = `<span class="badge bg-primary">Disahkan Admin</span>`;
+                verifStatusBadge = `<span class="badge bg-danger">Disahkan Admin</span>`;
                 break;
             case 'Ditolak Oleh Admin':
                 verifStatusBadge = `<span class="badge bg-warning text-dark">Ditolak Admin</span>`;
@@ -1476,12 +1495,20 @@ function renderFotoKehadiranGrid(filteredPegawai) {
         const pegawaiData = JSON.stringify(p).replace(/"/g, '&quot;');
 
         const isDrive = p.nama_file_foto.startsWith('http://') || p.nama_file_foto.startsWith('https://');
+        const isPdf = p.nama_file_foto.toLowerCase().endsWith('.pdf');
+        
         let mediaHtml = '';
         if (isDrive) {
             mediaHtml = `<div class="d-flex flex-column align-items-center justify-content-center bg-light border-bottom" style="height: 200px;">
-                            <i class="bi bi-google fs-1 text-primary mb-2"></i>
+                            <i class="bi bi-google fs-1 text-danger mb-2"></i>
                             <span class="text-muted small">Foto dari Google Drive</span>
-                            <a href="${p.nama_file_foto}" target="_blank" class="btn btn-sm btn-outline-primary mt-2">Buka Tautan</a>
+                            <a href="${p.nama_file_foto}" target="_blank" class="btn btn-sm btn-outline-danger mt-2">Buka Tautan</a>
+                         </div>`;
+        } else if (isPdf) {
+            mediaHtml = `<div class="d-flex flex-column align-items-center justify-content-center bg-light border-bottom" style="height: 200px;">
+                            <i class="bi bi-file-earmark-pdf-fill fs-1 text-danger mb-2"></i>
+                            <span class="text-muted small fw-bold">Dokumen PDF</span>
+                            <a href="${ORIGIN_SERVER_URL}/uploads/foto_absensi/${p.nama_file_foto}" target="_blank" class="btn btn-sm btn-danger mt-2"><i class="bi bi-box-arrow-up-right"></i> Buka PDF</a>
                          </div>`;
         } else {
             mediaHtml = `<img src="${ORIGIN_SERVER_URL}/uploads/foto_absensi/${p.nama_file_foto}" class="card-img-top" alt="Foto Absensi ${p.nama_pegawai}" style="height: 200px; object-fit: cover; cursor: pointer;" onclick="Swal.fire({ title: 'Foto Kehadiran: ${p.nama_pegawai.replace(/'/g, `\\'`)}', imageUrl: '${ORIGIN_SERVER_URL}/uploads/foto_absensi/${p.nama_file_foto}', imageWidth: '90vw', imageHeight: 'auto', showCloseButton: true, confirmButtonText: 'Tutup' })">`;
@@ -1503,7 +1530,7 @@ function renderFotoKehadiranGrid(filteredPegawai) {
                         ${p.keterangan && p.keterangan !== '-' ? `<p class="card-text small fst-italic text-warning mb-2" title="Keterangan"><i class="bi bi-info-circle"></i> "${p.keterangan}"</p>` : ''}
                         
                         <div class="mt-auto pt-2 border-top">
-                            <button class="btn btn-sm btn-outline-primary w-100" onclick='bukaModalVerifikasi(${pegawaiData})'>
+                            <button class="btn btn-sm btn-outline-danger w-100" onclick='bukaModalVerifikasi(${pegawaiData})'>
                                 <i class="bi bi-pencil-square"></i> Edit Status
                             </button>
                         </div>
@@ -1606,14 +1633,23 @@ async function bukaModalVerifikasi(pegawai) {
 async function submitVerifikasi(event) {
     event.preventDefault();
 
-    const payload = {
-        kode_akses: document.getElementById('verifKodeAkses').value,
-        nip: document.getElementById('verifNip').value,
-        status_verifikasi: document.getElementById('verifStatus').value,
-        keterangan: document.getElementById('verifKeterangan').value,
-        opd: document.getElementById('verifOpd').value,
-        jabatan: document.getElementById('verifJabatan').value
-    };
+    const formData = new FormData();
+    formData.append('kode_akses', document.getElementById('verifKodeAkses').value);
+    formData.append('nip', document.getElementById('verifNip').value);
+    formData.append('status_verifikasi', document.getElementById('verifStatus').value);
+    const setHadir = document.getElementById('verifStatusKehadiran').value;
+    if (setHadir) formData.append('status_kehadiran', setHadir);
+    formData.append('keterangan', document.getElementById('verifKeterangan').value);
+    formData.append('opd', document.getElementById('verifOpd').value);
+    formData.append('jabatan', document.getElementById('verifJabatan').value);
+    
+    const fileInput = document.getElementById('verifBuktiDukung');
+    if (fileInput.files.length > 0) {
+        formData.append('bukti_dukung', fileInput.files[0]);
+    } else {
+        Swal.fire('Error', 'Bukti dukung (Foto/PDF) wajib diunggah!', 'error');
+        return;
+    }
 
     const btn = document.getElementById('btnSimpanVerif');
     btn.disabled = true;
@@ -1622,7 +1658,7 @@ async function submitVerifikasi(event) {
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/verifikasi`, {
             method: 'POST',
-            body: JSON.stringify(payload)
+            body: formData
         });
 
         if (result.status) {
@@ -1643,8 +1679,12 @@ async function submitVerifikasi(event) {
                 }
             } catch (e) { console.error("Gagal refresh list OPD filter:", e); }
 
-            terapkanFilterRekap();
-            refreshRekapSummary(); // Refresh juga modal ringkasan
+            if (!document.getElementById('rekapKeseluruhanContainer').classList.contains('d-none')) {
+                terapkanFilterRekapKeseluruhan();
+            } else if (!document.getElementById('rekapContainer').classList.contains('d-none')) {
+                terapkanFilterRekap();
+                refreshRekapSummary(); // Refresh juga modal ringkasan
+            }
         } else {
             alert('Gagal memperbarui: ' + result.message);
         }
@@ -1656,6 +1696,8 @@ async function submitVerifikasi(event) {
         btn.innerHTML = '<i class="bi bi-floppy"></i> Simpan Status';
     }
 }
+
+// --- FUNGSI SET ABSEN MASAL DIHAPUS (Digabung ke Tambah Peserta) ---
 
 async function bukaModalTambahPeserta() {
     const searchInput = document.getElementById('tambahPesertaSearch');
@@ -1710,7 +1752,8 @@ async function cariEligiblePegawai() {
             method: 'POST',
             body: JSON.stringify({
                 search: filterText,
-                opd_list: selectedOpds
+                opd_list: selectedOpds,
+                include_all: true
             })
         });
 
@@ -1806,24 +1849,53 @@ function moveAllPegawai(action) {
     renderTambahPesertaView();
 }
 
-async function submitTambahPesertaBulk() {
+async function submitTambahPesertaBulk(event) {
+    if (event) event.preventDefault();
+    
     const btn = document.getElementById('btnSimpanTambahPeserta');
     const kodeAkses = document.getElementById('tambahPesertaKodeAkses').value;
 
     if (tambahPesertaState.selected.length === 0) {
-        Swal.fire('Tidak Ada yang Dipilih', 'Silakan centang minimal satu pegawai untuk ditambahkan.', 'warning');
+        Swal.fire('Tidak Ada yang Dipilih', 'Silakan pilih minimal satu pegawai.', 'warning');
+        return;
+    }
+    
+    const statusKehadiran = document.getElementById('bulkStatusKehadiran').value;
+    const statusVerifikasi = document.getElementById('bulkStatusVerifikasi').value;
+    const keterangan = document.getElementById('bulkKeterangan').value;
+    const buktiInput = document.getElementById('bulkBuktiDukung');
+    
+    if (statusKehadiran !== 'Belum Absen' && !buktiInput.files[0]) {
+        // Jika wajib upload bukti, uncomment logic dibawah ini, 
+        // tapi sesuai instruksi admin bukti opsional kecuali kita enforce disini.
+        // Kita biarkan opsional saja.
+    }
+    
+    if (buktiInput.files.length > 0 && buktiInput.files[0].size > 1048576) {
+        Swal.fire('File Terlalu Besar', 'Maksimal ukuran file bukti dukung adalah 1MB.', 'warning');
         return;
     }
 
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Menambahkan...';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Menyimpan...';
 
-    const payload = tambahPesertaState.selected.map(p => ({ nip: p.nip }));
+    const nipsArray = tambahPesertaState.selected.map(p => p.nip);
+    
+    const formData = new FormData();
+    formData.append('kode_akses', kodeAkses);
+    formData.append('nips', JSON.stringify(nipsArray));
+    formData.append('status_kehadiran', statusKehadiran);
+    formData.append('status_verifikasi', statusVerifikasi);
+    formData.append('keterangan', keterangan);
+    
+    if (buktiInput.files[0]) {
+        formData.append('bukti_dukung', buktiInput.files[0]);
+    }
 
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/entry/bulk/${kodeAkses}`, {
             method: 'POST',
-            body: JSON.stringify(payload)
+            body: formData
         });
 
         if (result.status) {
@@ -1856,13 +1928,13 @@ async function submitTambahPesertaBulk() {
         Swal.fire('Koneksi Gagal', 'Gagal menambahkan peserta. Periksa koneksi internet Anda.', 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-plus-circle"></i> Tambahkan Peserta Terpilih';
+        btn.innerHTML = '<i class="bi bi-floppy"></i> Simpan Pilihan & Kehadiran';
     }
 }
 
 async function tampilkanModalRingkasan() {
     const modalBody = document.getElementById('rekapPerOpdContainerModal');
-    modalBody.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary"></div><p class="mt-2">Memuat ringkasan...</p></div>';
+    modalBody.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-danger"></div><p class="mt-2">Memuat ringkasan...</p></div>';
     modalRingkasan.show();
 
     try {
@@ -1881,7 +1953,7 @@ async function refreshRekapSummary() {
     const kodeAkses = currentRekapData.jadwal.kode_akses;
     const modalBody = document.getElementById('rekapPerOpdContainerModal');
     const originalHtml = modalBody.innerHTML;
-    modalBody.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary"></div><p class="mt-2">Memuat ulang data...</p></div>';
+    modalBody.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-danger"></div><p class="mt-2">Memuat ulang data...</p></div>';
 
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/summary/${kodeAkses}`);
@@ -2118,7 +2190,7 @@ function renderPegawaiTable(pegawaiList) {
         if (p.kv_sync_status == 1) {
             syncStatusHtml = `
                 <div class="d-flex flex-column align-items-center gap-1">
-                    <span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Sinkron</span>
+                    <span class="badge bg-danger"><i class="bi bi-check-circle-fill"></i> Sinkron</span>
                     <button class="btn btn-sm btn-outline-info mt-1" onclick="syncPegawaiKv('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}')" title="Sinkron Ulang Cache"><i class="bi bi-arrow-repeat"></i> Sinkron Ulang</button>
                 </div>
             `;
@@ -2126,7 +2198,7 @@ function renderPegawaiTable(pegawaiList) {
             syncStatusHtml = `
                 <div class="d-flex flex-column align-items-center gap-1">
                     <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill"></i> Belum Sinkron</span>
-                    <button class="btn btn-sm btn-outline-primary mt-1" onclick="syncPegawaiKv('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}')" title="Sinkronkan Cache"><i class="bi bi-arrow-repeat"></i> Sinkronkan</button>
+                    <button class="btn btn-sm btn-outline-danger mt-1" onclick="syncPegawaiKv('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}')" title="Sinkronkan Cache"><i class="bi bi-arrow-repeat"></i> Sinkronkan</button>
                 </div>
             `;
         }
@@ -2143,7 +2215,7 @@ function renderPegawaiTable(pegawaiList) {
                 <td>${p.perangkat_daerah}</td>
                 <td>${p.jabatan || '-'}</td>
                 <td>${p.nik}</td>
-                <td><span class="badge ${p.jenis_asn === 'PNS' ? 'bg-primary' : 'bg-success'}">${p.jenis_asn}</span></td>
+                <td><span class="badge ${p.jenis_asn === 'PNS' ? 'bg-danger' : 'bg-danger'}">${p.jenis_asn}</span></td>
                 <td>${roleBadge}</td>
                 <td>${formatIndonesianDateTime(p.last_login)}</td>
                 <td class="text-center">${syncStatusHtml}</td>
@@ -2259,9 +2331,9 @@ async function bukaModalTambahPegawai() {
     const title = document.getElementById('modalPegawaiTitle');
     const button = document.getElementById('btnSimpanPegawai');
 
-    header.className = 'modal-header bg-success text-white border-0';
+    header.className = 'modal-header bg-danger text-white border-0';
     title.innerHTML = '<i class="bi bi-person-plus-fill"></i> Tambah Pegawai Baru';
-    button.className = 'btn btn-success w-100 fw-bold py-2';
+    button.className = 'btn btn-danger w-100 fw-bold py-2';
     button.innerHTML = '<i class="bi bi-plus-circle"></i> Tambah Pegawai';
 
     await loadAllOpdList();
@@ -2401,6 +2473,7 @@ async function bukaHalamanRekapKeseluruhan() {
     document.getElementById('rekapContainer').classList.add('d-none');
     document.getElementById('pegawaiContainer').classList.add('d-none');
     document.getElementById('opdContainer').classList.add('d-none');
+    document.getElementById('statistikKehadiranContainer').classList.add('d-none');
     document.getElementById('rekapKeseluruhanContainer').classList.remove('d-none');
 
     initRekapKeseluruhanUI();
@@ -2413,6 +2486,11 @@ async function bukaHalamanRekapKeseluruhan() {
     rekapKeseluruhanFilterOpdSelect.clear();
     rekapKeseluruhanFilterOpdSelect.clearOptions();
     rekapKeseluruhanFilterOpdSelect.addOption(allOpdList.map(opd => ({ value: opd, text: opd })));
+    
+    // Reset state
+    document.getElementById('rekapKeseluruhanTableBody').innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih filter di atas dan tekan "Tampilkan Data" untuk menampilkan rekap.</td></tr>';
+    document.getElementById('btnDownloadExcelKeseluruhan').classList.add('d-none');
+    resetRekapKeseluruhanFilters();
 }
 
 function selectAllOpdFilterKeseluruhan() {
@@ -2486,7 +2564,23 @@ async function terapkanFilterRekapKeseluruhan() {
 
 function renderRekapKeseluruhanTable(data) {
     const tbody = document.getElementById('rekapKeseluruhanTableBody');
-    document.getElementById('rekapKeseluruhanTableView').classList.remove('d-none');
+    const tableView = document.getElementById('rekapKeseluruhanTableView');
+    tableView.classList.remove('d-none');
+    
+    // Injeksi Banner Warning
+    let warningContainer = document.getElementById('keseluruhan-warning-container');
+    if (!warningContainer) {
+        warningContainer = document.createElement('div');
+        warningContainer.id = 'keseluruhan-warning-container';
+        tableView.parentNode.insertBefore(warningContainer, tableView);
+    }
+    
+    const pendingCount = data.filter(p => p.status_verifikasi === 'Menunggu Verifikasi Admin').length;
+    if (pendingCount > 0) {
+        warningContainer.innerHTML = `<div class="alert alert-warning shadow-sm border-warning mb-3"><i class="bi bi-exclamation-triangle-fill me-2"></i>Terdapat <strong>${pendingCount}</strong> absensi yang <strong>Menunggu Verifikasi Admin</strong> pada tabel di bawah ini. Harap segera periksa.</div>`;
+    } else {
+        warningContainer.innerHTML = '';
+    }
 
     if (data.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Tidak ada data yang cocok dengan filter.</td></tr>';
@@ -2494,10 +2588,14 @@ function renderRekapKeseluruhanTable(data) {
     }
 
     tbody.innerHTML = data.map((p, i) => {
+        const bln = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const parts = p.tanggal.split('-');
+        const tanggalM = `${parts[2]} ${bln[parseInt(parts[1])-1]} ${parts[0]}`;
+        
         const kegiatanInfo = `
-            <strong class="d-block text-primary">${p.judul_kegiatan}</strong>
+            <strong class="d-block text-danger">${p.judul_kegiatan}</strong>
             <small class="text-muted"><i class="bi bi-upc-scan"></i> ${p.kode_akses}</small>
-            <small class="d-block text-muted"><i class="bi bi-calendar"></i> ${p.tanggal} (${p.jam_mulai} - ${p.jam_selesai})</small>
+            <small class="d-block text-muted"><i class="bi bi-calendar"></i> ${tanggalM} (${p.jam_mulai} - ${p.jam_selesai})</small>
         `;
 
         const pegawaiInfo = `
@@ -2511,7 +2609,7 @@ function renderRekapKeseluruhanTable(data) {
         const statusHadir = p.status_kehadiran || 'Hadir';
 
         switch (statusHadir) {
-            case 'Hadir': kehadiranBadge = `<span class="badge bg-success">Hadir</span>`; break;
+            case 'Hadir': kehadiranBadge = `<span class="badge bg-danger">Hadir</span>`; break;
             case 'Hadir Terlambat': kehadiranBadge = `<span class="badge bg-warning text-dark">Hadir Terlambat</span>`; break;
             case 'Hadir Diluar Lokasi': kehadiranBadge = `<span class="badge bg-info text-dark">Hadir Diluar Lokasi</span>`; break;
             case 'Hadir Terlambat Diluar Lokasi': kehadiranBadge = `<span class="badge bg-danger">Terlambat &amp; Diluar Lokasi</span>`; break;
@@ -2528,10 +2626,14 @@ function renderRekapKeseluruhanTable(data) {
         const statusVerif = p.status_verifikasi || 'ALPA';
 
         switch (statusVerif) {
-            case 'Terverifikasi Oleh Admin': verifikasiBadge = `<span class="badge bg-primary">Disahkan Admin</span>`; break;
-            case 'Terverifikasi Sistem': verifikasiBadge = `<span class="badge bg-success">Terverifikasi Sistem</span>`; break;
+            case 'Terverifikasi Oleh Admin': verifikasiBadge = `<span class="badge bg-danger">Disahkan Admin</span>`; break;
+            case 'Terverifikasi Sistem': verifikasiBadge = `<span class="badge bg-danger">Terverifikasi Sistem</span>`; break;
             case 'Ditolak Oleh Admin': verifikasiBadge = `<span class="badge bg-danger">Ditolak Admin</span>`; break;
-            default: verifikasiBadge = `<span class="badge bg-secondary">Alpa</span>`; break;
+            case 'Menunggu Verifikasi Admin': verifikasiBadge = `<span class="badge bg-warning text-dark border border-warning"><i class="bi bi-hourglass-split"></i> Menunggu Verifikasi</span>`; break;
+            case 'ALPA':
+            default:
+                verifikasiBadge = `<span class="badge bg-secondary">Alpa</span>`;
+                break;
         }
 
         let fotoLink = '';
@@ -2553,7 +2655,7 @@ function renderRekapKeseluruhanTable(data) {
             <td class="align-middle">${statusKeteranganInfo}</td>
             <td class="text-center align-middle">
                 <!-- Gunakan sistem modal verifikasi yang sudah ada, tapi inject currentRekapData sementara -->
-                <button class="btn btn-sm btn-outline-primary" onclick='bukaModalVerifikasiKeseluruhan(${JSON.stringify(p).replace(/"/g, "&quot;")})' title="Edit Status">
+                <button class="btn btn-sm btn-outline-danger" onclick='bukaModalVerifikasiKeseluruhan(${JSON.stringify(p).replace(/"/g, "&quot;")})' title="Edit Status">
                     <i class="bi bi-pencil-square"></i>
                 </button>
                 <button class="btn btn-sm btn-outline-danger ms-1" onclick="hapusDataAbsensiKeseluruhan('${p.nip}', '${p.nama_pegawai}', '${p.kode_akses}')" title="Hapus Data">
@@ -2706,6 +2808,11 @@ async function bukaHalamanStatistikKehadiran() {
     statistikFilterOpdSelect.clear();
     statistikFilterOpdSelect.clearOptions();
     statistikFilterOpdSelect.addOption(allOpdList.map(opd => ({ value: opd, text: opd })));
+
+    // Reset state
+    document.getElementById('statistikTableBody').innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih filter di atas dan tekan "Tampilkan Statistik" untuk menampilkan data.</td></tr>';
+    document.getElementById('btnDownloadExcelStatistik').classList.add('d-none');
+    resetStatistikFilters();
 }
 
 function selectAllOpdStatistik() {
@@ -2786,7 +2893,7 @@ function renderStatistikTable(data, statusKehadiranLabel) {
             <td class="align-middle">${p.perangkat_daerah}</td>
             <td class="text-center align-middle h5">
                 <div class="d-flex align-items-center justify-content-center gap-2">
-                    <span class="badge bg-primary rounded-pill px-3 py-2">${p.jumlah}x ${humanStatus}</span>
+                    <span class="badge bg-danger rounded-pill px-3 py-2">${p.jumlah}x ${humanStatus}</span>
                     <button class="btn btn-sm btn-outline-info" onclick="lihatDetailStatistik('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}')"><i class="bi bi-eye"></i> Detail</button>
                 </div>
             </td>
@@ -2801,7 +2908,7 @@ async function lihatDetailStatistik(nip, namaPegawai) {
 
     document.getElementById('detailStatistikNama').innerText = namaPegawai;
     const tbody = document.getElementById('detailStatistikTableBody');
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="spinner-border text-danger"></div></td></tr>';
     
     const modal = new bootstrap.Modal(document.getElementById('modalDetailStatistik'));
     modal.show();

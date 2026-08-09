@@ -16,54 +16,84 @@
   
   <style>
     body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
-    .top-header { background: linear-gradient(135deg, #198754 0%, #146c43 100%); color: white; padding: 20px 0; margin-bottom: 30px; }
     .card-stat { border: none; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; }
     .box-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
     th { background-color: #f8f9fa !important; color: #495057; font-weight: 600; }
     #map, #mapGeofence, #editMapGeofence { height: 65vh; width: 100%; border-radius: 0 0 10px 10px; z-index: 1; }
     #mapGeofence, #editMapGeofence { height: 300px; border-radius: 10px; border: 2px solid #dee2e6; margin-bottom: 15px;}
     .ts-control { max-height: 120px; overflow-y: auto; }
+    
+    /* Override Bootstrap Danger to match PWA #b91c1c */
+    :root {
+      --bs-danger: #b91c1c;
+      --bs-danger-rgb: 185, 28, 28;
+    }
+    .btn-danger { background-color: #b91c1c; border-color: #b91c1c; }
+    .btn-danger:hover, .btn-danger:active, .btn-danger:focus { background-color: #991b1b; border-color: #991b1b; }
+    .bg-danger { background-color: #b91c1c !important; }
+    .text-danger { color: #b91c1c !important; }
+    .border-danger { border-color: #b91c1c !important; }
+    .btn-outline-danger { color: #b91c1c; border-color: #b91c1c; }
+    .btn-outline-danger:hover { background-color: #b91c1c; border-color: #b91c1c; color: white; }
   </style>
 </head>
 <body>
 
   <!-- OVERLAY LOGIN -->
-  <div id="loginOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f4f6f9; z-index: 99999; display: flex; align-items: center; justify-content: center;">
+  <div id="loginOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fcf5f5; z-index: 99999; display: flex; align-items: center; justify-content: center;">
     <div class="card shadow-lg border-0" style="width: 100%; max-width: 400px; border-radius: 15px;">
-      <div class="card-body p-4 text-center">
-        <h4 class="fw-bold mb-3 text-success"><i class="bi bi-shield-lock-fill"></i> Admin Absensi</h4>
+      <div class="card-body p-5 text-center">
+        <h3 class="fw-bold mb-4" style="color: #b91c1c;"><i class="bi bi-shield-lock-fill me-2"></i> BAIS Pariaman</h3>
         <div class="form-floating mb-3"><input type="text" class="form-control" id="adminUser" placeholder="Username"><label>Username</label></div>
         <div class="form-floating mb-4"><input type="password" class="form-control" id="adminPass" placeholder="Password" onkeypress="if(event.key === 'Enter') prosesLogin()"><label>Password</label></div>
-        <button class="btn btn-success w-100 py-2 fw-bold" id="btnLogin" onclick="prosesLogin()">Masuk</button>
+        <button class="btn w-100 py-3 fw-bold text-white shadow-sm" style="background-color: #b91c1c; border-radius: 10px;" id="btnLogin" onclick="prosesLogin()">Masuk</button>
       </div>
     </div>
   </div>
 
-  <!-- HEADER -->
-  <div class="top-header">
-    <div class="container d-flex justify-content-between align-items-center flex-wrap gap-3">
-      <div>
-        <h6 class="fw-bold mb-1" style="color: #ffd43b;">PEMERINTAH KOTA PARIAMAN</h6>
-        <h3 class="fw-bold mb-0"><i class="bi bi-laptop me-2"></i> Sistem Absensi Kegiatan</h3>
-      </div>
-      <div id="navButtons" class="d-none d-flex gap-2">
-          <button class="btn btn-light btn-sm fw-bold px-3" onclick="bukaHalamanRekapKeseluruhan()" title="Rekap Kehadiran"><i class="bi bi-calendar2-week"></i> Rekap Kehadiran</button>
-          <button class="btn btn-light btn-sm fw-bold px-3" onclick="bukaHalamanStatistikKehadiran()" title="Statistik Kehadiran"><i class="bi bi-bar-chart-fill"></i> Statistik Kehadiran</button>
-          <button class="btn btn-light btn-sm fw-bold px-3" onclick="bukaHalamanPegawai()" title="Data Pegawai"><i class="bi bi-people"></i> Data Pegawai</button>
-          <button class="btn btn-light btn-sm fw-bold px-3" onclick="bukaHalamanOpd()" title="Data Perangkat Daerah"><i class="bi bi-building"></i> Data OPD</button>
-        <button class="btn btn-danger btn-sm fw-bold px-3" onclick="logout()">Keluar</button>
+  <!-- HEADER NAVBAR -->
+  <nav class="navbar navbar-expand-lg navbar-dark mb-4 shadow-sm" style="background-color: #b91c1c;">
+    <div class="container">
+      <a class="navbar-brand d-flex flex-column" href="#" onclick="kembaliKeDaftar(); return false;">
+        <span class="fs-6 fw-bold" style="color: #ffd43b;">PEMERINTAH KOTA PARIAMAN</span>
+        <span class="fs-4 fw-bold"><i class="bi bi-laptop me-2"></i> BAIS Pariaman</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar" aria-controls="adminNavbar" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse d-none" id="adminNavbar">
+        <ul class="navbar-nav ms-auto mb-2 mb-lg-0 gap-2">
+          <li class="nav-item">
+            <a class="nav-link text-white fw-bold" href="#" onclick="kembaliKeDaftar(); return false;"><i class="bi bi-calendar-event"></i> Data Kegiatan</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white fw-bold" href="#" onclick="bukaHalamanRekapKeseluruhan(); return false;"><i class="bi bi-calendar2-week"></i> Rekap Kehadiran</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white fw-bold" href="#" onclick="bukaHalamanStatistikKehadiran(); return false;"><i class="bi bi-bar-chart-fill"></i> Statistik Kehadiran</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white fw-bold" href="#" onclick="bukaHalamanPegawai(); return false;"><i class="bi bi-people"></i> Data Pegawai</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white fw-bold" href="#" onclick="bukaHalamanOpd(); return false;"><i class="bi bi-building"></i> Data OPD</a>
+          </li>
+          <li class="nav-item">
+            <button class="btn btn-outline-light btn-sm fw-bold px-3 ms-lg-3 mt-2 mt-lg-0 w-100 w-lg-auto" onclick="logout()">Keluar</button>
+          </li>
+        </ul>
       </div>
     </div>
-  </div>
+  </nav>
 
   <div class="container">
-    <div id="loading" class="text-center d-none my-5"><div class="spinner-border text-success"></div><h5 class="mt-3 text-muted" id="loadingText">Memuat Data...</h5></div>
+    <div id="loading" class="text-center d-none my-5"><div class="spinner-border text-danger"></div><h5 class="mt-3 text-muted" id="loadingText">Memuat Data...</h5></div>
 
     <!-- DAFTAR JADWAL -->
     <div id="dashboardContainer" class="d-none">
       <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="fw-bold mb-0"><i class="bi bi-calendar-event"></i> Daftar Jadwal Kegiatan</h4>
-        <button class="btn btn-success fw-bold px-4 shadow-sm" onclick="bukaModalBuatKegiatan()"><i class="bi bi-plus-circle"></i> Buat Jadwal Baru</button>
+        <button class="btn btn-danger fw-bold px-4 shadow-sm" onclick="bukaModalBuatKegiatan()"><i class="bi bi-plus-circle"></i> Buat Jadwal Baru</button>
       </div>
 
       <div class="box-container table-responsive">
@@ -86,7 +116,7 @@
         <p class="mb-2 text-muted" id="rekapDetailWaktu">-</p>
         <div class="d-flex flex-wrap gap-2">
             <p class="mb-0 me-3 align-self-center"><i class="bi bi-tag-fill"></i> Kategori: <strong id="rekapKategori">-</strong></p>
-            <button class="btn btn-primary fw-bold" onclick="tampilkanModalRingkasan()"><i class="bi bi-bar-chart-line"></i> Lihat Ringkasan Kehadiran</button>
+            <button class="btn btn-danger fw-bold" onclick="tampilkanModalRingkasan()"><i class="bi bi-bar-chart-line"></i> Lihat Ringkasan Kehadiran</button>
         </div>
       </div>
     
@@ -95,12 +125,22 @@
           <h5 class="fw-bold mb-3">Detail Data Pegawai</h5>
           <div class="d-flex justify-content-between align-items-start mb-3">
             <div class="d-flex gap-2">
-              <button class="btn btn-success" onclick="bukaModalTambahPeserta()"><i class="bi bi-person-plus-fill"></i> Tambah Peserta</button>
+              <button class="btn btn-danger" onclick="bukaModalTambahPeserta()"><i class="bi bi-person-plus-fill"></i> Tambah Peserta</button>
               <button id="btnHapusTerpilih" class="btn btn-danger d-none" onclick="hapusDataAbsensiMassal()"><i class="bi bi-trash-fill"></i> Hapus Terpilih</button>
             </div>
-            <button id="btnDownloadExcel" class="btn btn-outline-success d-none" onclick="exportRekapToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>
+            <div class="d-flex">
+                <button id="btnDownloadExcel" class="btn btn-outline-danger ms-2 fw-bold" onclick="exportFilteredRekapToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>
+                <button class="btn btn-primary ms-2 fw-bold shadow-sm" onclick="bukaModalTambahPeserta()"><i class="bi bi-check2-all"></i> Set Kehadiran Masal</button>
+            </div>
           </div>
             <div class="row g-3 p-3 mb-3 bg-light border rounded">
+                <style>
+                    /* Batasi tinggi TomSelect agar scrollable */
+                    #rekapFilterOpd ~ .ts-wrapper .ts-control {
+                        max-height: 120px;
+                        overflow-y: auto;
+                    }
+                </style>
                 <div class="col-md-4">
                     <label class="form-label fw-bold small d-block">Filter OPD</label>
                     <div class="input-group">
@@ -121,7 +161,7 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold small mb-1">Status Kehadiran</label>
-                    <div id="rekapFilterStatusContainer" class="p-2 border rounded bg-white d-flex flex-wrap gap-3" style="font-size: 0.9rem;">
+                    <div id="rekapFilterStatusContainer" class="p-2 border rounded bg-white d-flex flex-column gap-2" style="max-height: 120px; overflow-y: auto; font-size: 0.9rem;">
                         <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir" id="statusHadir"><label class="form-check-label" for="statusHadir">Hadir</label></div>
                         <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Terlambat" id="statusTerlambat"><label class="form-check-label" for="statusTerlambat">Terlambat</label></div>
                         <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Diluar Lokasi" id="statusLuarLokasi"><label class="form-check-label" for="statusLuarLokasi">Luar Lokasi</label></div>
@@ -131,8 +171,9 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold small mb-1">Status Verifikasi</label>
-                    <div id="rekapFilterVerifikasiContainer" class="p-2 border rounded bg-white d-flex flex-wrap gap-3" style="font-size: 0.9rem;">
+                    <div id="rekapFilterVerifikasiContainer" class="p-2 border rounded bg-white d-flex flex-column gap-2" style="max-height: 120px; overflow-y: auto; font-size: 0.9rem;">
                         <div class="form-check"><input class="form-check-input" type="checkbox" value="Terverifikasi Sistem" id="verifSistem"><label class="form-check-label" for="verifSistem">Sistem</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Menunggu Verifikasi Admin" id="verifMenunggu"><label class="form-check-label" for="verifMenunggu">Menunggu Verifikasi</label></div>
                         <div class="form-check"><input class="form-check-input" type="checkbox" value="Terverifikasi Oleh Admin" id="verifAdmin"><label class="form-check-label" for="verifAdmin">Disahkan Admin</label></div>
                         <div class="form-check"><input class="form-check-input" type="checkbox" value="Ditolak Oleh Admin" id="verifDitolak"><label class="form-check-label" for="verifDitolak">Ditolak Admin</label></div>
                         <div class="form-check"><input class="form-check-input" type="checkbox" value="ALPA" id="verifAlpa"><label class="form-check-label" for="verifAlpa">Alpa</label></div>
@@ -140,7 +181,7 @@
                 </div>
                 <div class="col-12 d-flex justify-content-end gap-2">
                     <button class="btn btn-outline-secondary" onclick="resetRekapFilters()"><i class="bi bi-arrow-counterclockwise"></i> Reset Filter</button>
-                    <button class="btn btn-primary flex-grow-1" onclick="terapkanFilterRekap()"><i class="bi bi-funnel-fill"></i> Tampilkan</button>
+                    <button class="btn btn-danger flex-grow-1" onclick="terapkanFilterRekap()"><i class="bi bi-funnel-fill"></i> Tampilkan</button>
                 </div>
             </div>
           
@@ -180,7 +221,7 @@
       <div class="box-container table-responsive">
           <div class="d-flex justify-content-between align-items-start mb-3">
             <h5 class="fw-bold mb-0">Filter Data</h5>
-            <button id="btnDownloadExcelKeseluruhan" class="btn btn-outline-success d-none" onclick="exportRekapKeseluruhanToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>
+            <button id="btnDownloadExcelKeseluruhan" class="btn btn-outline-danger d-none" onclick="exportRekapKeseluruhanToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>
           </div>
             <div class="row g-3 p-3 mb-3 bg-light border rounded">
                 <div class="col-md-3">
@@ -215,16 +256,17 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold small mb-1">Status Verifikasi</label>
-                    <div id="rekapKeseluruhanFilterVerifikasiContainer" class="p-2 border rounded bg-white d-flex flex-wrap gap-3" style="font-size: 0.9rem;">
+                    <div id="rekapKeseluruhanFilterVerifikasiContainer" class="p-2 border rounded bg-white d-flex flex-column gap-2" style="max-height: 120px; overflow-y: auto; font-size: 0.9rem;">
                         <div class="form-check"><input class="form-check-input" type="checkbox" value="Terverifikasi Sistem" id="verifSistemKes" checked><label class="form-check-label" for="verifSistemKes">Sistem</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Menunggu Verifikasi Admin" id="verifMenungguKes" checked><label class="form-check-label" for="verifMenungguKes">Menunggu Verifikasi</label></div>
                         <div class="form-check"><input class="form-check-input" type="checkbox" value="Terverifikasi Oleh Admin" id="verifAdminKes" checked><label class="form-check-label" for="verifAdminKes">Disahkan Admin</label></div>
                         <div class="form-check"><input class="form-check-input" type="checkbox" value="Ditolak Oleh Admin" id="verifDitolakKes" checked><label class="form-check-label" for="verifDitolakKes">Ditolak Admin</label></div>
-                        <div class="form-check"><input class="form-check-input" type="checkbox" value="ALPA" id="verifAlpaKes" checked><label class="form-check-label" for="verifAlpaKes">Belum Diverifikasi</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="ALPA" id="verifAlpaKes" checked><label class="form-check-label" for="verifAlpaKes">Belum Diverifikasi (Alpa)</label></div>
                     </div>
                 </div>
                 <div class="col-12 d-flex justify-content-end gap-2">
                     <button class="btn btn-outline-secondary" onclick="resetRekapKeseluruhanFilters()"><i class="bi bi-arrow-counterclockwise"></i> Reset Filter</button>
-                    <button class="btn btn-primary flex-grow-1" onclick="terapkanFilterRekapKeseluruhan()"><i class="bi bi-funnel-fill"></i> Tampilkan Data</button>
+                    <button class="btn btn-danger flex-grow-1" onclick="terapkanFilterRekapKeseluruhan()"><i class="bi bi-funnel-fill"></i> Tampilkan Data</button>
                 </div>
             </div>
           
@@ -249,7 +291,7 @@
     <!-- KONTEN STATISTIK KEHADIRAN -->
     <div id="statistikKehadiranContainer" class="d-none">
       <div class="d-flex justify-content-between align-items-center mb-3">
-          <h2 class="h5 mb-0"><i class="bi bi-bar-chart-fill text-primary"></i> Statistik Kehadiran</h2>
+          <h2 class="h5 mb-0"><i class="bi bi-bar-chart-fill text-danger"></i> Statistik Kehadiran</h2>
           <button class="btn btn-sm btn-outline-secondary" onclick="kembaliKeDaftar()"><i class="bi bi-arrow-left"></i> Kembali</button>
       </div>
       
@@ -284,13 +326,13 @@
               
               <div class="col-12 d-flex justify-content-end gap-2">
                   <button class="btn btn-outline-secondary" onclick="resetStatistikFilters()"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
-                  <button class="btn btn-primary" onclick="terapkanFilterStatistik()"><i class="bi bi-search"></i> Tampilkan Statistik</button>
+                  <button class="btn btn-danger" onclick="terapkanFilterStatistik()"><i class="bi bi-search"></i> Tampilkan Statistik</button>
               </div>
           </div>
       </div>
 
       <div class="d-flex justify-content-end mb-3">
-          <button id="btnDownloadExcelStatistik" class="btn btn-success btn-sm d-none" onclick="exportStatistikToExcel()"><i class="bi bi-file-earmark-excel"></i> Export Excel</button>
+          <button id="btnDownloadExcelStatistik" class="btn btn-danger btn-sm d-none" onclick="exportStatistikToExcel()"><i class="bi bi-file-earmark-excel"></i> Export Excel</button>
       </div>
 
       <div class="bg-white p-3 rounded shadow-sm border">
@@ -319,7 +361,7 @@
       <div class="box-container">
           <div class="d-flex justify-content-between align-items-center mb-3">
               <h4 class="fw-bold mb-0"><i class="bi bi-people-fill"></i> Manajemen Data Pegawai</h4>
-              <button class="btn btn-success fw-bold px-4 shadow-sm" onclick="bukaModalTambahPegawai()"><i class="bi bi-plus-circle"></i> Tambah Pegawai</button>
+              <button class="btn btn-danger fw-bold px-4 shadow-sm" onclick="bukaModalTambahPegawai()"><i class="bi bi-plus-circle"></i> Tambah Pegawai</button>
           </div>
 
           <!-- Ringkasan Statistik -->
@@ -333,7 +375,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="card card-stat bg-success-subtle border-success">
+                <div class="card card-stat bg-success-subtle border-danger">
                     <div class="card-body text-center">
                         <h4 class="fw-bold mb-1" id="installedPegawaiStat">-</h4>
                         <p class="card-text text-success-emphasis mb-0">Sudah Install Aplikasi Absensi Kegiatan</p>
@@ -377,7 +419,7 @@
                   <input type="text" id="pegawaiSearchInput" class="form-control" placeholder="masukan nip/nama/jabatan">
               </div>
               <div class="col-md-2 d-flex align-items-end">
-                  <button class="btn btn-primary w-100" type="button" onclick="loadPegawai()"><i class="bi bi-search"></i> Cari</button>
+                  <button class="btn btn-danger w-100" type="button" onclick="loadPegawai()"><i class="bi bi-search"></i> Cari</button>
               </div>
           </div>
   
@@ -415,7 +457,7 @@
               <h4 class="fw-bold mb-0"><i class="bi bi-building"></i> Manajemen Data OPD</h4>
               <div class="d-flex gap-2">
                 <button class="btn btn-info text-white fw-bold px-4 shadow-sm" onclick="syncOpdList()"><i class="bi bi-cloud-arrow-up-fill"></i> Sinkronisasi Cache</button>
-                <button class="btn btn-success fw-bold px-4 shadow-sm" onclick="bukaModalTambahOpd()"><i class="bi bi-plus-circle"></i> Tambah OPD Baru</button>
+                <button class="btn btn-danger fw-bold px-4 shadow-sm" onclick="bukaModalTambahOpd()"><i class="bi bi-plus-circle"></i> Tambah OPD Baru</button>
               </div>
           </div>
   
@@ -435,7 +477,7 @@
   <div class="modal fade" id="modalVerifikasi" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-primary text-white border-0"><h5 class="modal-title fw-bold"><i class="bi bi-person-check-fill"></i> Verifikasi Manual Admin</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+        <div class="modal-header bg-danger text-white border-0"><h5 class="modal-title fw-bold"><i class="bi bi-person-check-fill"></i> Verifikasi Manual Admin</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
         <div class="modal-body p-4">
           <form id="formVerifikasi" onsubmit="submitVerifikasi(event)">
             <input type="hidden" id="verifNip"><input type="hidden" id="verifKodeAkses">
@@ -457,14 +499,30 @@
             
             <div class="mb-3 text-center" id="verifFotoContainer">
                <label class="fw-bold small text-muted d-block text-start mb-2">Bukti Foto</slabel>
-               <a id="verifLinkFoto" href="#" target="_blank" class="btn btn-sm btn-outline-success d-none"><i class="bi bi-box-arrow-up-right"></i> Buka Foto Bukti Absensi</a>
+               <a id="verifLinkFoto" href="#" target="_blank" class="btn btn-sm btn-outline-danger d-none"><i class="bi bi-box-arrow-up-right"></i> Buka Foto Bukti Absensi</a>
                <p id="verifTanpaFoto" class="text-danger small fw-bold mt-1 mb-0">Pegawai ini tidak memiliki bukti foto (Alpa atau verifikasi manual).</p>
+            </div>
+
+            <div class="mb-3">
+              <label class="fw-bold small text-muted">Status Kehadiran</label>
+              <select id="verifStatusKehadiran" class="form-select">
+                <option value="">-- Tetap Gunakan Status Saat Ini --</option>
+                <option value="Hadir">Hadir</option>
+                <option value="Hadir Diluar Lokasi">Hadir Diluar Lokasi</option>
+                <option value="Hadir Terlambat">Hadir Terlambat</option>
+                <option value="Hadir Terlambat Diluar Lokasi">Hadir Terlambat Diluar Lokasi</option>
+                <option value="Sakit">Sakit</option>
+                <option value="Izin">Izin</option>
+                <option value="Cuti">Cuti</option>
+                <option value="Dinas Luar">Dinas Luar</option>
+                <option value="Alpa">Alpa</option>
+              </select>
             </div>
 
             <div class="mb-3">
               <label class="fw-bold small text-muted">Tindakan Verifikasi</label>
               <select id="verifStatus" class="form-select fw-bold" required>
-                  <option value="Terverifikasi Oleh Admin">✅ Sahkan Kehadiran (Jadikan Hadir)</option>
+                  <option value="Terverifikasi Oleh Admin">✅ Sahkan Kehadiran / Terima Bukti</option>
                   <option value="Ditolak Oleh Admin">❌ Tolak Kehadiran (Jadikan Alpa)</option>
               </select>
               <small class="text-muted" style="font-size: 0.75rem;">Status saat ini: <span id="verifStatusLama" class="fw-bold text-dark"></span></small>
@@ -475,24 +533,64 @@
               <textarea id="verifKeterangan" class="form-control" rows="2" placeholder="Contoh: Hadir atas izin pimpinan..."></textarea>
             </div>
 
-            <button type="submit" id="btnSimpanVerif" class="btn btn-primary w-100 fw-bold py-2"><i class="bi bi-floppy"></i> Simpan Status</button>
+            <div class="mb-4">
+              <label class="fw-bold small text-muted text-danger">Upload Bukti Dukung (Wajib, Maks 1MB)</label>
+              <input type="file" id="verifBuktiDukung" class="form-control border-danger" accept="image/*,application/pdf" required>
+              <small class="text-muted">Format: JPG, PNG, PDF. Menimpa bukti foto yang sudah ada.</small>
+            </div>
+
+            <button type="submit" id="btnSimpanVerif" class="btn btn-danger w-100 fw-bold py-2"><i class="bi bi-floppy"></i> Simpan Status</button>
           </form>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- MODAL SET ABSEN MASAL -->
   <!-- MODAL TAMBAH PESERTA MANUAL -->
   <div class="modal fade" id="modalTambahPeserta" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-success text-white border-0">
-          <h5 class="modal-title fw-bold"><i class="bi bi-person-plus-fill"></i> Tambah Peserta Massal</h5>
+        <div class="modal-header bg-danger text-white border-0">
+          <h5 class="modal-title fw-bold"><i class="bi bi-person-plus-fill"></i> Tambah Peserta & Set Kehadiran Massal</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body p-4">
           <input type="hidden" id="tambahPesertaKodeAkses">
           
+          <form id="formTambahPesertaBulk" onsubmit="submitTambahPesertaBulk(event)">
+          <!-- Pengaturan Kehadiran -->
+          <div class="p-3 mb-4 bg-white border border-danger rounded shadow-sm">
+            <p class="fw-bold text-danger mb-2"><i class="bi bi-sliders"></i> Pengaturan Kehadiran (Opsional)</p>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Status Kehadiran</label>
+                    <select id="bulkStatusKehadiran" class="form-select form-select-sm" onchange="toggleBulkVerifikasi()">
+                        <option value="Belum Absen">Belum Absen (Hanya Tambah)</option>
+                        <option value="Hadir">Hadir</option>
+                        <option value="Sakit">Sakit</option>
+                        <option value="Izin">Izin</option>
+                        <option value="Cuti">Cuti</option>
+                        <option value="Dinas Luar">Dinas Luar</option>
+                    </select>
+                </div>
+                <div class="col-md-3" id="colBulkVerifikasi" style="display: none;">
+                    <label class="form-label small fw-bold">Status Verifikasi</label>
+                    <select id="bulkStatusVerifikasi" class="form-select form-select-sm">
+                        <option value="Terverifikasi Oleh Admin">✅ Sahkan Kehadiran</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Keterangan</label>
+                    <input type="text" id="bulkKeterangan" class="form-control form-control-sm" placeholder="Opsional...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Bukti Dukung (Maks 1MB)</label>
+                    <input type="file" id="bulkBuktiDukung" class="form-control form-control-sm" accept="image/*,application/pdf">
+                </div>
+            </div>
+          </div>
+
           <!-- Bagian Atas: Filter -->
           <div class="p-3 mb-4 bg-light border rounded">
             <p class="fw-bold small text-muted mb-2">Filter Pencarian Pegawai</p>
@@ -506,7 +604,7 @@
                     <select id="tambahPesertaFilterOpd" multiple placeholder="Pilih satu atau lebih OPD..."></select>
                 </div>
                 <div class="col-md-2">
-                    <button class="btn btn-primary w-100" onclick="cariEligiblePegawai()"><i class="bi bi-search"></i> Cari</button>
+                    <button class="btn btn-danger w-100" onclick="cariEligiblePegawai()"><i class="bi bi-search"></i> Cari</button>
                 </div>
             </div>
           </div>
@@ -516,7 +614,7 @@
               <div class="col-md-6">
                   <div class="border rounded p-2 bg-light h-100 d-flex flex-column">
                       <p class="fw-bold small text-center text-muted mb-2">Pegawai Tersedia (belum ada di rekap)</p>
-                      <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-2" onclick="moveAllPegawai('select')">Tambahkan Semua Hasil Pencarian &rarr;</button>
+                      <button type="button" class="btn btn-sm btn-outline-danger w-100 mb-2" onclick="moveAllPegawai('select')">Tambahkan Semua Hasil Pencarian &rarr;</button>
                       <input type="text" id="searchAvailablePeserta" class="form-control form-control-sm mb-2" placeholder="Cari di daftar tersedia...">
                       <div id="availablePesertaContainer" class="list-group flex-grow-1" style="max-height: 300px; overflow-y: auto;">
                           <div class="list-group-item text-center text-muted">Gunakan filter di atas dan tekan "Cari".</div>
@@ -535,7 +633,7 @@
         </div>
         <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-            <button type="button" id="btnSimpanTambahPeserta" class="btn btn-success fw-bold" onclick="submitTambahPesertaBulk()"><i class="bi bi-plus-circle"></i> Tambahkan Peserta Terpilih</button>
+            <button type="submit" form="formTambahPesertaBulk" id="btnSimpanTambahPeserta" class="btn btn-danger fw-bold"><i class="bi bi-floppy"></i> Simpan Pilihan & Kehadiran</button>
         </div>
       </div>
     </div>
@@ -545,7 +643,7 @@
   <div class="modal fade" id="modalBuatKegiatan" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-success text-white border-0"><h5 class="modal-title fw-bold">Buat Jadwal Baru</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+        <div class="modal-header bg-danger text-white border-0"><h5 class="modal-title fw-bold">Buat Jadwal Baru</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
         <div class="modal-body">
           <form id="formKegiatanBaru" onsubmit="submitKegiatanBaru(event)">
             <div class="row mb-3">
@@ -565,12 +663,12 @@
               <div class="col-md-3"><label class="fw-bold">Tanggal</label><input type="text" id="newTanggal" class="form-control bg-white" required></div>
             </div>
             <div class="row mb-3">
-              <div class="col-md-6"><label class="fw-bold text-primary">Jam Mulai Acara</label><input type="time" id="newJamMulai" class="form-control" required></div>
+              <div class="col-md-6"><label class="fw-bold text-danger">Jam Mulai Acara</label><input type="time" id="newJamMulai" class="form-control" required></div>
               <div class="col-md-6"><label class="fw-bold text-danger">Jam Berakhir Acara</label><input type="time" id="newJamSelesai" class="form-control" required></div>
             </div>
             <div class="card bg-light border-secondary mb-3 shadow-sm">
               <div class="card-body p-3">
-                <label class="fw-bold text-success mb-2"><i class="bi bi-geo-alt-fill"></i> Batas Geofencing (Radius Meter)</label>
+                <label class="fw-bold text-danger mb-2"><i class="bi bi-geo-alt-fill"></i> Batas Geofencing (Radius Meter)</label>
                 <div id="mapGeofence"></div>
                 <div class="row mt-2 g-2">
                   <div class="col-md-8"><input type="text" id="geoLatLang" class="form-control form-control-sm text-center" placeholder="Kosong = Bebas Lokasi"></div>
@@ -579,6 +677,26 @@
                 <div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-sm btn-info text-white w-50" id="btnLokasiAdd" onclick="lokasiSayaSaatIni('add')">Lokasi Saya</button><button type="button" class="btn btn-sm btn-outline-danger w-50" onclick="hapusGeofence()">Hapus Lokasi</button></div>
               </div>
             </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <div class="form-check form-switch bg-light p-2 rounded border">
+                  <input class="form-check-input ms-0 me-2" type="checkbox" id="addStrictLocation" style="width: 2.5em; height: 1.25em;">
+                  <label class="form-check-label small fw-bold" for="addStrictLocation">
+                    <i class="bi bi-geo-fill text-danger"></i> Tolak Absen Luar Lokasi
+                  </label>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-check form-switch bg-light p-2 rounded border">
+                  <input class="form-check-input ms-0 me-2" type="checkbox" id="addStrictTime" style="width: 2.5em; height: 1.25em;">
+                  <label class="form-check-label small fw-bold" for="addStrictTime">
+                    <i class="bi bi-clock-fill text-primary"></i> Tolak Absen Terlambat
+                  </label>
+                </div>
+              </div>
+            </div>
+
             <div class="mb-3">
                 <label class="fw-bold">Target Perangkat Daerah</label>
                 <div class="row g-2">
@@ -586,7 +704,7 @@
                         <div class="border rounded p-2 bg-light h-100 d-flex flex-column">
                             <p class="fw-bold small text-center text-muted mb-2">Pilihan OPD Tersedia</p>
                             <div class="btn-group btn-group-sm w-100 mb-2">
-                                <button type="button" class="btn btn-outline-primary" onclick="selectAllOpd('add')">Pilih Semua</button>
+                                <button type="button" class="btn btn-outline-danger" onclick="selectAllOpd('add')">Pilih Semua</button>
                                 <button type="button" class="btn btn-outline-info" onclick="selectOpdDinas('add')">Pilih Dinas/Badan</button>
                             </div>
                             <input type="text" id="searchAvailableOpd" class="form-control form-control-sm mb-2" placeholder="Cari...">
@@ -619,7 +737,7 @@
                 </select>
                 <small class="text-muted d-block mt-1" style="font-size: 0.8em;">Gunakan mode 'Aktif' jika Anda mengantisipasi lonjakan absensi dalam waktu singkat, bahkan dengan peserta di bawah 300 orang.</small>
             </div>
-            <button type="submit" id="btnSimpanKegiatan" class="btn btn-success w-100 fw-bold py-2">Simpan Jadwal</button>
+            <button type="submit" id="btnSimpanKegiatan" class="btn btn-danger w-100 fw-bold py-2">Simpan Jadwal</button>
           </form>
         </div>
       </div>
@@ -651,12 +769,12 @@
               <div class="col-md-3"><label class="fw-bold">Tanggal</label><input type="text" id="editTanggal" class="form-control bg-white" required></div>
             </div>
             <div class="row mb-3">
-              <div class="col-md-6"><label class="fw-bold text-primary">Jam Mulai Acara</label><input type="time" id="editJamMulai" class="form-control" required></div>
+              <div class="col-md-6"><label class="fw-bold text-danger">Jam Mulai Acara</label><input type="time" id="editJamMulai" class="form-control" required></div>
               <div class="col-md-6"><label class="fw-bold text-danger">Jam Berakhir Acara</label><input type="time" id="editJamSelesai" class="form-control" required></div>
             </div>
             <div class="card bg-light border-secondary mb-3 shadow-sm">
               <div class="card-body p-3">
-                <label class="fw-bold text-success mb-2"><i class="bi bi-geo-alt-fill"></i> Batas Lokasi</label>
+                <label class="fw-bold text-danger mb-2"><i class="bi bi-geo-alt-fill"></i> Batas Lokasi</label>
                 <div id="editMapGeofence"></div>
                 <div class="row mt-2 g-2">
                   <div class="col-md-8"><input type="text" id="editGeoLatLang" class="form-control form-control-sm text-center" placeholder="Kosong = Bebas Lokasi"></div>
@@ -665,6 +783,26 @@
                 <div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-sm btn-info text-white w-50" id="btnLokasiEdit" onclick="lokasiSayaSaatIni('edit')">Lokasi Saya</button><button type="button" class="btn btn-sm btn-outline-danger w-50" onclick="hapusEditGeofence()">Hapus Lokasi</button></div>
               </div>
             </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <div class="form-check form-switch bg-light p-2 rounded border">
+                  <input class="form-check-input ms-0 me-2" type="checkbox" id="editStrictLocation" style="width: 2.5em; height: 1.25em;">
+                  <label class="form-check-label small fw-bold" for="editStrictLocation">
+                    <i class="bi bi-geo-fill text-danger"></i> Tolak Absen Luar Lokasi
+                  </label>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-check form-switch bg-light p-2 rounded border">
+                  <input class="form-check-input ms-0 me-2" type="checkbox" id="editStrictTime" style="width: 2.5em; height: 1.25em;">
+                  <label class="form-check-label small fw-bold" for="editStrictTime">
+                    <i class="bi bi-clock-fill text-primary"></i> Tolak Absen Terlambat
+                  </label>
+                </div>
+              </div>
+            </div>
+
             <div class="mb-3">
                 <label class="fw-bold">Target Perangkat Daerah</label>
                 <div class="row g-2">
@@ -672,7 +810,7 @@
                         <div class="border rounded p-2 bg-light h-100 d-flex flex-column">
                             <p class="fw-bold small text-center text-muted mb-2">Pilihan OPD Tersedia</p>
                             <div class="btn-group btn-group-sm w-100 mb-2">
-                                <button type="button" class="btn btn-outline-primary" onclick="selectAllOpd('edit')">Pilih Semua</button>
+                                <button type="button" class="btn btn-outline-danger" onclick="selectAllOpd('edit')">Pilih Semua</button>
                                 <button type="button" class="btn btn-outline-info" onclick="selectOpdDinas('edit')">Pilih Dinas/Badan</button>
                             </div>
                             <input type="text" id="editSearchAvailableOpd" class="form-control form-control-sm mb-2" placeholder="Cari...">
@@ -725,7 +863,7 @@
             <h5 class="fw-bold" id="qrJudulKegiatan">-</h5>
             <p class="text-muted mb-3" id="qrDetailKegiatan">-</p>
             <div id="qrcode" class="d-flex justify-content-center mb-3"></div>
-            <p class="mt-3 fw-bold fs-2 text-success bg-light border rounded py-2" id="qrKodeAkses">-</p>
+            <p class="mt-3 fw-bold fs-2 text-danger bg-light border rounded py-2" id="qrKodeAkses">-</p>
             <div class="text-start mt-4 border-top pt-3">
               <h6 class="fw-bold text-muted">Tata Cara Pengambilan Absen:</h6>
               <ol class="list-group list-group-numbered small">
@@ -740,7 +878,7 @@
             </div>
           </div>
         </div>
-        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button><button type="button" class="btn btn-success" onclick="downloadQrCode()"><i class="bi bi-download"></i> Unduh</button><button type="button" class="btn btn-primary" onclick="printQrCode()"><i class="bi bi-printer"></i> Cetak</button></div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button><button type="button" class="btn btn-danger" onclick="downloadQrCode()"><i class="bi bi-download"></i> Unduh</button><button type="button" class="btn btn-danger" onclick="printQrCode()"><i class="bi bi-printer"></i> Cetak</button></div>
       </div>
     </div>
   </div>
@@ -754,7 +892,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body" id="rekapPerOpdContainerModal"></div>
-        <div class="modal-footer"><button type="button" class="btn btn-primary" onclick="refreshRekapSummary()"><i class="bi bi-arrow-repeat"></i> Refresh Data</button><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button></div>
+        <div class="modal-footer"><button type="button" class="btn btn-danger" onclick="refreshRekapSummary()"><i class="bi bi-arrow-repeat"></i> Refresh Data</button><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button></div>
       </div>
     </div>
   </div>

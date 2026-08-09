@@ -46,15 +46,11 @@ class AdminRekapController {
         $sql = "
             SELECT 
                 opd as opd_name,
-                COUNT(*) as target,
-                SUM(CASE WHEN waktu IS NOT NULL AND (status_verifikasi IS NULL OR status_verifikasi != 'Ditolak Oleh Admin') THEN 1 ELSE 0 END) as hadir,
-                SUM(CASE WHEN waktu IS NOT NULL AND (status_verifikasi IS NULL OR status_verifikasi != 'Ditolak Oleh Admin') AND (status_kehadiran = 'Hadir' OR status_kehadiran IS NULL) THEN 1 ELSE 0 END) as hadir_ideal,
-                SUM(CASE WHEN waktu IS NOT NULL AND (status_verifikasi IS NULL OR status_verifikasi != 'Ditolak Oleh Admin') AND status_kehadiran = 'Hadir Terlambat' THEN 1 ELSE 0 END) as terlambat,
-                SUM(CASE WHEN waktu IS NOT NULL AND (status_verifikasi IS NULL OR status_verifikasi != 'Ditolak Oleh Admin') AND status_kehadiran = 'Hadir Terlambat Diluar Lokasi' THEN 1 ELSE 0 END) as terlambat_diluar_lokasi,
-                SUM(CASE WHEN waktu IS NOT NULL AND (status_verifikasi IS NULL OR status_verifikasi != 'Ditolak Oleh Admin') AND status_kehadiran = 'Hadir Diluar Lokasi' THEN 1 ELSE 0 END) as diluar_lokasi
+                COALESCE(status_kehadiran, 'Belum Absen') as status,
+                COUNT(*) as count
             FROM app_absensi_data_absensi 
             WHERE kode_akses = ? AND opd IS NOT NULL AND opd != ''
-            GROUP BY opd
+            GROUP BY opd, status_kehadiran
         ";
         $stmt = $db->prepare($sql);
         $stmt->execute([$kodeAkses]);
@@ -65,13 +61,7 @@ class AdminRekapController {
             $responsePayload = [
                 'summary' => [
                     'total_target' => 0, 
-                    'total_hadir' => 0, 
-                    'total_alpa' => 0, 
-                    'percentage_hadir' => 0, 
-                    'total_hadir_ideal' => 0, 
-                    'total_terlambat' => 0, 
-                    'total_diluar_lokasi' => 0,
-                    'total_terlambat_diluar_lokasi' => 0
+                    'statuses' => []
                 ],
                 'per_opd_summary' => [],
             ];
@@ -79,40 +69,34 @@ class AdminRekapController {
             return;
         }
 
-        // 2. Finalisasi format statistik per OPD
-        $finalPerOpdStats = [];
+        $opdData = [];
         $totalTarget = 0;
-        $totalHadir = 0;
-        $totalHadirIdeal = 0;
-        $totalTerlambat = 0;
-        $totalDiluarLokasi = 0;
-        $totalTerlambatDiluarLokasi = 0;
+        $totalStatuses = [];
 
-        foreach ($results as $stats) {
-            // Casting SQL sum values back to int
-            $stats['target'] = (int)$stats['target'];
-            $stats['hadir'] = (int)$stats['hadir'];
-            $stats['hadir_ideal'] = (int)$stats['hadir_ideal'];
-            $stats['terlambat'] = (int)$stats['terlambat'];
-            $stats['terlambat_diluar_lokasi'] = (int)$stats['terlambat_diluar_lokasi'];
-            $stats['diluar_lokasi'] = (int)$stats['diluar_lokasi'];
-
-            if ($stats['target'] > 0) {
-                $stats['alpa'] = $stats['target'] - $stats['hadir'];
-                $stats['percentage'] = round(($stats['hadir'] / $stats['target']) * 100);
+        foreach ($results as $row) {
+            $opd = $row['opd_name'];
+            $status = $row['status'];
+            $count = (int)$row['count'];
             
-                $finalPerOpdStats[] = $stats;
-
-                // Akumulasi untuk total keseluruhan
-                $totalTarget += $stats['target'];
-                $totalHadir += $stats['hadir'];
-                $totalHadirIdeal += $stats['hadir_ideal'];
-                $totalTerlambat += $stats['terlambat'];
-                $totalDiluarLokasi += $stats['diluar_lokasi'];
-                $totalTerlambatDiluarLokasi += $stats['terlambat_diluar_lokasi'];
+            if (!isset($opdData[$opd])) {
+                $opdData[$opd] = [
+                    'opd_name' => $opd,
+                    'target' => 0,
+                    'statuses' => []
+                ];
             }
+            
+            $opdData[$opd]['target'] += $count;
+            $opdData[$opd]['statuses'][$status] = $count;
+            
+            $totalTarget += $count;
+            if (!isset($totalStatuses[$status])) {
+                $totalStatuses[$status] = 0;
+            }
+            $totalStatuses[$status] += $count;
         }
-        
+
+        $finalPerOpdStats = array_values($opdData);
         // Urutkan berdasarkan nama OPD
         usort($finalPerOpdStats, function($a, $b) {
             return strcmp($a['opd_name'], $b['opd_name']);
@@ -122,13 +106,7 @@ class AdminRekapController {
         $responsePayload = [
             'summary' => [
                 'total_target' => $totalTarget,
-                'total_hadir' => $totalHadir,
-                'total_alpa' => $totalTarget - $totalHadir,
-                'percentage_hadir' => $totalTarget > 0 ? round(($totalHadir / $totalTarget) * 100) : 0,
-                'total_hadir_ideal' => $totalHadirIdeal,
-                'total_terlambat' => $totalTerlambat,
-                'total_diluar_lokasi' => $totalDiluarLokasi,
-                'total_terlambat_diluar_lokasi' => $totalTerlambatDiluarLokasi
+                'statuses' => $totalStatuses
             ],
             'per_opd_summary' => $finalPerOpdStats,
         ];
@@ -409,86 +387,211 @@ class AdminRekapController {
     public function verifikasiAbsen() {
         AdminAuthHelper::validate();
         $db = Database::getConnection();
-        // Tambahkan untuk mendapatkan zona waktu
         $now = new \DateTime('now', new \DateTimeZone('Asia/Jakarta'));
         
-        $inputJSON = file_get_contents('php://input');
-        $input = json_decode($inputJSON, true);
-
-        $kodeAkses = $input['kode_akses'] ?? null;
-        $nip = $input['nip'] ?? null;
-        $statusVerifikasi = $input['status_verifikasi'] ?? null;
-        $keteranganAdmin = $input['keterangan'] ?? null;
-        $opd = $input['opd'] ?? null;
-        $jabatan = $input['jabatan'] ?? null;
+        $kodeAkses = $_POST['kode_akses'] ?? null;
+        $nip = $_POST['nip'] ?? null;
+        $statusVerifikasi = $_POST['status_verifikasi'] ?? null;
+        $statusKehadiranBaru = $_POST['status_kehadiran'] ?? null; // Added
+        $keteranganAdmin = $_POST['keterangan'] ?? null;
+        $opd = $_POST['opd'] ?? null;
+        $jabatan = $_POST['jabatan'] ?? null;
+        $buktiDukung = $_FILES['bukti_dukung'] ?? null;
 
         if (!$kodeAkses || !$nip || !$statusVerifikasi) {
             Response::json(false, 400, "Data tidak lengkap: kode_akses, nip, dan status_verifikasi wajib diisi.");
+            return;
         }
 
-        // Fetch current status to make informed decisions
+        // Validate file upload
+        if (empty($buktiDukung) || $buktiDukung['error'] !== UPLOAD_ERR_OK) {
+            Response::json(false, 400, "Bukti dukung (Foto/PDF) wajib dilampirkan.");
+            return;
+        }
+
+        if ($buktiDukung['size'] > 1048576) {
+            Response::json(false, 400, "Ukuran file bukti dukung maksimal 1 MB.");
+            return;
+        }
+
+        $allowedExts = ['jpg', 'jpeg', 'png', 'pdf'];
+        $ext = strtolower(pathinfo($buktiDukung['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowedExts)) {
+            Response::json(false, 400, "Tipe file tidak diizinkan. Hanya JPG, PNG, dan PDF yang diperbolehkan.");
+            return;
+        }
+
+        // Simpan file
+        $uploadDir = '../uploads/foto_absensi/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        
+        $randomString = bin2hex(random_bytes(4));
+        $newFileName = 'verif_' . $kodeAkses . '_' . $nip . '_' . time() . '_' . $randomString . '.' . $ext;
+        $uploadPath = $uploadDir . $newFileName;
+
+        if (!move_uploaded_file($buktiDukung['tmp_name'], $uploadPath)) {
+            Response::json(false, 500, "Gagal menyimpan file bukti dukung.");
+            return;
+        }
+
         $stmtCurrent = $db->prepare("SELECT waktu, status_kehadiran FROM app_absensi_data_absensi WHERE kode_akses = :ka AND nip = :nip");
         $stmtCurrent->execute([':ka' => $kodeAkses, ':nip' => $nip]);
         $currentAbsenData = $stmtCurrent->fetch(PDO::FETCH_ASSOC);
 
         if (!$currentAbsenData) {
-            Response::json(false, 404, "Data absensi tidak ditemukan untuk NIP ini pada kegiatan ini.");
+            // Jika data tidak ada, buat baru (mirip seperti set masal)
+            $stmtPegawai = $db->prepare("SELECT nama_pegawai, perangkat_daerah, jabatan FROM app_absensi_data_pegawai WHERE nip = :nip");
+            $stmtPegawai->execute([':nip' => $nip]);
+            $peg = $stmtPegawai->fetch(PDO::FETCH_ASSOC);
+            if (!$peg) {
+                Response::json(false, 404, "Data absensi tidak ditemukan untuk NIP ini pada kegiatan ini.");
+                return;
+            }
+
+            $sql = "INSERT INTO app_absensi_data_absensi 
+                    (kode_akses, nip, nama_pegawai, opd, jabatan, waktu, lokasi, nama_file_foto, keterangan, status_verifikasi, status_kehadiran)
+                    VALUES 
+                    (:ka, :nip, :nama, :opd, :jabatan, :waktu, 'Diubah oleh Admin (Manual)', :foto, :ket, :sv, :sk)";
+            
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
+                ':ka' => $kodeAkses,
+                ':nip' => $nip,
+                ':nama' => $peg['nama_pegawai'],
+                ':opd' => $opd ?? $peg['perangkat_daerah'],
+                ':jabatan' => $jabatan ?? $peg['jabatan'],
+                ':waktu' => $now->format('Y-m-d H:i:s'),
+                ':foto' => $newFileName,
+                ':ket' => $keteranganAdmin,
+                ':sv' => $statusVerifikasi,
+                ':sk' => $statusKehadiranBaru ?? 'Hadir Terlambat Diluar Lokasi'
+            ]);
+            Response::json(true, 200, "Status absensi berhasil ditambahkan.");
             return;
         }
 
-        // --- LOGIKA BARU: Tangani perubahan status secara komprehensif ---
-        if ($statusVerifikasi === 'Terverifikasi Oleh Admin') {
-            // Jika admin mensahkan kehadiran (mengubah dari Alpa menjadi Hadir).
-            // Gunakan COALESCE untuk mengisi waktu hanya jika sebelumnya NULL.
-            $sql = "UPDATE app_absensi_data_absensi 
-                    SET 
-                        status_verifikasi = :sv, 
-                        keterangan = :ket,
-                        opd = :opd,
-                        jabatan = :jabatan,
-                        waktu = :waktu_new,
-                        status_kehadiran = :status_kehadiran_new
-                    WHERE kode_akses = :ka AND nip = :nip";
+        // --- UPDATE DATA YANG SUDAH ADA ---
+        $updateWaktu = $currentAbsenData['waktu'];
+        $updateStatusKehadiran = $statusKehadiranBaru ?? $currentAbsenData['status_kehadiran'];
 
-            $updateWaktu = $currentAbsenData['waktu'];
-            $updateStatusKehadiran = $currentAbsenData['status_kehadiran'];
+        if ($statusVerifikasi === 'Terverifikasi Oleh Admin' && ($currentAbsenData['waktu'] === null || $currentAbsenData['waktu'] === '' || $currentAbsenData['waktu'] === '0000-00-00 00:00:00')) {
+            $updateWaktu = $now->format('Y-m-d H:i:s');
+            if (!$statusKehadiranBaru) $updateStatusKehadiran = 'Hadir Terlambat Diluar Lokasi';
+        }
 
-            // Jika waktu absensi saat ini kosong (NULL, string kosong, atau tanggal default MySQL)
-            if ($currentAbsenData['waktu'] === null || $currentAbsenData['waktu'] === '' || $currentAbsenData['waktu'] === '0000-00-00 00:00:00') {
-                $updateWaktu = $now->format('Y-m-d H:i:s');
-                $updateStatusKehadiran = 'Hadir Terlambat Diluar Lokasi';
-            }
+        $sql = "UPDATE app_absensi_data_absensi 
+                SET 
+                    status_verifikasi = :sv, 
+                    keterangan = :ket,
+                    opd = :opd,
+                    jabatan = :jabatan,
+                    waktu = :waktu_new,
+                    status_kehadiran = :status_kehadiran_new,
+                    nama_file_foto = :foto
+                WHERE kode_akses = :ka AND nip = :nip";
 
+        $stmt = $db->prepare($sql);
+        $stmt->execute([
+            ':sv' => $statusVerifikasi,
+            ':ket' => $keteranganAdmin,
+            ':opd' => $opd,
+            ':jabatan' => $jabatan,
+            ':waktu_new' => $updateWaktu,
+            ':status_kehadiran_new' => $updateStatusKehadiran,
+            ':foto' => $newFileName,
+            ':ka' => $kodeAkses,
+            ':nip' => $nip
+        ]);
+
+        Response::json(true, 200, "Status absensi berhasil diperbarui.");
+    }
+
+    public function verifikasiAbsenMasal() {
+        AdminAuthHelper::validate();
+        $db = Database::getConnection();
+        $now = new \DateTime('now', new \DateTimeZone('Asia/Jakarta'));
+        
+        $kodeAkses = $_POST['kode_akses'] ?? null;
+        $nips = isset($_POST['nips']) ? json_decode($_POST['nips'], true) : [];
+        $statusVerifikasi = $_POST['status_verifikasi'] ?? null;
+        $statusKehadiran = $_POST['status_kehadiran'] ?? null;
+        $keteranganAdmin = $_POST['keterangan'] ?? null;
+        $buktiDukung = $_FILES['bukti_dukung'] ?? null;
+
+        if (!$kodeAkses || empty($nips) || !$statusVerifikasi || !$statusKehadiran) {
+            Response::json(false, 400, "Data tidak lengkap: kode_akses, nips, status_verifikasi, status_kehadiran wajib diisi.");
+            return;
+        }
+
+        if (empty($buktiDukung) || $buktiDukung['error'] !== UPLOAD_ERR_OK) {
+            Response::json(false, 400, "Bukti dukung (Foto/PDF) wajib dilampirkan.");
+            return;
+        }
+
+        if ($buktiDukung['size'] > 1048576) {
+            Response::json(false, 400, "Ukuran file bukti dukung maksimal 1 MB.");
+            return;
+        }
+
+        $allowedExts = ['jpg', 'jpeg', 'png', 'pdf'];
+        $ext = strtolower(pathinfo($buktiDukung['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowedExts)) {
+            Response::json(false, 400, "Tipe file tidak diizinkan. Hanya JPG, PNG, dan PDF yang diperbolehkan.");
+            return;
+        }
+
+        // Simpan file
+        $uploadDir = '../uploads/foto_absensi/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        
+        $randomString = bin2hex(random_bytes(4));
+        $newFileName = 'bulk_' . $kodeAkses . '_' . time() . '_' . $randomString . '.' . $ext;
+        $uploadPath = $uploadDir . $newFileName;
+
+        if (!move_uploaded_file($buktiDukung['tmp_name'], $uploadPath)) {
+            Response::json(false, 500, "Gagal menyimpan file bukti dukung.");
+            return;
+        }
+
+        $successCount = 0;
+        foreach ($nips as $nip) {
+            $stmtPegawai = $db->prepare("SELECT nama_pegawai, perangkat_daerah, jabatan FROM app_absensi_data_pegawai WHERE nip = :nip");
+            $stmtPegawai->execute([':nip' => $nip]);
+            $peg = $stmtPegawai->fetch(PDO::FETCH_ASSOC);
+            if (!$peg) continue;
+
+            $sql = "INSERT INTO app_absensi_data_absensi 
+                    (kode_akses, nip, nama_pegawai, opd, jabatan, waktu, lokasi, nama_file_foto, keterangan, status_verifikasi, status_kehadiran)
+                    VALUES 
+                    (:ka, :nip, :nama, :opd, :jabatan, :waktu, 'Diubah oleh Admin (Masal)', :foto, :ket, :sv, :sk)
+                    ON DUPLICATE KEY UPDATE 
+                    waktu = IF(waktu IS NULL OR waktu = '0000-00-00 00:00:00', VALUES(waktu), waktu),
+                    status_verifikasi = VALUES(status_verifikasi),
+                    status_kehadiran = VALUES(status_kehadiran),
+                    keterangan = VALUES(keterangan),
+                    nama_file_foto = VALUES(nama_file_foto)";
+            
             $stmt = $db->prepare($sql);
             $stmt->execute([
-                ':sv' => $statusVerifikasi,
-                ':ket' => $keteranganAdmin,
-                ':opd' => $opd,
-                ':jabatan' => $jabatan,
-                ':waktu_new' => $updateWaktu,
-                ':status_kehadiran_new' => $updateStatusKehadiran,
                 ':ka' => $kodeAkses,
-                ':nip' => $nip
+                ':nip' => $nip,
+                ':nama' => $peg['nama_pegawai'],
+                ':opd' => $peg['perangkat_daerah'],
+                ':jabatan' => $peg['jabatan'],
+                ':waktu' => $now->format('Y-m-d H:i:s'),
+                ':foto' => $newFileName,
+                ':ket' => $keteranganAdmin,
+                ':sv' => $statusVerifikasi,
+                ':sk' => $statusKehadiran
             ]);
-        } else if ($statusVerifikasi === 'Ditolak Oleh Admin') {
-            // Jika admin menolak kehadiran, hanya update status verifikasi dan keterangan.
-            // Status kehadiran dan waktu absen asli tetap dipertahankan.
-            $sql = "UPDATE app_absensi_data_absensi 
-                    SET 
-                        status_verifikasi = :sv, 
-                        keterangan = :ket,
-                        opd = :opd,
-                        jabatan = :jabatan
-                    WHERE kode_akses = :ka AND nip = :nip";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([':sv' => $statusVerifikasi, ':ket' => $keteranganAdmin, ':opd' => $opd, ':jabatan' => $jabatan, ':ka' => $kodeAkses, ':nip' => $nip]);
-        } else {
-            // Fallback jika ada status lain, hanya update status dan keterangan.
-            $sql = "UPDATE app_absensi_data_absensi SET status_verifikasi = :sv, keterangan = :ket, opd = :opd, jabatan = :jabatan WHERE kode_akses = :ka AND nip = :nip";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([':sv' => $statusVerifikasi, ':ket' => $keteranganAdmin, ':opd' => $opd, ':jabatan' => $jabatan, ':ka' => $kodeAkses, ':nip' => $nip]);
+            $successCount++;
         }
-        Response::json(true, 200, "Status absensi berhasil diperbarui.");
+
+        Response::json(true, 200, "Berhasil memperbarui $successCount data pegawai.");
     }
 
     public function deleteAbsensiEntry($vars) {
@@ -531,14 +634,20 @@ class AdminRekapController {
         $filters = json_decode($inputJSON, true);
         $opdList = $filters['opd_list'] ?? [];
         $searchFilter = $filters['search'] ?? null;
+        $includeAll = $filters['include_all'] ?? false;
 
-        // Query untuk mendapatkan semua NIP yang sudah ada di rekap kegiatan ini
-        $subQuery = "SELECT nip FROM app_absensi_data_absensi WHERE kode_akses = ?";
-
-        // Query utama untuk mendapatkan semua pegawai yang NIP-nya TIDAK ADA di subquery
-        $sql = "SELECT nip, nama_pegawai, jabatan, perangkat_daerah FROM app_absensi_data_pegawai WHERE nip NOT IN ($subQuery)";
+        $params = [];
         
-        $params = [$kodeAkses];
+        if ($includeAll) {
+            $sql = "SELECT nip, nama_pegawai, jabatan, perangkat_daerah FROM app_absensi_data_pegawai WHERE 1=1";
+        } else {
+            // Query untuk mendapatkan semua NIP yang sudah ada di rekap kegiatan ini
+            $subQuery = "SELECT nip FROM app_absensi_data_absensi WHERE kode_akses = ?";
+            // Query utama untuk mendapatkan semua pegawai yang NIP-nya TIDAK ADA di subquery
+            $sql = "SELECT nip, nama_pegawai, jabatan, perangkat_daerah FROM app_absensi_data_pegawai WHERE nip NOT IN ($subQuery)";
+            $params[] = $kodeAkses;
+        }
+
 
         // Tambahkan filter pencarian
         if (!empty($searchFilter)) {
@@ -643,11 +752,24 @@ class AdminRekapController {
         $kodeAkses = $vars['kode_akses'] ?? null;
         $db = Database::getConnection();
 
-        $inputJSON = file_get_contents('php://input');
-        $pesertaBatch = json_decode($inputJSON, true);
+        // 1. Ambil data POST
+        $nipsRaw = $_POST['nips'] ?? null;
+        if (!$nipsRaw) {
+            $inputJSON = file_get_contents('php://input');
+            $data = json_decode($inputJSON, true);
+            $pesertaBatch = $data;
+        } else {
+            $pesertaBatch = json_decode($nipsRaw, true);
+        }
+        
+        $statusKehadiran = $_POST['status_kehadiran'] ?? 'Belum Absen';
+        $statusVerifikasi = $_POST['status_verifikasi'] ?? 'Terverifikasi Oleh Admin';
+        $keteranganAdmin = $_POST['keterangan'] ?? 'Ditambahkan ke daftar peserta oleh admin.';
+        $buktiDukung = $_FILES['bukti_dukung'] ?? null;
 
         if (empty($pesertaBatch) || !is_array($pesertaBatch)) {
             Response::json(false, 400, "Data batch tidak valid atau kosong.");
+            return;
         }
 
         // Ambil detail jadwal sekali saja
@@ -656,69 +778,118 @@ class AdminRekapController {
         $jadwal = $stmtJadwal->fetch(PDO::FETCH_ASSOC);
         if (!$jadwal) {
             Response::json(false, 404, "Jadwal kegiatan tidak ditemukan.");
+            return;
+        }
+
+        $newFileName = null;
+        if ($statusKehadiran !== 'Belum Absen' && !empty($buktiDukung) && $buktiDukung['error'] === UPLOAD_ERR_OK) {
+            if ($buktiDukung['size'] > 1048576) {
+                Response::json(false, 400, "Ukuran file bukti dukung maksimal 1 MB.");
+                return;
+            }
+            $allowedExts = ['jpg', 'jpeg', 'png', 'pdf'];
+            $ext = strtolower(pathinfo($buktiDukung['name'], PATHINFO_EXTENSION));
+            if (!in_array($ext, $allowedExts)) {
+                Response::json(false, 400, "Tipe file tidak diizinkan. Hanya JPG, PNG, dan PDF yang diperbolehkan.");
+                return;
+            }
+            
+            $uploadDir = '../uploads/foto_absensi/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            $randomString = bin2hex(random_bytes(4));
+            $newFileName = 'bulk_' . $kodeAkses . '_' . time() . '_' . $randomString . '.' . $ext;
+            $uploadPath = $uploadDir . $newFileName;
+            if (!move_uploaded_file($buktiDukung['tmp_name'], $uploadPath)) {
+                Response::json(false, 500, "Gagal menyimpan file bukti dukung.");
+                return;
+            }
         }
 
         $berhasil = 0;
         $gagal = 0;
         $dilewati = 0;
+        $now = new \DateTime('now', new \DateTimeZone('Asia/Jakarta'));
+        $waktuSekarang = $now->format('Y-m-d H:i:s');
 
         $db->beginTransaction();
         try {
-            // Siapkan statement di luar loop
             $stmtCheck = $db->prepare("SELECT COUNT(*) FROM app_absensi_data_absensi WHERE kode_akses = :ka AND nip = :nip");
             $stmtPegawai = $db->prepare("SELECT nama_pegawai, perangkat_daerah, jabatan FROM app_absensi_data_pegawai WHERE nip = :nip");
-            $stmtInsert = $db->prepare("INSERT INTO app_absensi_data_absensi (kode_akses, nip, nama_pegawai, opd, jabatan, kategori, status_verifikasi, status_kehadiran, keterangan, waktu, nama_file_foto, lokasi) VALUES (:ka, :nip, :nama, :opd, :jabatan, :kategori, :sv, :sk, :ket, NULL, NULL, NULL)");
+            
+            // Query Upsert
+            $sql = "INSERT INTO app_absensi_data_absensi 
+                    (kode_akses, nip, nama_pegawai, opd, jabatan, kategori, status_verifikasi, status_kehadiran, keterangan, waktu, nama_file_foto, lokasi) 
+                    VALUES 
+                    (:ka, :nip, :nama, :opd, :jabatan, :kategori, :sv, :sk, :ket, :waktu, :foto, 'Diubah oleh Admin (Masal)')
+                    ON DUPLICATE KEY UPDATE 
+                    waktu = IF(:waktu2 IS NULL OR waktu = '0000-00-00 00:00:00' OR status_kehadiran = 'Alpa', VALUES(waktu), waktu),
+                    status_verifikasi = VALUES(status_verifikasi),
+                    status_kehadiran = VALUES(status_kehadiran),
+                    keterangan = VALUES(keterangan),
+                    nama_file_foto = IF(VALUES(nama_file_foto) IS NOT NULL, VALUES(nama_file_foto), nama_file_foto)";
+            $stmtInsertUpdate = $db->prepare($sql);
 
             foreach ($pesertaBatch as $peserta) {
-                $nip = $peserta['nip'] ?? null;
+                // Support both format: `["123", "456"]` or `[{"nip": "123"}]` depending on old/new FE logic
+                $nip = is_array($peserta) ? ($peserta['nip'] ?? null) : $peserta;
                 if (!$nip) {
                     $gagal++;
                     continue;
                 }
 
-                // 1. Cek duplikat
-                $stmtCheck->execute([':ka' => $kodeAkses, ':nip' => $nip]);
-                if ($stmtCheck->fetchColumn() > 0) {
-                    $dilewati++;
-                    continue;
+                if ($statusKehadiran === 'Belum Absen') {
+                    // Logika lama: skip jika sudah ada
+                    $stmtCheck->execute([':ka' => $kodeAkses, ':nip' => $nip]);
+                    if ($stmtCheck->fetchColumn() > 0) {
+                        $dilewati++;
+                        continue;
+                    }
                 }
 
-                // 2. Ambil detail pegawai
                 $stmtPegawai->execute([':nip' => $nip]);
                 $pegawai = $stmtPegawai->fetch(PDO::FETCH_ASSOC);
                 if (!$pegawai) {
                     $gagal++;
                     continue;
                 }
+                
+                $sk = ($statusKehadiran === 'Belum Absen') ? 'Alpa' : $statusKehadiran;
+                $sv = ($statusKehadiran === 'Belum Absen') ? 'ALPA' : $statusVerifikasi;
+                $ket = ($statusKehadiran === 'Belum Absen' && empty($_POST['keterangan'])) ? 'Ditambahkan ke daftar peserta oleh admin.' : $keteranganAdmin;
+                $wkt = ($statusKehadiran === 'Belum Absen') ? null : $waktuSekarang;
 
-                // 3. Insert with 'ALPA' status, allowing them to check in later
-                $stmtInsert->execute([
+                $stmtInsertUpdate->execute([
                     ':ka' => $kodeAkses,
                     ':nip' => $nip,
                     ':nama' => $pegawai['nama_pegawai'],
                     ':opd' => $pegawai['perangkat_daerah'],
                     ':jabatan' => $pegawai['jabatan'],
                     ':kategori' => $jadwal['kategori'],
-                    ':sv' => 'ALPA',
-                    ':sk' => 'Alpa',
-                    ':ket' => 'Ditambahkan ke daftar peserta oleh admin.'
+                    ':sv' => $sv,
+                    ':sk' => $sk,
+                    ':ket' => $ket,
+                    ':waktu' => $wkt,
+                    ':foto' => $newFileName,
+                    ':waktu2' => $wkt // for IF check in ON DUPLICATE KEY
                 ]);
 
-                if ($stmtInsert->rowCount() > 0) $berhasil++;
+                if ($stmtInsertUpdate->rowCount() > 0) $berhasil++;
                 else $gagal++;
             }
 
             $db->commit();
 
-            $message = "$berhasil peserta berhasil ditambahkan ke daftar hadir.";
-            if ($dilewati > 0) $message .= " $dilewati peserta dilewati karena sudah ada.";
-            if ($gagal > 0) $message .= " $gagal peserta gagal ditambahkan.";
+            $message = "$berhasil peserta berhasil diproses.";
+            if ($dilewati > 0) $message .= " $dilewati peserta dilewati (sudah ada).";
+            if ($gagal > 0) $message .= " $gagal peserta gagal diproses.";
             
             Response::json(true, 201, $message);
 
         } catch (\Exception $e) {
             $db->rollBack();
-            Response::json(false, 500, "Terjadi kesalahan server saat proses bulk insert: " . $e->getMessage());
+            Response::json(false, 500, "Terjadi kesalahan server saat proses bulk insert/update: " . $e->getMessage());
         }
     }
 

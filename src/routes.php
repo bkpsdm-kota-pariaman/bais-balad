@@ -74,6 +74,7 @@ return function(RouteCollector $r) {
 
     // Rute untuk verifikasi/edit absensi oleh admin
     $r->addRoute('POST', '/admin/verifikasi', ['App\Controllers\AdminRekapController', 'verifikasiAbsen']);
+    $r->addRoute('POST', '/admin/verifikasi-masal', ['App\Controllers\AdminRekapController', 'verifikasiAbsenMasal']);
 
     // Rute statis untuk hapus massal HARUS didefinisikan SEBELUM rute variabel.
     $r->addRoute('POST', '/admin/rekap/entry/bulk-delete', ['App\Controllers\AdminRekapController', 'deleteAbsensiEntryBulk']);

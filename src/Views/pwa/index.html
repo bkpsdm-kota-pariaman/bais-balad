@@ -306,7 +306,17 @@
                         </div>
                     </div>
 
-                    <div class="text-center mb-5">
+                    <!-- Urutan 1.5: Tipe Kehadiran -->
+                    <div class="bg-white p-4 rounded-xl mb-5 border border-red-200 shadow-sm">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Tipe Kehadiran</label>
+                        <select id="tipeKehadiran" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500 outline-none text-sm bg-gray-50" onchange="toggleTipeKehadiran()">
+                            <option value="hadir">✅ Hadir di Lokasi</option>
+                            <option value="izin">❌ Tidak Bisa Hadir (Izin / Cuti / DL)</option>
+                        </select>
+                    </div>
+
+                    <div id="flowHadir">
+                        <div class="text-center mb-5">
                         <div id="statusGeoLoading" class="hidden-view bg-white text-gray-800 p-6 rounded-xl border border-gray-200 shadow-md">
                             <!-- Menyesuaikan spinner -->
                             <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600 mx-auto mb-4"></div>
@@ -375,6 +385,30 @@
                                 <textarea class="w-full p-3 rounded-lg border border-yellow-200 focus:ring-2 focus:ring-yellow-500 outline-none text-sm bg-white shadow-inner transition placeholder:text-gray-400" id="keterangan" rows="3" placeholder="Contoh: Dinas luar, apel pagi, atau kendala jaringan/GPS."></textarea>
                             </div>
                         </div>
+                    </div> <!-- End of flowHadir -->
+
+                    <!-- Flow Tidak Hadir -->
+                    <div id="flowIzin" class="hidden-view">
+                        <div class="bg-white p-5 rounded-xl mb-5 border border-red-200 shadow-sm">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Alasan Tidak Hadir</label>
+                            <select id="alasanIzin" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500 outline-none text-sm bg-gray-50 mb-4" onchange="checkIzinForm()">
+                                <option value="" disabled selected>-- Pilih Alasan --</option>
+                                <option value="Dinas Dalam Daerah">Dinas Dalam Daerah</option>
+                                <option value="Dinas Luar Daerah">Dinas Luar Daerah</option>
+                                <option value="Cuti">Cuti</option>
+                                <option value="Izin Atasan">Izin Atasan</option>
+                                <option value="Sakit">Sakit</option>
+                                <option value="Lainnya">Lainnya (Tulis di Keterangan)</option>
+                            </select>
+                            
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Keterangan Khusus (Wajib)</label>
+                            <textarea id="keteranganIzin" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500 outline-none text-sm bg-gray-50 mb-4" rows="3" placeholder="Contoh: Mengikuti diklatpim..." oninput="checkIzinForm()"></textarea>
+                            
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Bukti Dukung (Wajib)</label>
+                            <input type="file" id="buktiIzin" accept="image/*,application/pdf" class="w-full p-2 border border-gray-300 rounded-lg text-sm bg-gray-50 mb-1" onchange="checkIzinForm()">
+                            <p class="text-[10px] text-gray-500 mb-2">Format: JPG, PNG, atau PDF. Maksimal 1 MB.</p>
+                        </div>
+                    </div>
 
                         <!-- Urutan 5: Tombol Kirim -->
                         <!-- Menyesuaikan tombol kirim -->

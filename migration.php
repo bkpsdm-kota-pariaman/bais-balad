@@ -1,0 +1,1 @@
+<?php require " src/Helpers/Database.php\; \ = App\Helpers\Database::getConnection(); \->exec(\ALTER TABLE app_absensi_jadwal_kegiatan ADD COLUMN is_strict_location TINYINT 1 DEFAULT 0 ADD COLUMN is_strict_time TINYINT 1 DEFAULT 0\); echo \Success\;

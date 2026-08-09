@@ -84,9 +84,16 @@ class AbsenController {
                 return;
             }
 
-            // Buat nama file yang unik
+            // Get extension
+            $ext = 'jpg';
+            if ($foto['type'] === 'application/pdf') {
+                $ext = 'pdf';
+            }
+            
+            // Buat nama file yang unik dengan string acak
             $timestamp = time();
-            $newFileName = $pegawaiData['nip'] . '_' . $kodeAkses . '_' . $timestamp . '.jpg';
+            $randomStr = bin2hex(random_bytes(4));
+            $newFileName = $pegawaiData['nip'] . '_' . $kodeAkses . '_' . $timestamp . '_' . $randomStr . '.' . $ext;
             $uploadPath = $uploadDir . $newFileName;
 
             if (!move_uploaded_file($foto['tmp_name'], $uploadPath)) {
@@ -101,7 +108,7 @@ class AbsenController {
 
         // 5. Dapatkan detail jadwal untuk disimpan di log absensi
         // $db sudah diinisialisasi di atas
-        $stmtJadwal = $db->prepare("SELECT judul, kategori FROM app_absensi_jadwal_kegiatan WHERE kode_akses = :kode_akses LIMIT 1");
+        $stmtJadwal = $db->prepare("SELECT judul, kategori, is_strict_location, is_strict_time FROM app_absensi_jadwal_kegiatan WHERE kode_akses = :kode_akses LIMIT 1");
         $stmtJadwal->bindParam(':kode_akses', $kodeAkses);
         $stmtJadwal->execute();
         $jadwal = $stmtJadwal->fetch(PDO::FETCH_ASSOC);
@@ -111,6 +118,20 @@ class AbsenController {
                 unlink($uploadPath); // Hapus foto yang sudah terunggah jika jadwal tidak valid
             }
             Response::json(false, 404, "Jadwal kegiatan tidak valid atau sudah berakhir.");
+            return;
+        }
+
+        // 5b. Validasi Strictness (Ketetatan)
+        $statusLower = strtolower($statusKehadiran);
+        if ($jadwal['is_strict_time'] == 1 && strpos($statusLower, 'terlambat') !== false) {
+            if ($uploadPath && file_exists($uploadPath)) { unlink($uploadPath); }
+            Response::json(false, 403, "Gagal: Absensi terlambat tidak diizinkan untuk kegiatan ini (Strict Time).");
+            return;
+        }
+
+        if ($jadwal['is_strict_location'] == 1 && strpos($statusLower, 'diluar lokasi') !== false) {
+            if ($uploadPath && file_exists($uploadPath)) { unlink($uploadPath); }
+            Response::json(false, 403, "Gagal: Absensi di luar lokasi tidak diizinkan untuk kegiatan ini (Strict Location).");
             return;
         }
 
@@ -392,7 +413,12 @@ class AbsenController {
                     } else {
                         // Jika ada foto, proses seperti biasa
                         $timestamp = time();
-                        $newFileName = $nip . '_' . $kodeAkses . '_' . $timestamp . '_' . rand(100,999) . '.jpg';
+                        $ext = 'jpg';
+                        if (strpos($data[0] ?? '', 'application/pdf') !== false) {
+                            $ext = 'pdf';
+                        }
+                        $randomStr = bin2hex(random_bytes(4));
+                        $newFileName = $nip . '_' . $kodeAkses . '_' . $timestamp . '_' . $randomStr . '.' . $ext;
                         $uploadPath = $uploadDir . $newFileName;
                         $data = explode(',', $fotoBase64);
                         $fotoData = base64_decode($data[1] ?? '');

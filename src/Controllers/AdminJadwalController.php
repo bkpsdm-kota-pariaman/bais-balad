@@ -129,7 +129,7 @@ class AdminJadwalController {
         try {
             $db->beginTransaction();
 
-            $sqlJadwal = "INSERT INTO app_absensi_jadwal_kegiatan (kode_akses, judul, kategori, tanggal, jam_mulai, jam_selesai, koordinat, radius_meter, aktifkan_antrian, kv_sync_status) VALUES (:ka, :jd, :kat, :tgl, :jm, :js, :koord, :rad, :aa, :kv_sync_status)";
+            $sqlJadwal = "INSERT INTO app_absensi_jadwal_kegiatan (kode_akses, judul, kategori, tanggal, jam_mulai, jam_selesai, koordinat, radius_meter, is_strict_location, is_strict_time, aktifkan_antrian, kv_sync_status) VALUES (:ka, :jd, :kat, :tgl, :jm, :js, :koord, :rad, :isl, :ist, :aa, :kv_sync_status)";
             $stmtJadwal = $db->prepare($sqlJadwal);
             $stmtJadwal->execute([
                 ':ka' => $kodeAkses,
@@ -140,7 +140,9 @@ class AdminJadwalController {
                 ':js' => $input['jam_selesai'],
                 ':koord' => $input['koordinat'],
                 ':rad' => $input['radius_meter'],
-                ':aa' => $aktifkan_antrian,
+                ':isl' => isset($input['is_strict_location']) ? (int)$input['is_strict_location'] : 0,
+                ':ist' => isset($input['is_strict_time']) ? (int)$input['is_strict_time'] : 0,
+                ':aa' => isset($input['aktifkan_antrian']) ? (int)$input['aktifkan_antrian'] : 0,
                 ':kv_sync_status' => $kv_sync_status
             ]);
 
@@ -213,6 +215,8 @@ class AdminJadwalController {
             'jam_selesai' => $input['jam_selesai'],
             'koordinat' => $input['koordinat'],
             'radius_meter' => $input['radius_meter'],
+            'is_strict_location' => $input['is_strict_location'] ?? 0,
+            'is_strict_time' => $input['is_strict_time'] ?? 0,
             'aktifkan_antrian' => $aktifkan_antrian,
             'target_opd' => $input['target_opd'] ?? []
         ];
@@ -223,7 +227,7 @@ class AdminJadwalController {
             $db->beginTransaction();
 
             // 1. Update tabel jadwal utama
-            $sqlJadwal = "UPDATE app_absensi_jadwal_kegiatan SET judul=:jd, kategori=:kat, tanggal=:tgl, jam_mulai=:jm, jam_selesai=:js, koordinat=:koord, radius_meter=:rad, aktifkan_antrian=:aa, kv_sync_status = :kv_sync_status WHERE kode_akses = :ka";
+            $sqlJadwal = "UPDATE app_absensi_jadwal_kegiatan SET judul=:jd, kategori=:kat, tanggal=:tgl, jam_mulai=:jm, jam_selesai=:js, koordinat=:koord, radius_meter=:rad, is_strict_location=:isl, is_strict_time=:ist, aktifkan_antrian=:aa, kv_sync_status = :kv_sync_status WHERE kode_akses = :ka";
             $stmtJadwal = $db->prepare($sqlJadwal);
             $stmtJadwal->execute([
                 ':jd' => $input['judul'],
@@ -233,7 +237,9 @@ class AdminJadwalController {
                 ':js' => $input['jam_selesai'],
                 ':koord' => $input['koordinat'],
                 ':rad' => $input['radius_meter'],
-                ':aa' => $aktifkan_antrian,
+                ':isl' => isset($input['is_strict_location']) ? (int)$input['is_strict_location'] : 0,
+                ':ist' => isset($input['is_strict_time']) ? (int)$input['is_strict_time'] : 0,
+                ':aa' => isset($input['aktifkan_antrian']) ? (int)$input['aktifkan_antrian'] : 0,
                 ':kv_sync_status' => $kv_sync_status,
                 ':ka' => $kodeAkses
             ]);
@@ -344,7 +350,7 @@ class AdminJadwalController {
         }
 
         // 1. Ambil data jadwal terbaru dari DB untuk memastikan data di KV adalah yang paling mutakhir.
-        $stmtJadwal = $db->prepare("SELECT kode_akses, judul, kategori, tanggal, jam_mulai, jam_selesai, koordinat, radius_meter, aktifkan_antrian FROM app_absensi_jadwal_kegiatan WHERE kode_akses = :kode_akses");
+        $stmtJadwal = $db->prepare("SELECT kode_akses, judul, kategori, tanggal, jam_mulai, jam_selesai, koordinat, radius_meter, is_strict_location, is_strict_time, aktifkan_antrian FROM app_absensi_jadwal_kegiatan WHERE kode_akses = :kode_akses");
         $stmtJadwal->execute([':kode_akses' => $kodeAkses]);
         $jadwal = $stmtJadwal->fetch(PDO::FETCH_ASSOC);
 
