@@ -1,0 +1,7 @@
+
+// EXPORTS UNTUK TESTING (Diabaikan oleh browser)
+if (typeof module !== 'undefined') {
+    if (module.exports) {
+        module.exports = { getDistanceInMeters, parseJwt, switchView, toggleTipeKehadiran, batalAbsen };
+    }
+}

@@ -3,7 +3,7 @@
 const ORIGIN_SERVER_URL = "https://api-esdm.pariamankota.go.id/beta-bais-pariaman";
 const API_BASE_URL = `${ORIGIN_SERVER_URL}/api`;
 const WORKER_URL = "https://absensi-kegiatan-asn-worker.bidpp-bkpsdm.workers.dev";
-const APP_VERSION = 'v6.1.6'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
+const APP_VERSION = 'v6.1.7'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
 
 /**
  * =================================================================
@@ -942,21 +942,71 @@ async function adminCepatCekJadwal(event) {
 }
 
 
-function adminCepatMulaiPindai() {
+async function adminCepatMulaiPindai() {
     const keterangan = document.getElementById('admin-cepat-keterangan').value.trim();
     if (!keterangan) {
         Swal.fire('Gagal', 'Keterangan wajib diisi sebelum memulai pemindaian.', 'error');
         return;
     }
 
-    // Simpan parameter ke state
-    adminCepatState.status_kehadiran = document.getElementById('admin-cepat-status-kehadiran').value;
-    adminCepatState.status_verifikasi = document.getElementById('admin-cepat-status-verifikasi').value;
-    adminCepatState.keterangan = keterangan;
-    isAbsenCepatMode = true; // Aktifkan mode pindai cepat
+    const jadwal = adminCepatState.jadwal;
 
-    // Buka scanner utama yang sudah ada dan berfungsi
-    bukaScanner(false, 'Pindai QR Profil (Absen Cepat)', false);
+    // 1. Validasi Waktu Awal
+    if (jadwal.is_strict_time == 1) {
+        const nowTime = getCurrentServerTime().getTime();
+        const eventEndStr = `${jadwal.tanggal}T${jadwal.jam_selesai}:00+07:00`;
+        const endTime = new Date(eventEndStr).getTime();
+        if (nowTime > endTime) {
+            Swal.fire('Waktu Habis', 'Kegiatan ini sudah berakhir. Absensi Cepat tidak diizinkan karena aturan Waktu Ketat (Strict Time) aktif.', 'error');
+            return;
+        }
+    }
+
+    // Fungsi untuk melanjutkan setelah lokasi (jika perlu) didapatkan
+    const proceedToScan = () => {
+        // Simpan parameter ke state
+        adminCepatState.status_kehadiran = document.getElementById('admin-cepat-status-kehadiran').value;
+        adminCepatState.status_verifikasi = document.getElementById('admin-cepat-status-verifikasi').value;
+        adminCepatState.keterangan = keterangan;
+        isAbsenCepatMode = true; // Aktifkan mode pindai cepat
+
+        // Buka scanner utama yang sudah ada dan berfungsi
+        bukaScanner(false, 'Pindai QR Profil (Absen Cepat)', false);
+    };
+
+    // 2. Validasi Lokasi Awal
+    if (jadwal.is_strict_location == 1) {
+        showLoading(true, "Memeriksa lokasi Anda...");
+        try {
+            const pos = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+            });
+            const rLat = pos.coords.latitude;
+            const rLng = pos.coords.longitude;
+            
+            const [tLat, tLng] = jadwal.koordinat.replace(/'/g, '').split(',');
+            const jarak = getDistanceInMeters(rLat, rLng, parseFloat(tLat), parseFloat(tLng));
+            const radius = parseFloat(jadwal.radius_meter);
+            
+            showLoading(false);
+            if (jarak > radius) {
+                Swal.fire('Di Luar Lokasi', `Anda berada ${Math.round(jarak)} meter dari lokasi kegiatan (Maksimal ${radius}m). Absensi Cepat tidak diizinkan karena aturan Lokasi Ketat (Strict Location) aktif.`, 'error');
+                return;
+            }
+            
+            adminCepatState.lat = rLat;
+            adminCepatState.lng = rLng;
+            proceedToScan();
+        } catch (e) {
+            showLoading(false);
+            Swal.fire('Lokasi Diperlukan', 'Gagal mendapatkan lokasi Anda. Pastikan GPS aktif dan izin lokasi diberikan.', 'error');
+            return;
+        }
+    } else {
+        adminCepatState.lat = 0;
+        adminCepatState.lng = 0;
+        proceedToScan();
+    }
 }
 
 // ==========================================
@@ -1720,15 +1770,31 @@ async function adminCepatKirimAbsensi(userToken) {
     try {
         const userData = parseJwt(userToken, true);
         if (!userData) {
-            // Tampilkan notifikasi toast dan hentikan proses jika token pegawai tidak valid.
             Swal.fire({ toast: true, position: 'bottom', icon: 'error', title: `Token Pegawai Tidak Valid`, showConfirmButton: false, timer: 2000 });
             return;
         }
 
-        const kode = adminCepatState.jadwal.kode_akses;
+        const jadwal = adminCepatState.jadwal;
+        
+        // Cek strict time setiap kali mau kirim, karena waktu berjalan saat scan
+        if (jadwal.is_strict_time == 1) {
+            const nowTime = getCurrentServerTime().getTime();
+            const eventEndStr = `${jadwal.tanggal}T${jadwal.jam_selesai}:00+07:00`;
+            const endTime = new Date(eventEndStr).getTime();
+            if (nowTime > endTime) {
+                Swal.fire({ toast: true, position: 'bottom', icon: 'error', title: `Gagal: Kegiatan Berakhir (Strict Time)`, showConfirmButton: false, timer: 3000 });
+                return;
+            }
+        }
+
+        const kode = jadwal.kode_akses;
         const statusKehadiran = adminCepatState.status_kehadiran;
         const statusVerifikasi = adminCepatState.status_verifikasi;
         const keteranganAdmin = adminCepatState.keterangan;
+        
+        // Ambil lokasi dari state (sudah divalidasi sebelumnya)
+        const lat = adminCepatState.lat || '0';
+        const lng = adminCepatState.lng || '0';
 
         if (!keteranganAdmin) {
             Swal.fire('Gagal', 'Keterangan wajib diisi.', 'error');
@@ -1746,8 +1812,8 @@ async function adminCepatKirimAbsensi(userToken) {
             const workerBody = JSON.stringify({
                 user_token: userToken,
                 kode_akses: kode,
-                kategori: adminCepatState.jadwal.kategori, // FIX: Tambahkan kategori ke payload
-                lat: '0', lng: '0', lokasi: 'Absensi Cepat oleh Admin',
+                kategori: jadwal.kategori,
+                lat: lat, lng: lng, lokasi: 'Absensi Cepat oleh Admin',
                 keterangan: keteranganAdmin,
                 status_kehadiran: statusKehadiran,
                 status_verifikasi: statusVerifikasi,
@@ -1760,12 +1826,12 @@ async function adminCepatKirimAbsensi(userToken) {
             // 2. Jika Worker gagal, fallback ke server PHP
             console.warn("Gagal mengirim absensi cepat ke Worker, fallback ke server utama.", workerError.message);
 
-            const fallbackUrl = `${API_BASE_URL}/absen-cepat/submit`; // FIX: Gunakan URL absolut
+            const fallbackUrl = `${API_BASE_URL}/absen-cepat/submit`;
             const fallbackBody = new FormData();
             fallbackBody.append('user_token', userToken);
             fallbackBody.append('kode_akses', kode);
-            fallbackBody.append('lat', '0');
-            fallbackBody.append('lng', '0');
+            fallbackBody.append('lat', lat);
+            fallbackBody.append('lng', lng);
             fallbackBody.append('lokasi', 'Absensi Cepat oleh Admin');
             fallbackBody.append('keterangan', keteranganAdmin);
             fallbackBody.append('status_kehadiran', statusKehadiran);
@@ -2267,5 +2333,12 @@ function checkIzinForm() {
     } else {
         btnKirim.disabled = true;
         btnKirim.className = "w-full bg-gray-300 text-gray-500 font-extrabold py-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2";
+    }
+}
+
+// EXPORTS UNTUK TESTING (Diabaikan oleh browser)
+if (typeof module !== 'undefined') {
+    if (module.exports) {
+        module.exports = { getDistanceInMeters, parseJwt, switchView, toggleTipeKehadiran, batalAbsen };
     }
 }

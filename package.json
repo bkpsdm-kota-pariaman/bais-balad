@@ -42,13 +42,16 @@
     "build:landing": "npm run build:landing:dirs && npm run build:landing:copy && npm run build:landing:html",
     "build:images": "npx mkdirp docs/images && npx cpx \"src/Views/images/*\" docs/images || true",
     "build:all": "npm run prepare-dirs && npm run clean && npm run prepare-dirs && npm run build:static && npm run build:admin && npm run build:absensi && npm run build:pwa && npm run build:landing && npm run build:images",
-    "build": "npm run build:all"
+    "build": "npm run build:all",
+    "test:js": "jest"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
     "cpx": "^1.2.1",
     "esbuild": "^0.28.1",
     "html-minifier-terser": "^7.0.0",
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1",
     "mkdirp": "^3.0.1",
     "rimraf": "^5.0.0",
     "tailwindcss": "^4.3.3"

@@ -2982,3 +2982,9 @@ function exportStatistikToExcel() {
     const fileName = `Statistik_Kehadiran_${statusKehadiranLabel}_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(workbook, fileName);
 }
+// EXPORTS UNTUK TESTING (Diabaikan oleh browser)
+if (typeof module !== 'undefined') {
+    if (module.exports) {
+        module.exports = { formatIndonesianDateTime, selectAllOpd, deselectAllOpd };
+    }
+}
