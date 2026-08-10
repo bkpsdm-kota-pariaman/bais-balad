@@ -308,14 +308,20 @@
 
                     <!-- Urutan 1.5: Tipe Kehadiran -->
                     <div class="bg-white p-4 rounded-xl mb-5 border border-red-200 shadow-sm">
-                        <label class="block text-sm font-bold text-gray-700 mb-2">Tipe Kehadiran</label>
-                        <select id="tipeKehadiran" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500 outline-none text-sm bg-gray-50" onchange="toggleTipeKehadiran()">
-                            <option value="hadir">✅ Hadir di Lokasi</option>
-                            <option value="izin">❌ Tidak Bisa Hadir (Izin / Cuti / DL)</option>
-                        </select>
+                        <label class="block text-sm font-bold text-gray-700 mb-3">Tipe Kehadiran</label>
+                        <div class="flex flex-col gap-3">
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                                <input type="radio" name="tipeKehadiran" value="hadir" class="w-5 h-5 text-red-600 focus:ring-red-500 border-gray-300" onclick="toggleTipeKehadiran()" onchange="toggleTipeKehadiran()">
+                                <span class="ml-3 text-sm font-medium text-gray-700">✅ Hadir di Lokasi</span>
+                            </label>
+                            <label class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                                <input type="radio" name="tipeKehadiran" value="izin" class="w-5 h-5 text-red-600 focus:ring-red-500 border-gray-300" onclick="toggleTipeKehadiran()" onchange="toggleTipeKehadiran()">
+                                <span class="ml-3 text-sm font-medium text-gray-700">❌ Tidak Bisa Hadir (Izin / DL / Cuti)</span>
+                            </label>
+                        </div>
                     </div>
 
-                    <div id="flowHadir">
+                    <div id="flowHadir" class="hidden-view">
                         <div class="text-center mb-5">
                         <div id="statusGeoLoading" class="hidden-view bg-white text-gray-800 p-6 rounded-xl border border-gray-200 shadow-md">
                             <!-- Menyesuaikan spinner -->
@@ -345,6 +351,7 @@
                             </div>
                         </div>
                     </div>
+                    </div> <!-- Menutup flowHadir -->
 
                     <!-- Urutan 4: Foto Selfie -->
                     <div id="form-absen-lanjutan" class="hidden-view">
@@ -385,7 +392,7 @@
                                 <textarea class="w-full p-3 rounded-lg border border-yellow-200 focus:ring-2 focus:ring-yellow-500 outline-none text-sm bg-white shadow-inner transition placeholder:text-gray-400" id="keterangan" rows="3" placeholder="Contoh: Dinas luar, apel pagi, atau kendala jaringan/GPS."></textarea>
                             </div>
                         </div>
-                    </div> <!-- End of flowHadir -->
+                    </div> <!-- End of form-absen-lanjutan -->
 
                     <!-- Flow Tidak Hadir -->
                     <div id="flowIzin" class="hidden-view">
@@ -398,6 +405,7 @@
                                 <option value="Cuti">Cuti</option>
                                 <option value="Izin Atasan">Izin Atasan</option>
                                 <option value="Sakit">Sakit</option>
+                                <option value="Kegiatan lain dengan SPT">Kegiatan lain dengan SPT</option>
                                 <option value="Lainnya">Lainnya (Tulis di Keterangan)</option>
                             </select>
                             
@@ -416,7 +424,6 @@
                             <i class="bi bi-send-fill"></i>
                             KIRIM PRESENSI
                         </button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -478,10 +485,15 @@
                         <div class="text-left">
                             <label for="admin-cepat-status-kehadiran" class="block text-sm font-bold text-gray-700 mb-2"><i class="bi bi-check2-circle mr-1"></i> Status Kehadiran</label>
                             <select id="admin-cepat-status-kehadiran" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-400 outline-none text-sm bg-white font-medium shadow-sm transition">
-                                <option value="Hadir" selected>Hadir (Tepat Waktu & Lokasi)</option>
-                                <option value="Hadir Terlambat">Hadir Terlambat</option>
-                                <option value="Hadir Diluar Lokasi">Hadir Diluar Lokasi</option>
-                                <option value="Hadir Terlambat Diluar Lokasi">Terlambat & Diluar Lokasi</option>
+                                <option value="Hadir" selected>Hadir</option>
+                                <option value="Alpa">Alpa</option>
+                                <option value="Dinas Dalam Daerah">Dinas Dalam Daerah</option>
+                                <option value="Dinas Luar Daerah">Dinas Luar Daerah</option>
+                                <option value="Cuti">Cuti</option>
+                                <option value="Sakit">Sakit</option>
+                                <option value="Izin Atasan">Izin Atasan</option>
+                                <option value="Kegiatan lain dengan SPT">Kegiatan lain dengan SPT</option>
+                                <option value="Lainnya">Lainnya</option>
                             </select>
                         </div>
                         <div class="text-left">

@@ -36,6 +36,22 @@ function dataURItoBlob(dataURI) {
 	return new Blob([ab], { type: mimeString });
 }
 
+function haversineDistance(lat1, lon1, lat2, lon2) {
+	if (!lat1 || !lon1 || !lat2 || !lon2) return 999999;
+	const R = 6371e3; // metres
+	const p1 = lat1 * Math.PI / 180;
+	const p2 = lat2 * Math.PI / 180;
+	const dp = (lat2 - lat1) * Math.PI / 180;
+	const dl = (lon2 - lon1) * Math.PI / 180;
+
+	const a = Math.sin(dp / 2) * Math.sin(dp / 2) +
+		Math.cos(p1) * Math.cos(p2) *
+		Math.sin(dl / 2) * Math.sin(dl / 2);
+	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+	return R * c; // in metres
+}
+
 export default {
 	/**
 	 * Fetch handler: Berperan sebagai PRODUCER untuk queue.
@@ -76,15 +92,33 @@ export default {
 
 			const status = (payload.status_kehadiran || "").toLowerCase();
 
-			if (cachedJadwal.is_strict_time && cachedJadwal.is_strict_time == 1) {
-				if (status.includes("terlambat")) {
-					return { error: true, code: 403, message: "Gagal: Absensi terlambat tidak diizinkan untuk kegiatan ini (Strict Time)." };
+			// Jika pegawai mencoba Hadir murni (bukan Izin/Sakit/Cuti)
+			if (status === "hadir") {
+				// Validasi Strict Time
+				if (cachedJadwal.is_strict_time && cachedJadwal.is_strict_time == 1) {
+					const endTime = new Date(`${cachedJadwal.tanggal}T${cachedJadwal.jam_selesai}+07:00`);
+					if (now > endTime) {
+						return { error: true, code: 403, message: "Gagal: Waktu Habis. Anda hanya bisa mengirim Izin/Keterangan karena aturan Waktu Ketat (Strict Time) aktif." };
+					}
 				}
-			}
 
-			if (cachedJadwal.is_strict_location && cachedJadwal.is_strict_location == 1) {
-				if (status.includes("diluar lokasi")) {
-					return { error: true, code: 403, message: "Gagal: Absensi di luar lokasi tidak diizinkan untuk kegiatan ini (Strict Location)." };
+				// Validasi Strict Location
+				if (cachedJadwal.is_strict_location && cachedJadwal.is_strict_location == 1) {
+					if (cachedJadwal.koordinat && cachedJadwal.koordinat !== "-") {
+						const parts = cachedJadwal.koordinat.replace(/'/g, '').split(',');
+						if (parts.length === 2) {
+							const tLat = parseFloat(parts[0]);
+							const tLng = parseFloat(parts[1]);
+							const pLat = parseFloat(payload.lat);
+							const pLng = parseFloat(payload.lng);
+							const radius = parseFloat(cachedJadwal.radius_meter) || 0;
+							
+							const jarak = haversineDistance(pLat, pLng, tLat, tLng);
+							if (jarak > radius) {
+								return { error: true, code: 403, message: `Gagal: Anda di luar lokasi (${Math.round(jarak)}m). Anda hanya bisa mengirim Izin/Keterangan karena aturan Lokasi Ketat (Strict Location) aktif.` };
+							}
+						}
+					}
 				}
 			}
 

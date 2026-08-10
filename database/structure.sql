@@ -42,7 +42,7 @@ CREATE TABLE `app_absensi_data_absensi` (
   `kategori` varchar(100) DEFAULT NULL,
   `keterangan` text DEFAULT NULL,
   `status_verifikasi` varchar(100) DEFAULT NULL COMMENT 'Terverifikasi Oleh Sistem, Admin dan Ditolak Oleh Admin',
-  `status_kehadiran` varchar(100) DEFAULT NULL COMMENT 'Hadir, Hadir Terlambat, Hadir Diluar Lokasi dan Hadir Terlambat Diluar Lokasi'
+  `status_kehadiran` varchar(100) DEFAULT NULL COMMENT 'Hadir, Alpa, Dinas Luar Daerah, Dinas Dalam Daerah, Cuti, Sakit, Izin Atasan, Kegiatan lain dengan SPT, Lainnya'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------

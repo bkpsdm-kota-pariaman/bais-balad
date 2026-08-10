@@ -6,7 +6,6 @@ const WORKER_URL = "https://absensi-kegiatan-asn-worker.bidpp-bkpsdm.workers.dev
 let allOpdList = [];
 let qrCodeInstance = null;
 let currentRekapData = { jadwal: null, filtered_pegawai: [] };
-let rekapFilterOpdSelect = null;
 let mapAdd, circleAdd, markerAdd;
 let mapEdit, circleEdit, markerEdit;
 let currentQrData = { kode: '', judul: '' };
@@ -42,7 +41,7 @@ function showAdminLoading(show, title = 'Memproses...') {
 }
 
 let currentPegawaiMode = 'add'; // 'add' or 'edit'
-let tambahPesertaOpdFilterSelect = null; // Untuk filter OPD di modal tambah peserta
+let tambahPesertaSearchTimeout = null;
 let tambahPesertaState = { available: [], selected: [] }; // State untuk modal tambah peserta dual-list
 /**
  * Menangani proses login admin.
@@ -136,7 +135,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inisialisasi Flatpickr
     flatpickr("#newTanggal", { locale: "id", altInput: true, altFormat: "j F Y", dateFormat: "Y-m-d" });
     flatpickr("#editTanggal", { locale: "id", altInput: true, altFormat: "j F Y", dateFormat: "Y-m-d" });
-    rekapFilterOpdSelect = new TomSelect("#rekapFilterOpd", { create: false });
 
     // Inisialisasi peta saat modal ditampilkan untuk menghindari masalah blank map
     const modalBuatElement = document.getElementById('modalBuatKegiatan');
@@ -204,7 +202,13 @@ async function fetchWithAuth(url, options = {}) {
         headers['Content-Type'] = 'application/json';
     }
 
-    const response = await fetch(url, { ...options, headers });
+    const fetchOptions = {
+        cache: 'no-store', // Prevent aggressive caching of JSON responses
+        ...options,
+        headers
+    };
+
+    const response = await fetch(url, fetchOptions);
 
     if (response.status === 401) { // Token expired or invalid
         alert('Sesi Anda telah berakhir. Silakan login kembali.');
@@ -253,9 +257,23 @@ function renderJadwalTable(jadwalList) {
     jadwalList.forEach((jadwal, index) => {
         let antrianBadge = '';
         if (jadwal.aktifkan_antrian === '1') {
-            antrianBadge = '<span class="badge bg-danger">Antrian: Aktif</span>';
+            antrianBadge = '<span class="badge bg-danger mb-1 me-1">Antrian: Aktif</span>';
         } else if (jadwal.aktifkan_antrian === '0') {
-            antrianBadge = '<span class="badge bg-secondary">Antrian: Non-Aktif</span>';
+            antrianBadge = '<span class="badge bg-secondary mb-1 me-1">Antrian: Non-Aktif</span>';
+        }
+
+        let strictLocationBadge = '';
+        if (jadwal.is_strict_location == 1) {
+            strictLocationBadge = '<span class="badge bg-danger mb-1 me-1" title="Tolak Absen Luar Lokasi"><i class="bi bi-geo-fill"></i> Strict Lokasi</span>';
+        } else {
+            strictLocationBadge = '<span class="badge bg-success mb-1 me-1" title="Bebas Lokasi"><i class="bi bi-geo"></i> Bebas Lokasi</span>';
+        }
+
+        let strictTimeBadge = '';
+        if (jadwal.is_strict_time == 1) {
+            strictTimeBadge = '<span class="badge bg-primary mb-1" title="Tolak Absen Terlambat"><i class="bi bi-clock-fill"></i> Strict Waktu</span>';
+        } else {
+            strictTimeBadge = '<span class="badge bg-info mb-1" title="Bebas Waktu"><i class="bi bi-clock"></i> Bebas Waktu</span>';
         }
 
         let syncStatusHtml = '';
@@ -280,10 +298,12 @@ function renderJadwalTable(jadwalList) {
                 <td>
                     <strong class="d-block">${jadwal.judul}</strong>
                     <small class="text-muted d-block">${new Date(jadwal.tanggal).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</small>
-                    ${antrianBadge ? `<div class="mt-1">${antrianBadge}</div>` : ''}
                 </td>
                 <td class="text-center"><span class="badge bg-info">${jadwal.kategori}</span></td>
                 <td>${jadwal.jam_mulai} - ${jadwal.jam_selesai} WIB</td>
+                <td class="text-center">
+                    ${antrianBadge || strictLocationBadge || strictTimeBadge ? `<div class="d-flex flex-column gap-1 align-items-center">${antrianBadge}${strictLocationBadge}${strictTimeBadge}</div>` : '<span class="text-muted small">-</span>'}
+                </td>
                 <td class="text-center">${syncStatusHtml}</td>
                 <td class="text-center" style="min-width: 160px;">
                     <div class="d-flex flex-column gap-2">
@@ -988,13 +1008,10 @@ function renderRekapSummary(summaryData, containerId) {
             <div class="progress" style="height: 20px;"><div class="progress-bar bg-danger" role="progressbar" style="width: ${opdPercentage}%;" aria-valuenow="${opdPercentage}">${opdPercentage > 0 ? opdPercentage + '%' : ''}</div></div>
             <div class="row gx-2 gy-1 small mt-2 text-center">
                 ${Object.entries(opd.statuses).map(([statusName, count]) => {
-                    let badgeClass = 'bg-secondary-subtle';
-                    let textClass = 'text-secondary-emphasis';
+                    let badgeClass = 'bg-primary-subtle';
+                    let textClass = 'text-primary-emphasis';
                     if (statusName === 'Hadir') { badgeClass = 'bg-success-subtle'; textClass = 'text-success-emphasis'; }
                     else if (statusName === 'Belum Absen' || statusName === 'Alpa') { badgeClass = 'bg-danger-subtle'; textClass = 'text-danger-emphasis'; }
-                    else if (statusName.includes('Terlambat')) { badgeClass = 'bg-warning-subtle'; textClass = 'text-warning-emphasis'; }
-                    else if (statusName.includes('Lokasi')) { badgeClass = 'bg-info-subtle'; textClass = 'text-info-emphasis'; }
-                    else { badgeClass = 'bg-primary-subtle'; textClass = 'text-primary-emphasis'; }
                     return `
                     <div class="col">
                         <div class="p-2 ${badgeClass} rounded h-100">
@@ -1017,13 +1034,10 @@ function renderRekapSummary(summaryData, containerId) {
             <div class="progress" style="height: 25px;"><div class="progress-bar progress-bar-striped bg-danger" role="progressbar" style="width: ${percentage}%;">${percentage}% Hadir</div></div>
             <div class="row gx-2 gy-1 small mt-2 text-center">
                 ${Object.entries(overallSummary.statuses).map(([statusName, count]) => {
-                    let badgeClass = 'bg-secondary-subtle';
-                    let textClass = 'text-secondary-emphasis';
+                    let badgeClass = 'bg-primary-subtle';
+                    let textClass = 'text-primary-emphasis';
                     if (statusName === 'Hadir') { badgeClass = 'bg-success-subtle'; textClass = 'text-success-emphasis'; }
                     else if (statusName === 'Belum Absen' || statusName === 'Alpa') { badgeClass = 'bg-danger-subtle'; textClass = 'text-danger-emphasis'; }
-                    else if (statusName.includes('Terlambat')) { badgeClass = 'bg-warning-subtle'; textClass = 'text-warning-emphasis'; }
-                    else if (statusName.includes('Lokasi')) { badgeClass = 'bg-info-subtle'; textClass = 'text-info-emphasis'; }
-                    else { badgeClass = 'bg-primary-subtle'; textClass = 'text-primary-emphasis'; }
                     return `
                     <div class="col">
                         <div class="p-2 ${badgeClass} rounded h-100">
@@ -1036,31 +1050,38 @@ function renderRekapSummary(summaryData, containerId) {
             </div>
         </div>
     `;
-    container.innerHTML = summaryHeader + html;
+
+    let warningBanner = '';
+    if (overallSummary.menunggu_verifikasi && overallSummary.menunggu_verifikasi > 0) {
+        warningBanner = `
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+            <div>
+                <strong>Perhatian:</strong> Terdapat <strong>${overallSummary.menunggu_verifikasi}</strong> pengajuan kehadiran/izin yang statusnya masih <strong>Menunggu Verifikasi Admin</strong>. Silakan periksa daftar absensi dan lakukan verifikasi.
+            </div>
+        </div>
+        `;
+    }
+
+    container.innerHTML = warningBanner + summaryHeader + html;
 }
 
 function populateRekapFilters(opdList) {
-    rekapFilterOpdSelect.clear();
-    rekapFilterOpdSelect.clearOptions();
-    rekapFilterOpdSelect.addOption(opdList.map(opd => ({ value: opd, text: opd })));
-}
-
-function selectAllOpdFilter() {
-    const allOptions = Object.keys(rekapFilterOpdSelect.options);
-    rekapFilterOpdSelect.setValue(allOptions);
+    populateOpdCheckboxContainer('rekapFilterOpdContainer', opdList);
 }
 
 function resetRekapFilters() {
-    rekapFilterOpdSelect.clear();
+    const opdSelect = document.getElementById('rekapFilterOpdContainer');
+    if (opdSelect && opdSelect.tomselect) opdSelect.tomselect.setValue('semua');
     document.getElementById('rekapSearchInput').value = '';
-    // Saat direset, defaultnya adalah semua status dicentang agar menampilkan semua data
-    document.querySelectorAll('#rekapFilterStatusContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
-    document.querySelectorAll('#rekapFilterVerifikasiContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
+    // Saat direset, defaultnya adalah semua data
+    document.getElementById('rekapFilterStatus').value = 'semua';
+    document.getElementById('rekapFilterVerifikasi').value = 'semua';
 }
 async function terapkanFilterRekap() {
-    const selectedOpds = rekapFilterOpdSelect.getValue();
-    const statusKehadiran = Array.from(document.querySelectorAll('#rekapFilterStatusContainer input:checked')).map(cb => cb.value);
-    const statusVerifikasi = Array.from(document.querySelectorAll('#rekapFilterVerifikasiContainer input:checked')).map(cb => cb.value);
+    const selectedOpds = getSelectedOpdFromCheckbox('rekapFilterOpdContainer');
+    const statusKehadiran = document.getElementById('rekapFilterStatus').value;
+    const statusVerifikasi = document.getElementById('rekapFilterVerifikasi').value;
     const selectedView = document.getElementById('rekapFilterView').value;
     const searchInput = document.getElementById('rekapSearchInput').value;
 
@@ -1069,16 +1090,6 @@ async function terapkanFilterRekap() {
     const photoGridView = document.getElementById('rekapPhotoGridView');
     const btnDownload = document.getElementById('btnDownloadExcel');
     const checkAllHeader = document.getElementById('rekapPilihSemua').parentElement;
-
-    // --- VALIDASI BARU ---
-    if (statusKehadiran.length === 0) {
-        Swal.fire('Filter Tidak Lengkap', 'Anda harus memilih minimal satu "Status Kehadiran" untuk ditampilkan.', 'warning');
-        return;
-    }
-    if (statusVerifikasi.length === 0) {
-        Swal.fire('Filter Tidak Lengkap', 'Anda harus memilih minimal satu "Status Verifikasi" untuk ditampilkan.', 'warning');
-        return;
-    }
 
     // Atur tampilan dan tampilkan indikator muat data
     if (selectedView === 'table') {
@@ -1466,19 +1477,14 @@ function renderFotoKehadiranGrid(filteredPegawai) {
         let statusKehadiranBadge = '';
         switch (p.status_kehadiran) {
             case 'Hadir':
-                statusKehadiranBadge = `<span class="badge bg-danger">Hadir</span>`;
+                statusKehadiranBadge = `<span class="badge bg-success">Hadir</span>`;
                 break;
-            case 'Hadir Terlambat':
-                statusKehadiranBadge = `<span class="badge bg-warning text-dark">Hadir Terlambat</span>`;
-                break;
-            case 'Hadir Diluar Lokasi':
-                statusKehadiranBadge = `<span class="badge bg-info text-dark">Hadir Diluar Lokasi</span>`;
-                break;
-            case 'Hadir Terlambat Diluar Lokasi':
-                statusKehadiranBadge = `<span class="badge bg-danger">Terlambat &amp; Diluar Lokasi</span>`;
+            case 'Alpa':
+            case 'Belum Absen':
+                statusKehadiranBadge = `<span class="badge bg-danger">Alpa</span>`;
                 break;
             default:
-                statusKehadiranBadge = `<span class="badge bg-secondary">${p.status_kehadiran}</span>`;
+                statusKehadiranBadge = `<span class="badge bg-primary">${p.status_kehadiran}</span>`;
         }
 
         // Tambahkan badge untuk status verifikasi agar lebih informatif
@@ -1609,15 +1615,30 @@ async function bukaModalVerifikasi(pegawai) {
     const verifLinkFoto = document.getElementById('verifLinkFoto');
     const verifTanpaFoto = document.getElementById('verifTanpaFoto');
 
-    if (pegawai.nama_file_foto && pegawai.nama_file_foto !== 'MANUAL_INPUT.jpg') {
+    const verifBuktiDukung = document.getElementById('verifBuktiDukung');
+    const verifBuktiLabel = verifBuktiDukung.previousElementSibling;
+
+    if (pegawai.nama_file_foto && pegawai.nama_file_foto !== 'MANUAL_INPUT.jpg' && pegawai.nama_file_foto !== '-') {
         const isDrive = pegawai.nama_file_foto.startsWith('http://') || pegawai.nama_file_foto.startsWith('https://');
         verifLinkFoto.href = isDrive ? pegawai.nama_file_foto : `${ORIGIN_SERVER_URL}/uploads/foto_absensi/${pegawai.nama_file_foto}`;
         verifLinkFoto.innerHTML = isDrive ? '<i class="bi bi-google"></i> Buka Link Drive' : '<i class="bi bi-box-arrow-up-right"></i> Buka di Tab Baru';
         verifLinkFoto.classList.remove('d-none');
         verifTanpaFoto.classList.add('d-none');
+        
+        // Buat upload opsional karena sudah ada bukti
+        verifBuktiDukung.required = false;
+        verifBuktiLabel.innerHTML = 'Upload Bukti Dukung <span class="text-secondary fw-normal">(Opsional, untuk menimpa bukti lama)</span>';
+        verifBuktiLabel.classList.remove('text-danger');
+        verifBuktiDukung.classList.remove('border-danger');
     } else {
         verifLinkFoto.classList.add('d-none');
         verifTanpaFoto.classList.remove('d-none');
+        
+        // Buat upload wajib karena tidak ada bukti
+        verifBuktiDukung.required = true;
+        verifBuktiLabel.innerHTML = 'Upload Bukti Dukung (Wajib, Maks 1MB)';
+        verifBuktiLabel.classList.add('text-danger');
+        verifBuktiDukung.classList.add('border-danger');
     }
 
     const verifStatusSelect = document.getElementById('verifStatus');
@@ -1646,7 +1667,7 @@ async function submitVerifikasi(event) {
     const fileInput = document.getElementById('verifBuktiDukung');
     if (fileInput.files.length > 0) {
         formData.append('bukti_dukung', fileInput.files[0]);
-    } else {
+    } else if (fileInput.required) {
         Swal.fire('Error', 'Bukti dukung (Foto/PDF) wajib diunggah!', 'error');
         return;
     }
@@ -1667,15 +1688,10 @@ async function submitVerifikasi(event) {
 
             // Ambil daftar OPD terbaru untuk filter, karena mungkin berubah setelah edit.
             try {
-                const opdResult = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/opd-list/${payload.kode_akses}`);
+                const verifKodeAkses = document.getElementById('verifKodeAkses').value;
+                const opdResult = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/opd-list/${verifKodeAkses}`);
                 if (opdResult.status) {
-                    const currentSelection = rekapFilterOpdSelect.getValue();
-                    rekapFilterOpdSelect.clear();
-                    rekapFilterOpdSelect.clearOptions();
-                    rekapFilterOpdSelect.addOption(opdResult.data.map(opd => ({ value: opd, text: opd })));
-                    // Coba pulihkan pilihan filter sebelumnya jika masih valid
-                    const validSelection = currentSelection.filter(opd => opdResult.data.includes(opd));
-                    rekapFilterOpdSelect.setValue(validSelection, true); // `true` untuk silent
+                    populateOpdCheckboxContainer('rekapFilterOpdContainer', opdResult.data);
                 }
             } catch (e) { console.error("Gagal refresh list OPD filter:", e); }
 
@@ -1715,19 +1731,13 @@ async function bukaModalTambahPeserta() {
 
     modalTambahPeserta.show();
 
-    // Inisialisasi filter OPD jika belum ada
-    if (!tambahPesertaOpdFilterSelect) {
-        tambahPesertaOpdFilterSelect = new TomSelect("#tambahPesertaFilterOpd", { create: false });
-    }
-    tambahPesertaOpdFilterSelect.clear();
-    tambahPesertaOpdFilterSelect.clearOptions();
-
     await loadAllOpdList(); // Memastikan allOpdList terisi
-    tambahPesertaOpdFilterSelect.addOption(allOpdList.map(opd => ({ value: opd, text: opd })));
+    populateOpdCheckboxContainer('tambahPesertaFilterOpdContainer', allOpdList);
 
     // Tambahkan event listener untuk search input (Enter key)
     searchInput.onkeypress = (e) => {
         if (e.key === 'Enter') {
+            e.preventDefault(); // Mencegah form tersubmit otomatis
             cariEligiblePegawai();
         }
     };
@@ -1742,8 +1752,13 @@ async function cariEligiblePegawai() {
     const searchInput = document.getElementById('tambahPesertaSearch');
     const kodeAkses = document.getElementById('tambahPesertaKodeAkses').value;
 
-    const filterText = searchInput.value;
-    const selectedOpds = tambahPesertaOpdFilterSelect.getValue();
+    const filterText = searchInput.value.trim();
+    const selectedOpds = getSelectedOpdFromCheckbox('tambahPesertaFilterOpdContainer');
+    
+    if (filterText.length === 0 && selectedOpds.length === 0) {
+        Swal.fire('Filter Diperlukan', 'Silakan isi pencarian pegawai atau pilih minimal satu OPD terlebih dahulu.', 'warning');
+        return;
+    }
 
     availableContainer.innerHTML = '<div class="list-group-item text-center text-muted"><div class="spinner-border spinner-border-sm"></div> Mencari pegawai...</div>';
 
@@ -1849,6 +1864,16 @@ function moveAllPegawai(action) {
     renderTambahPesertaView();
 }
 
+function toggleBulkVerifikasi() {
+    const statusKehadiran = document.getElementById('bulkStatusKehadiran').value;
+    const colVerifikasi = document.getElementById('colBulkVerifikasi');
+    if (statusKehadiran === 'Belum Absen') {
+        colVerifikasi.style.display = 'none';
+    } else {
+        colVerifikasi.style.display = 'block';
+    }
+}
+
 async function submitTambahPesertaBulk(event) {
     if (event) event.preventDefault();
     
@@ -1910,16 +1935,10 @@ async function submitTambahPesertaBulk(event) {
             try {
                 const opdResult = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/opd-list/${kodeAkses}`);
                 if (opdResult.status) {
-                    const currentSelection = rekapFilterOpdSelect.getValue();
-                    rekapFilterOpdSelect.clear();
-                    rekapFilterOpdSelect.clearOptions();
-                    rekapFilterOpdSelect.addOption(opdResult.data.map(opd => ({ value: opd, text: opd })));
-                    rekapFilterOpdSelect.setValue(currentSelection, true);
+                    populateOpdCheckboxContainer('rekapFilterOpdContainer', opdResult.data);
                 }
             } catch (e) { console.error("Gagal refresh list OPD filter:", e); }
 
-            terapkanFilterRekap(); // Refresh the main table
-            refreshRekapSummary(); // Refresh the summary modal
         } else {
             Swal.fire('Gagal', result.message, 'error');
         }
@@ -1945,7 +1964,8 @@ async function tampilkanModalRingkasan() {
             modalBody.innerHTML = `<div class="alert alert-danger">Gagal memuat ringkasan: ${result.message}</div>`;
         }
     } catch (error) {
-        modalBody.innerHTML = `<div class="alert alert-danger">Gagal terhubung ke server.</div>`;
+        console.error('Error fetching summary:', error);
+        modalBody.innerHTML = `<div class="alert alert-danger">Terjadi kesalahan pada aplikasi: ${error.message}</div>`;
     }
 }
 
@@ -1973,7 +1993,7 @@ async function refreshRekapSummary() {
 
 async function exportRekapToExcel() {
     // 1. Dapatkan nilai filter saat ini
-    const selectedOpds = rekapFilterOpdSelect.getValue();
+    const selectedOpds = getSelectedOpdFromCheckbox('rekapFilterOpdContainer');
     const statusKehadiran = Array.from(document.querySelectorAll('#rekapFilterStatusContainer input:checked')).map(cb => cb.value);
     const statusVerifikasi = Array.from(document.querySelectorAll('#rekapFilterVerifikasiContainer input:checked')).map(cb => cb.value);
     const searchInput = document.getElementById('rekapSearchInput').value;
@@ -2308,6 +2328,43 @@ async function loadAllOpdList() {
     }
 }
 
+function populateOpdCheckboxContainer(containerId, opdArray) {
+    const select = document.getElementById(containerId);
+    if (!select) return;
+    
+    // Simpan OPD yang sedang terpilih
+    const selectedOpd = select.value || 'semua';
+    
+    // Destroy existing TomSelect instance if any
+    if (select.tomselect) {
+        select.tomselect.destroy();
+    }
+    
+    let html = '<option value="semua">-- Semua OPD --</option>';
+    html += opdArray.map(opd => {
+        const isSelected = (selectedOpd === opd) ? 'selected' : '';
+        return `<option value="${opd}" ${isSelected}>${opd}</option>`;
+    }).join('');
+    
+    select.innerHTML = html;
+    
+    // Initialize TomSelect
+    new TomSelect(select, {
+        create: false,
+        sortField: {
+            field: "text",
+            direction: "asc"
+        },
+        maxOptions: null
+    });
+}
+
+function getSelectedOpdFromCheckbox(containerId) {
+    const select = document.getElementById(containerId);
+    if (!select) return 'semua';
+    return select.value;
+}
+
 function populateOpdDropdown(selectId, selectedValue = '') {
     const select = document.getElementById(selectId);
     select.innerHTML = '<option value="">-- Pilih Perangkat Daerah --</option>'; // Default option
@@ -2442,18 +2499,10 @@ async function hapusPegawai(nip, nama) {
 // FITUR REKAP KESELURUHAN
 // =========================================================================
 
-let rekapKeseluruhanFilterOpdSelect;
 let currentRekapKeseluruhanData = [];
 
 function initRekapKeseluruhanUI() {
-    if (!rekapKeseluruhanFilterOpdSelect) {
-        rekapKeseluruhanFilterOpdSelect = new TomSelect('#rekapKeseluruhanFilterOpd', {
-            plugins: ['remove_button', 'checkbox_options'],
-            create: false,
-            sortField: { field: 'text', direction: 'asc' },
-            placeholder: 'Pilih OPD...'
-        });
-        
+    // Inisialisasi Flatpickr    
         flatpickr("#rekapKeseluruhanStartDate", {
             locale: "id",
             dateFormat: "Y-m-d",
@@ -2465,7 +2514,6 @@ function initRekapKeseluruhanUI() {
             dateFormat: "Y-m-d",
             defaultDate: new Date()
         });
-    }
 }
 
 async function bukaHalamanRekapKeseluruhan() {
@@ -2483,9 +2531,7 @@ async function bukaHalamanRekapKeseluruhan() {
         await loadAllOpdList();
     }
     
-    rekapKeseluruhanFilterOpdSelect.clear();
-    rekapKeseluruhanFilterOpdSelect.clearOptions();
-    rekapKeseluruhanFilterOpdSelect.addOption(allOpdList.map(opd => ({ value: opd, text: opd })));
+    populateOpdCheckboxContainer('rekapKeseluruhanFilterOpdContainer', allOpdList);
     
     // Reset state
     document.getElementById('rekapKeseluruhanTableBody').innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih filter di atas dan tekan "Tampilkan Data" untuk menampilkan rekap.</td></tr>';
@@ -2493,16 +2539,12 @@ async function bukaHalamanRekapKeseluruhan() {
     resetRekapKeseluruhanFilters();
 }
 
-function selectAllOpdFilterKeseluruhan() {
-    const allOptions = Object.keys(rekapKeseluruhanFilterOpdSelect.options);
-    rekapKeseluruhanFilterOpdSelect.setValue(allOptions);
-}
-
 function resetRekapKeseluruhanFilters() {
-    rekapKeseluruhanFilterOpdSelect.clear();
+    const opdSelect = document.getElementById('rekapKeseluruhanFilterOpdContainer');
+    if (opdSelect && opdSelect.tomselect) opdSelect.tomselect.setValue('semua');
     document.getElementById('rekapKeseluruhanSearchInput').value = '';
-    document.querySelectorAll('#rekapKeseluruhanFilterStatusContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
-    document.querySelectorAll('#rekapKeseluruhanFilterVerifikasiContainer input[type="checkbox"]').forEach(cb => cb.checked = true);
+    document.getElementById('rekapKeseluruhanFilterStatus').value = 'semua';
+    document.getElementById('rekapKeseluruhanFilterVerifikasi').value = 'semua';
 }
 
 async function terapkanFilterRekapKeseluruhan() {
@@ -2514,19 +2556,14 @@ async function terapkanFilterRekapKeseluruhan() {
         return;
     }
 
-    const selectedOpds = rekapKeseluruhanFilterOpdSelect.getValue();
-    const statusKehadiran = Array.from(document.querySelectorAll('#rekapKeseluruhanFilterStatusContainer input:checked')).map(cb => cb.value);
-    const statusVerifikasi = Array.from(document.querySelectorAll('#rekapKeseluruhanFilterVerifikasiContainer input:checked')).map(cb => cb.value);
+    const selectedOpds = getSelectedOpdFromCheckbox('rekapKeseluruhanFilterOpdContainer');
+    const statusKehadiran = document.getElementById('rekapKeseluruhanFilterStatus').value;
+    const statusVerifikasi = document.getElementById('rekapKeseluruhanFilterVerifikasi').value;
     const searchInput = document.getElementById('rekapKeseluruhanSearchInput').value;
 
     const tbody = document.getElementById('rekapKeseluruhanTableBody');
     const tableView = document.getElementById('rekapKeseluruhanTableView');
     const btnDownload = document.getElementById('btnDownloadExcelKeseluruhan');
-
-    if (statusKehadiran.length === 0 || statusVerifikasi.length === 0) {
-        Swal.fire('Filter Tidak Lengkap', 'Anda harus memilih minimal satu Status Kehadiran dan Status Verifikasi.', 'warning');
-        return;
-    }
 
     tableView.classList.remove('d-none');
     tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm"></div> Memuat data keseluruhan...</td></tr>';
@@ -2764,18 +2801,10 @@ function exportRekapKeseluruhanToExcel() {
 // FITUR STATISTIK KEHADIRAN
 // =========================================================================
 
-let statistikFilterOpdSelect;
 let currentStatistikData = [];
 
 function initStatistikUI() {
-    if (!statistikFilterOpdSelect) {
-        statistikFilterOpdSelect = new TomSelect('#statistikFilterOpd', {
-            plugins: ['remove_button', 'checkbox_options'],
-            create: false,
-            sortField: { field: 'text', direction: 'asc' },
-            placeholder: 'Pilih OPD...'
-        });
-        
+    // Inisialisasi Flatpickr    
         flatpickr("#statistikStartDate", {
             locale: "id",
             dateFormat: "Y-m-d",
@@ -2787,7 +2816,6 @@ function initStatistikUI() {
             dateFormat: "Y-m-d",
             defaultDate: new Date()
         });
-    }
 }
 
 async function bukaHalamanStatistikKehadiran() {
@@ -2805,9 +2833,7 @@ async function bukaHalamanStatistikKehadiran() {
         await loadAllOpdList();
     }
     
-    statistikFilterOpdSelect.clear();
-    statistikFilterOpdSelect.clearOptions();
-    statistikFilterOpdSelect.addOption(allOpdList.map(opd => ({ value: opd, text: opd })));
+    populateOpdCheckboxContainer('statistikFilterOpdContainer', allOpdList);
 
     // Reset state
     document.getElementById('statistikTableBody').innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih filter di atas dan tekan "Tampilkan Statistik" untuk menampilkan data.</td></tr>';
@@ -2815,14 +2841,11 @@ async function bukaHalamanStatistikKehadiran() {
     resetStatistikFilters();
 }
 
-function selectAllOpdStatistik() {
-    const allOptions = Object.keys(statistikFilterOpdSelect.options);
-    statistikFilterOpdSelect.setValue(allOptions);
-}
-
 function resetStatistikFilters() {
-    statistikFilterOpdSelect.clear();
+    const opdSelect = document.getElementById('statistikFilterOpdContainer');
+    if (opdSelect && opdSelect.tomselect) opdSelect.tomselect.setValue('semua');
     document.getElementById('statAlpaKes').checked = true;
+    document.getElementById('statistikGroupBy').value = 'opd';
 }
 
 async function terapkanFilterStatistik() {
@@ -2834,7 +2857,7 @@ async function terapkanFilterStatistik() {
         return;
     }
 
-    const selectedOpds = statistikFilterOpdSelect.getValue();
+    const selectedOpds = getSelectedOpdFromCheckbox('statistikFilterOpdContainer');
     const statusKehadiran = document.querySelector('input[name="statistikStatusKehadiran"]:checked').value;
 
     const tbody = document.getElementById('statistikTableBody');

@@ -1,143 +1,15 @@
-
-<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Absensi Kegiatan ASN</title>
-  
-  <!-- CSS Library -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-  <!-- SweetAlert2 CSS is included in the JS file below -->
-  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
-  
-  <style>
-    body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
-    .card-stat { border: none; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor: pointer; }
-    .box-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    th { background-color: #f8f9fa !important; color: #495057; font-weight: 600; }
-    #map, #mapGeofence, #editMapGeofence { height: 65vh; width: 100%; border-radius: 0 0 10px 10px; z-index: 1; }
-    #mapGeofence, #editMapGeofence { height: 300px; border-radius: 10px; border: 2px solid #dee2e6; margin-bottom: 15px;}
-    .ts-control { max-height: 120px; overflow-y: auto; }
-    
-    /* Override Bootstrap Danger to match PWA #b91c1c */
-    :root {
-      --bs-danger: #b91c1c;
-      --bs-danger-rgb: 185, 28, 28;
-    }
-    .btn-danger { background-color: #b91c1c; border-color: #b91c1c; }
-    .btn-danger:hover, .btn-danger:active, .btn-danger:focus { background-color: #991b1b; border-color: #991b1b; }
-    .bg-danger { background-color: #b91c1c !important; }
-    .text-danger { color: #b91c1c !important; }
-    .border-danger { border-color: #b91c1c !important; }
-    .btn-outline-danger { color: #b91c1c; border-color: #b91c1c; }
-    .btn-outline-danger:hover { background-color: #b91c1c; border-color: #b91c1c; color: white; }
-  </style>
-</head>
-<body>
-
-  <!-- OVERLAY LOGIN -->
-  <div id="loginOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fcf5f5; z-index: 99999; display: flex; align-items: center; justify-content: center;">
-    <div class="card shadow-lg border-0" style="width: 100%; max-width: 400px; border-radius: 15px;">
-      <div class="card-body p-5 text-center">
-        <h3 class="fw-bold mb-4" style="color: #b91c1c;"><i class="bi bi-shield-lock-fill me-2"></i> BAIS Pariaman</h3>
-        <div class="form-floating mb-3"><input type="text" class="form-control" id="adminUser" placeholder="Username"><label>Username</label></div>
-        <div class="form-floating mb-4"><input type="password" class="form-control" id="adminPass" placeholder="Password" onkeypress="if(event.key === 'Enter') prosesLogin()"><label>Password</label></div>
-        <button class="btn w-100 py-3 fw-bold text-white shadow-sm" style="background-color: #b91c1c; border-radius: 10px;" id="btnLogin" onclick="prosesLogin()">Masuk</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- HEADER NAVBAR -->
-  <nav class="navbar navbar-expand-lg navbar-dark mb-4 shadow-sm" style="background-color: #b91c1c;">
-    <div class="container">
-      <a class="navbar-brand d-flex flex-column" href="#" onclick="kembaliKeDaftar(); return false;">
-        <span class="fs-6 fw-bold" style="color: #ffd43b;">PEMERINTAH KOTA PARIAMAN</span>
-        <span class="fs-4 fw-bold"><i class="bi bi-laptop me-2"></i> BAIS Pariaman</span>
-      </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar" aria-controls="adminNavbar" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse d-none" id="adminNavbar">
-        <ul class="navbar-nav ms-auto mb-2 mb-lg-0 gap-2">
-          <li class="nav-item">
-            <a class="nav-link text-white fw-bold" href="#" onclick="kembaliKeDaftar(); return false;"><i class="bi bi-calendar-event"></i> Data Kegiatan</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-white fw-bold" href="#" onclick="bukaHalamanRekapKeseluruhan(); return false;"><i class="bi bi-calendar2-week"></i> Rekap Kehadiran</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-white fw-bold" href="#" onclick="bukaHalamanStatistikKehadiran(); return false;"><i class="bi bi-bar-chart-fill"></i> Statistik Kehadiran</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-white fw-bold" href="#" onclick="bukaHalamanPegawai(); return false;"><i class="bi bi-people"></i> Data Pegawai</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-white fw-bold" href="#" onclick="bukaHalamanOpd(); return false;"><i class="bi bi-building"></i> Data OPD</a>
-          </li>
-          <li class="nav-item">
-            <button class="btn btn-outline-light btn-sm fw-bold px-3 ms-lg-3 mt-2 mt-lg-0 w-100 w-lg-auto" onclick="logout()">Keluar</button>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </nav>
-
-  <div class="container">
-    <div id="loading" class="text-center d-none my-5"><div class="spinner-border text-danger"></div><h5 class="mt-3 text-muted" id="loadingText">Memuat Data...</h5></div>
-
-    <!-- DAFTAR JADWAL -->
-    <div id="dashboardContainer" class="d-none">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="fw-bold mb-0"><i class="bi bi-calendar-event"></i> Daftar Jadwal Kegiatan</h4>
-        <button class="btn btn-danger fw-bold px-4 shadow-sm" onclick="bukaModalBuatKegiatan()"><i class="bi bi-plus-circle"></i> Buat Jadwal Baru</button>
-      </div>
-
-      <div class="box-container table-responsive">
-        <table class="table table-hover align-middle">
-          <thead> 
-            <tr><th width="5%" class="text-center">No</th><th width="20%">Judul & Tanggal</th><th width="12%" class="text-center">Kategori</th><th width="18%">Waktu Pelaksanaan</th><th width="15%" class="text-center">Aturan absensi</th><th class="text-center" style="width: 15%;">Sinkron Cache</th><th width="15%" class="text-center">Manajemen</th></tr>
-          </thead>
-          <tbody id="listKegiatanBody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- REKAP ABSENSI -->
-    <div id="rekapContainer" class="d-none">
-      <button class="btn btn-secondary btn-sm fw-bold mb-3 shadow-sm" onclick="kembaliKeDaftar()"><i class="bi bi-arrow-left"></i> Kembali ke Daftar Jadwal</button>
-      
-      <!-- Detail Jadwal -->
-      <div class="box-container mb-4">
-        <h4 class="fw-bold mb-1" id="rekapJudul">-</h4>
-        <p class="mb-2 text-muted" id="rekapDetailWaktu">-</p>
-        <div class="d-flex flex-wrap gap-2">
-            <p class="mb-0 me-3 align-self-center"><i class="bi bi-tag-fill"></i> Kategori: <strong id="rekapKategori">-</strong></p>
-            <button class="btn btn-danger fw-bold" onclick="tampilkanModalRingkasan()"><i class="bi bi-bar-chart-line"></i> Lihat Ringkasan Kehadiran</button>
-        </div>
-      </div>
-    
-      <!-- Filter dan Tabel Data Pegawai -->
-      <div class="box-container table-responsive">
-          <h5 class="fw-bold mb-3">Detail Data Pegawai</h5>
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <div class="d-flex gap-2">
-              <button class="btn btn-danger" onclick="bukaModalTambahPeserta()"><i class="bi bi-person-plus-fill"></i> Tambah Peserta / Set Kehadiran Massal</button>
-              <button id="btnHapusTerpilih" class="btn btn-danger d-none" onclick="hapusDataAbsensiMassal()"><i class="bi bi-trash-fill"></i> Hapus Terpilih</button>
-            </div>
-            <div class="d-flex">
-                <button id="btnDownloadExcel" class="btn btn-outline-danger ms-2 fw-bold" onclick="exportFilteredRekapToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>
-            </div>
-          </div>
-            <div class="row g-3 p-3 mb-3 bg-light border rounded">
+Parse Error: 
                 <div class="col-md-4">
                     <label class="form-label fw-bold small d-block">Filter OPD</label>
-                    <select id="rekapFilterOpdContainer" class="form-select form-select-sm">
-                        <option value="semua">-- Semua OPD --</option>
-                    </select>
+                    <div class="border rounded bg-white">
+                        <div class="p-1 border-bottom">
+                            <input type="text" class="form-control form-control-sm" placeholder="Cari OPD..." onkeyup="filterOpdCheckboxList(this, 'rekapFilterOpdContainer')">
+                        </div>
+                        <div id="rekapFilterOpdContainer" class="p-2 d-flex flex-column gap-1" style="max-height: 120px; overflow-y: auto; font-size: 0.85rem;">
+                            <!-- Checkboxes -->
+                        </div>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm mt-1 w-100" type="button" onclick="selectAllOpdFilter('rekapFilterOpdContainer')" title="Pilih Semua OPD">Pilih Semua</button>
                 </div>
                 <div class="col-md-5">
                     <label class="form-label fw-bold small">Cari Pegawai (NIP/Nama/Jabatan)</label>
@@ -152,29 +24,23 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold small mb-1">Status Kehadiran</label>
-                    <select id="rekapFilterStatus" class="form-select form-select-sm">
-                        <option value="semua">Tampilkan semua data</option>
-                        <option value="Hadir">Hadir</option>
-                        <option value="Alpa">Alpa</option>
-                        <option value="Dinas Dalam Daerah">Dinas Dalam Daerah</option>
-                        <option value="Dinas Luar Daerah">Dinas Luar Daerah</option>
-                        <option value="Cuti">Cuti</option>
-                        <option value="Sakit">Sakit</option>
-                        <option value="Izin Atasan">Izin Atasan</option>
-                        <option value="Kegiatan lain dengan SPT">Kegiatan lain dengan SPT</option>
-                        <option value="Lainnya">Lainnya</option>
-                    </select>
+                    <div id="rekapFilterStatusContainer" class="p-2 border rounded bg-white d-flex flex-column gap-2" style="max-height: 120px; overflow-y: auto; font-size: 0.9rem;">
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir" id="statusHadir"><label class="form-check-label" for="statusHadir">Hadir</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Terlambat" id="statusTerlambat"><label class="form-check-label" for="statusTerlambat">Terlambat</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Diluar Lokasi" id="statusLuarLokasi"><label class="form-check-label" for="statusLuarLokasi">Luar Lokasi</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Terlambat Diluar Lokasi" id="statusTerlambatLuarLokasi"><label class="form-check-label" for="statusTerlambatLuarLokasi">Terlambat & Luar Lokasi</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="alpa" id="statusAlpa"><label class="form-check-label" for="statusAlpa">Tidak Hadir (Alpa)</label></div>
+                    </div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold small mb-1">Status Verifikasi</label>
-                    <select id="rekapFilterVerifikasi" class="form-select form-select-sm">
-                        <option value="semua">Tampilkan semua data</option>
-                        <option value="Terverifikasi Sistem">Sistem</option>
-                        <option value="Menunggu Verifikasi Admin">Menunggu Verifikasi</option>
-                        <option value="Terverifikasi Oleh Admin">Disahkan Admin</option>
-                        <option value="Ditolak Oleh Admin">Ditolak Admin</option>
-                        <option value="ALPA">Alpa</option>
-                    </select>
+                    <div id="rekapFilterVerifikasiContainer" class="p-2 border rounded bg-white d-flex flex-column gap-2" style="max-height: 120px; overflow-y: auto; font-size: 0.9rem;">
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Terverifikasi Sistem" id="verifSistem"><label class="form-check-label" for="verifSistem">Sistem</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Menunggu Verifikasi Admin" id="verifMenunggu"><label class="form-check-label" for="verifMenunggu">Menunggu Verifikasi</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Terverifikasi Oleh Admin" id="verifAdmin"><label class="form-check-label" for="verifAdmin">Disahkan Admin</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Ditolak Oleh Admin" id="verifDitolak"><label class="form-check-label" for="verifDitolak">Ditolak Admin</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="ALPA" id="verifAlpa"><label class="form-check-label" for="verifAlpa">Alpa</label></div>
+                    </div>
                 </div>
                 <div class="col-12 d-flex justify-content-end gap-2">
                     <button class="btn btn-outline-secondary" onclick="resetRekapFilters()"><i class="bi bi-arrow-counterclockwise"></i> Reset Filter</button>
@@ -231,9 +97,15 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-bold small d-block">Filter OPD</label>
-                    <select id="rekapKeseluruhanFilterOpdContainer" class="form-select form-select-sm">
-                        <option value="semua">-- Semua OPD --</option>
-                    </select>
+                    <div class="border rounded bg-white">
+                        <div class="p-1 border-bottom">
+                            <input type="text" class="form-control form-control-sm" placeholder="Cari OPD..." onkeyup="filterOpdCheckboxList(this, 'rekapKeseluruhanFilterOpdContainer')">
+                        </div>
+                        <div id="rekapKeseluruhanFilterOpdContainer" class="p-2 d-flex flex-column gap-1" style="max-height: 120px; overflow-y: auto; font-size: 0.85rem;">
+                            <!-- Checkboxes -->
+                        </div>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm mt-1 w-100" type="button" onclick="selectAllOpdFilter('rekapKeseluruhanFilterOpdContainer')">Pilih Semua OPD</button>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-bold small">Cari (NIP/Nama)</label>
@@ -242,29 +114,23 @@
                 
                 <div class="col-md-6">
                     <label class="form-label fw-bold small mb-1">Status Kehadiran</label>
-                    <select id="rekapKeseluruhanFilterStatus" class="form-select form-select-sm">
-                        <option value="semua">Tampilkan semua data</option>
-                        <option value="Hadir">Hadir</option>
-                        <option value="Alpa">Alpa</option>
-                        <option value="Dinas Dalam Daerah">Dinas Dalam Daerah</option>
-                        <option value="Dinas Luar Daerah">Dinas Luar Daerah</option>
-                        <option value="Cuti">Cuti</option>
-                        <option value="Sakit">Sakit</option>
-                        <option value="Izin Atasan">Izin Atasan</option>
-                        <option value="Kegiatan lain dengan SPT">Kegiatan lain dengan SPT</option>
-                        <option value="Lainnya">Lainnya</option>
-                    </select>
+                    <div id="rekapKeseluruhanFilterStatusContainer" class="p-2 border rounded bg-white d-flex flex-column gap-2" style="max-height: 120px; overflow-y: auto; font-size: 0.9rem;">
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir" id="statusHadirKes" checked><label class="form-check-label" for="statusHadirKes">Hadir</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Terlambat" id="statusTerlambatKes" checked><label class="form-check-label" for="statusTerlambatKes">Terlambat</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Diluar Lokasi" id="statusLuarLokasiKes" checked><label class="form-check-label" for="statusLuarLokasiKes">Luar Lokasi</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Hadir Terlambat Diluar Lokasi" id="statusTerlambatLuarLokasiKes" checked><label class="form-check-label" for="statusTerlambatLuarLokasiKes">Terlambat & Luar Lokasi</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="alpa" id="statusAlpaKes" checked><label class="form-check-label" for="statusAlpaKes">Tidak Hadir (Alpa)</label></div>
+                    </div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold small mb-1">Status Verifikasi</label>
-                    <select id="rekapKeseluruhanFilterVerifikasi" class="form-select form-select-sm">
-                        <option value="semua">Tampilkan semua data</option>
-                        <option value="Terverifikasi Sistem">Sistem</option>
-                        <option value="Menunggu Verifikasi Admin">Menunggu Verifikasi</option>
-                        <option value="Terverifikasi Oleh Admin">Disahkan Admin</option>
-                        <option value="Ditolak Oleh Admin">Ditolak Admin</option>
-                        <option value="ALPA">Belum Diverifikasi (Alpa)</option>
-                    </select>
+                    <div id="rekapKeseluruhanFilterVerifikasiContainer" class="p-2 border rounded bg-white d-flex flex-column gap-2" style="max-height: 120px; overflow-y: auto; font-size: 0.9rem;">
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Terverifikasi Sistem" id="verifSistemKes" checked><label class="form-check-label" for="verifSistemKes">Sistem</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Menunggu Verifikasi Admin" id="verifMenungguKes" checked><label class="form-check-label" for="verifMenungguKes">Menunggu Verifikasi</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Terverifikasi Oleh Admin" id="verifAdminKes" checked><label class="form-check-label" for="verifAdminKes">Disahkan Admin</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="Ditolak Oleh Admin" id="verifDitolakKes" checked><label class="form-check-label" for="verifDitolakKes">Ditolak Admin</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" value="ALPA" id="verifAlpaKes" checked><label class="form-check-label" for="verifAlpaKes">Belum Diverifikasi (Alpa)</label></div>
+                    </div>
                 </div>
                 <div class="col-12 d-flex justify-content-end gap-2">
                     <button class="btn btn-outline-secondary" onclick="resetRekapKeseluruhanFilters()"><i class="bi bi-arrow-counterclockwise"></i> Reset Filter</button>
@@ -309,23 +175,25 @@
               </div>
               <div class="col-md-6">
                   <label class="form-label fw-bold small d-block">Filter OPD</label>
-                  <select id="statistikFilterOpdContainer" class="form-select form-select-sm">
-                      <option value="semua">-- Semua OPD --</option>
-                  </select>
+                  <div class="border rounded bg-white">
+                      <div class="p-1 border-bottom">
+                          <input type="text" class="form-control form-control-sm" placeholder="Cari Filter OPD..." onkeyup="filterOpdCheckboxList(this, 'statistikFilterOpdContainer')">
+                      </div>
+                      <div id="statistikFilterOpdContainer" class="p-2 d-flex flex-column gap-1" style="max-height: 120px; overflow-y: auto; font-size: 0.85rem;">
+                          <!-- Checkboxes -->
+                      </div>
+                  </div>
+                  <button class="btn btn-outline-secondary btn-sm mt-1 w-100" type="button" onclick="selectAllOpdFilter('statistikFilterOpdContainer')">Pilih Semua OPD</button>
               </div>
               
               <div class="col-md-12">
                   <label class="form-label fw-bold small mb-1">Status Kehadiran (Pilih Satu)</label>
                   <div id="statistikFilterStatusContainer" class="p-2 border rounded bg-white d-flex flex-wrap gap-3" style="font-size: 0.9rem;">
                       <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Hadir" id="statHadirKes"><label class="form-check-label" for="statHadirKes">Hadir</label></div>
-                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Alpa" id="statAlpaKes" checked><label class="form-check-label" for="statAlpaKes">Alpa</label></div>
-                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Dinas Dalam Daerah" id="statDDDKes"><label class="form-check-label" for="statDDDKes">Dinas Dalam Daerah</label></div>
-                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Dinas Luar Daerah" id="statDLDKes"><label class="form-check-label" for="statDLDKes">Dinas Luar Daerah</label></div>
-                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Cuti" id="statCutiKes"><label class="form-check-label" for="statCutiKes">Cuti</label></div>
-                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Sakit" id="statSakitKes"><label class="form-check-label" for="statSakitKes">Sakit</label></div>
-                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Izin Atasan" id="statIzinAtasanKes"><label class="form-check-label" for="statIzinAtasanKes">Izin Atasan</label></div>
-                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Kegiatan lain dengan SPT" id="statSPTKes"><label class="form-check-label" for="statSPTKes">Kegiatan lain dengan SPT</label></div>
-                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Lainnya" id="statLainnyaKes"><label class="form-check-label" for="statLainnyaKes">Lainnya</label></div>
+                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Hadir Terlambat" id="statTerlambatKes"><label class="form-check-label" for="statTerlambatKes">Terlambat</label></div>
+                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Hadir Diluar Lokasi" id="statLuarLokasiKes"><label class="form-check-label" for="statLuarLokasiKes">Luar Lokasi</label></div>
+                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="Hadir Terlambat Diluar Lokasi" id="statTerlambatLuarLokasiKes"><label class="form-check-label" for="statTerlambatLuarLokasiKes">Terlambat & Luar Lokasi</label></div>
+                      <div class="form-check"><input class="form-check-input" type="radio" name="statistikStatusKehadiran" value="alpa" id="statAlpaKes" checked><label class="form-check-label" for="statAlpaKes">Tidak Hadir (Alpa)</label></div>
                   </div>
               </div>
               
@@ -605,9 +473,15 @@
                     <input type="text" id="tambahPesertaSearch" class="form-control" placeholder="Ketik untuk mencari...">
                 </div>
                 <div class="col-md-5">
-                      <select id="tambahPesertaFilterOpdContainer" class="form-select form-select-sm">
-                          <option value="semua">-- Semua OPD --</option>
-                      </select>
+                      <div class="border rounded bg-white">
+                          <div class="p-1 border-bottom">
+                              <input type="text" class="form-control form-control-sm" placeholder="Cari Filter OPD..." onkeyup="filterOpdCheckboxList(this, 'tambahPesertaFilterOpdContainer')">
+                          </div>
+                          <div id="tambahPesertaFilterOpdContainer" class="p-2 d-flex flex-column gap-1" style="max-height: 120px; overflow-y: auto; font-size: 0.85rem;">
+                              <!-- Checkboxes -->
+                          </div>
+                      </div>
+                      <button class="btn btn-outline-secondary btn-sm mt-1 w-100" type="button" onclick="selectAllOpdFilter('tambahPesertaFilterOpdContainer')">Pilih Semua OPD</button>
                   </div>
                 <div class="col-md-2">
                     <button type="button" class="btn btn-danger w-100 fw-bold" onclick="cariEligiblePegawai()"><i class="bi bi-search"></i> Cari</button>

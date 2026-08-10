@@ -3,7 +3,7 @@
 const ORIGIN_SERVER_URL = "https://api-esdm.pariamankota.go.id/beta-bais-pariaman";
 const API_BASE_URL = `${ORIGIN_SERVER_URL}/api`;
 const WORKER_URL = "https://absensi-kegiatan-asn-worker.bidpp-bkpsdm.workers.dev";
-const APP_VERSION = 'v6.1.7'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
+const APP_VERSION = 'v6.1.42'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
 
 /**
  * =================================================================
@@ -373,6 +373,23 @@ function switchView(viewId) {
         viewToShow.classList.remove('hidden-view'); // Tampilkan view yang diminta
     }
     window.scrollTo({ top: 0 });
+
+    // CLEANUP KAMERA: Cegah memory leak!
+    // Matikan scanner QR jika bukan di view-scanner atau view-admin-cepat
+    if (viewId !== 'view-scanner' && viewId !== 'view-admin-cepat') {
+        if (typeof html5QrCode !== 'undefined' && html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop().catch(e => console.warn("Scanner stop error", e));
+        }
+    }
+    
+    // Matikan selfie kamera jika bukan di view-form
+    if (viewId !== 'view-form') {
+        if (typeof videoStream !== 'undefined' && videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            videoStream = null;
+        }
+        window._isHadirStarted = false;
+    }
 
     // Tampilkan footer hanya di halaman login dan dashboard
     const appFooter = document.getElementById('app-footer');
@@ -1547,6 +1564,9 @@ async function cekLokasiOtomatis() {
     }
 
     navigator.geolocation.getCurrentPosition(async (pos) => {
+        let radio = document.querySelector('input[name="tipeKehadiran"]:checked');
+        if (!radio || radio.value !== 'hadir') return;
+
         stGeoLoading.classList.add('hidden-view'); // Sembunyikan loading besar
         stGeo.classList.remove('hidden-view'); // Tampilkan div hasil
         const rLat = pos.coords.latitude;
@@ -1558,6 +1578,10 @@ async function cekLokasiOtomatis() {
         stGeo.innerHTML = `<span class="inline-block animate-spin mr-1">↻</span> Menerjemahkan alamat...`;
         stGeo.className = "bg-blue-50 text-blue-700 py-2 px-4 rounded-lg text-xs font-bold border border-blue-200";
         const alamat = await getAlamatFromKoordinat(rLat, rLng);
+        
+        radio = document.querySelector('input[name="tipeKehadiran"]:checked');
+        if (!radio || radio.value !== 'hadir') return;
+        
         document.getElementById('alamat').value = alamat;
 
         if (currentJadwal.koordinat && currentJadwal.koordinat !== "-") {
@@ -1573,10 +1597,11 @@ async function cekLokasiOtomatis() {
                         text: `Anda berada di luar lokasi (${Math.round(jarak)}m). Kegiatan ini tidak mengizinkan absen di luar lokasi. Anda hanya dapat mengajukan Izin/Keterangan.`,
                         confirmButtonColor: '#b91c1c'
                     });
-                    const elTipe = document.getElementById('tipeKehadiran');
-                    if (elTipe) {
-                        elTipe.querySelector('option[value="hadir"]').disabled = true;
-                        elTipe.value = 'izin';
+                    const elTipeHadir = document.querySelector('input[name="tipeKehadiran"][value="hadir"]');
+                    const elTipeIzin = document.querySelector('input[name="tipeKehadiran"][value="izin"]');
+                    if (elTipeHadir && elTipeIzin) {
+                        elTipeHadir.disabled = true;
+                        elTipeIzin.checked = true;
                         document.getElementById('flowHadir').classList.add('hidden-view');
                         document.getElementById('flowIzin').classList.remove('hidden-view');
                         checkIzinForm();
@@ -1639,7 +1664,8 @@ function cleanupAbsenForm() {
     document.getElementById('keterangan').value = '';
 }
 async function kirimAbsensi() {
-    const tipeKehadiran = document.getElementById('tipeKehadiran') ? document.getElementById('tipeKehadiran').value : 'hadir';
+    const elTipe = document.querySelector('input[name="tipeKehadiran"]:checked');
+    const tipeKehadiran = elTipe ? elTipe.value : 'hadir';
     
     // Ambil semua data yang dibutuhkan dari elemen form
     const b64 = document.getElementById('fotoBase64').value;
@@ -1662,22 +1688,20 @@ async function kirimAbsensi() {
         statusVerifikasi = "Menunggu Verifikasi Admin";
     } else {
         const baseKeterangan = document.getElementById('keterangan').value.trim();
+        statusKehadiran = "Hadir";
+        
         if (isTerlambat && isLuarRadius) {
-            statusKehadiran = "Alpa";
             statusVerifikasi = "Menunggu Verifikasi Admin";
             keterangan = "Hadir Terlambat Diluar Lokasi - " + baseKeterangan;
         } else if (isTerlambat) {
-            statusKehadiran = "Alpa";
             statusVerifikasi = "Menunggu Verifikasi Admin";
             keterangan = "Hadir Terlambat - " + baseKeterangan;
         } else if (isLuarRadius) {
-            statusKehadiran = "Alpa";
             statusVerifikasi = "Menunggu Verifikasi Admin";
             keterangan = "Hadir Diluar Lokasi - " + baseKeterangan;
         } else {
-            statusKehadiran = "Hadir";
             statusVerifikasi = "Terverifikasi Sistem";
-            keterangan = "-";
+            keterangan = baseKeterangan || "-";
         }
     }
 
@@ -1897,10 +1921,11 @@ function lanjutTanpaLokasiValid() {
             text: 'Kegiatan ini mewajibkan Anda berada di lokasi. Absen tanpa lokasi tidak diizinkan, Anda hanya dapat mengajukan Izin/Keterangan.',
             confirmButtonColor: '#b91c1c'
         });
-        const elTipe = document.getElementById('tipeKehadiran');
-        if (elTipe) {
-            elTipe.querySelector('option[value="hadir"]').disabled = true;
-            elTipe.value = 'izin';
+        const elTipeHadir = document.querySelector('input[name="tipeKehadiran"][value="hadir"]');
+        const elTipeIzin = document.querySelector('input[name="tipeKehadiran"][value="izin"]');
+        if (elTipeHadir && elTipeIzin) {
+            elTipeHadir.disabled = true;
+            elTipeIzin.checked = true;
             document.getElementById('flowHadir').classList.add('hidden-view');
             document.getElementById('flowIzin').classList.remove('hidden-view');
             checkIzinForm();
@@ -2031,10 +2056,19 @@ function ambilFoto() {
 
     v.classList.add('hidden-view');
     document.getElementById('hasilFoto').classList.remove('hidden-view');
-    document.getElementById('pdfPreviewContainer').classList.add('hidden-view');
-    document.getElementById('btnJepret').classList.add('hidden-view');
-    document.getElementById('btnUploadManual').classList.add('hidden-view');
-    document.getElementById('btnUlang').classList.remove('hidden-view');
+    
+    const pdfPreview = document.getElementById('pdfPreviewContainer');
+    if (pdfPreview) pdfPreview.classList.add('hidden-view');
+    
+    const btnJepret = document.getElementById('btnJepret');
+    if (btnJepret) btnJepret.classList.add('hidden-view');
+    
+    const btnUpload = document.getElementById('btnUploadManual');
+    if (btnUpload) btnUpload.classList.add('hidden-view');
+    
+    const btnUlang = document.getElementById('btnUlang');
+    if (btnUlang) btnUlang.classList.remove('hidden-view');
+    
     validasiTombolKirim();
 }
 
@@ -2055,19 +2089,32 @@ async function handleManualUpload(event) {
         const b64 = e.target.result;
         document.getElementById('fotoBase64').value = b64;
         
-        document.getElementById('kamera').classList.add('hidden-view');
-        document.getElementById('btnJepret').classList.add('hidden-view');
-        document.getElementById('btnUploadManual').classList.add('hidden-view');
-        document.getElementById('btnUlang').classList.remove('hidden-view');
+        const kamera = document.getElementById('kamera');
+        if (kamera) kamera.classList.add('hidden-view');
+        
+        const btnJepret = document.getElementById('btnJepret');
+        if (btnJepret) btnJepret.classList.add('hidden-view');
+        
+        const btnUpload = document.getElementById('btnUploadManual');
+        if (btnUpload) btnUpload.classList.add('hidden-view');
+        
+        const btnUlang = document.getElementById('btnUlang');
+        if (btnUlang) btnUlang.classList.remove('hidden-view');
+        
+        const pdfPreview = document.getElementById('pdfPreviewContainer');
+        const hasilFoto = document.getElementById('hasilFoto');
+        const pdfFileName = document.getElementById('pdfFileName');
         
         if (isPdf) {
-            document.getElementById('hasilFoto').classList.add('hidden-view');
-            document.getElementById('pdfPreviewContainer').classList.remove('hidden-view');
-            document.getElementById('pdfFileName').textContent = file.name;
+            if (hasilFoto) hasilFoto.classList.add('hidden-view');
+            if (pdfPreview) pdfPreview.classList.remove('hidden-view');
+            if (pdfFileName) pdfFileName.textContent = file.name;
         } else {
-            document.getElementById('pdfPreviewContainer').classList.add('hidden-view');
-            document.getElementById('hasilFoto').classList.remove('hidden-view');
-            document.getElementById('hasilFoto').src = b64;
+            if (pdfPreview) pdfPreview.classList.add('hidden-view');
+            if (hasilFoto) {
+                hasilFoto.classList.remove('hidden-view');
+                hasilFoto.src = b64;
+            }
         }
         
         validasiTombolKirim();
@@ -2078,12 +2125,25 @@ async function handleManualUpload(event) {
 function ulangFoto() {
     document.getElementById('fotoBase64').value = "";
     document.getElementById('hasilFoto').classList.add('hidden-view');
-    document.getElementById('pdfPreviewContainer').classList.add('hidden-view');
-    document.getElementById('fileUploadManual').value = "";
-    document.getElementById('kamera').classList.remove('hidden-view');
-    document.getElementById('btnJepret').classList.remove('hidden-view');
-    document.getElementById('btnUploadManual').classList.remove('hidden-view');
-    document.getElementById('btnUlang').classList.add('hidden-view');
+    
+    const pdfPreview = document.getElementById('pdfPreviewContainer');
+    if (pdfPreview) pdfPreview.classList.add('hidden-view');
+    
+    const fileUpload = document.getElementById('fileUploadManual');
+    if (fileUpload) fileUpload.value = "";
+    
+    const kamera = document.getElementById('kamera');
+    if (kamera) kamera.classList.remove('hidden-view');
+    
+    const btnJepret = document.getElementById('btnJepret');
+    if (btnJepret) btnJepret.classList.remove('hidden-view');
+    
+    const btnUpload = document.getElementById('btnUploadManual');
+    if (btnUpload) btnUpload.classList.remove('hidden-view');
+    
+    const btnUlang = document.getElementById('btnUlang');
+    if (btnUlang) btnUlang.classList.add('hidden-view');
+    
     validasiTombolKirim();
 }
 
@@ -2184,17 +2244,21 @@ async function setupAbsenForm(jadwalData) {
     document.getElementById('keterangan').value = '';
     
     // Reset Tipe Kehadiran & form Izin
-    const elTipe = document.getElementById('tipeKehadiran');
-    if (elTipe) {
-        elTipe.querySelector('option[value="hadir"]').disabled = forceIzin;
-        elTipe.value = forceIzin ? 'izin' : 'hadir';
-        
+    const elTipeHadir = document.querySelector('input[name="tipeKehadiran"][value="hadir"]');
+    const elTipeIzin = document.querySelector('input[name="tipeKehadiran"][value="izin"]');
+    if (elTipeHadir && elTipeIzin) {
+        elTipeHadir.disabled = forceIzin;
         if (forceIzin) {
+            elTipeIzin.checked = true;
             document.getElementById('flowHadir').classList.add('hidden-view');
             document.getElementById('flowIzin').classList.remove('hidden-view');
         } else {
-            document.getElementById('flowHadir').classList.remove('hidden-view');
+            // Kosongkan pilihan, tunggu user memilih
+            elTipeHadir.checked = false;
+            elTipeIzin.checked = false;
+            document.getElementById('flowHadir').classList.add('hidden-view');
             document.getElementById('flowIzin').classList.add('hidden-view');
+            document.getElementById('statusGeoLoading').classList.add('hidden-view');
         }
         
         document.getElementById('alasanIzin').value = '';
@@ -2206,11 +2270,15 @@ async function setupAbsenForm(jadwalData) {
     // Tambahkan state ke history browser untuk navigasi tombol kembali
     history.pushState({ view: 'form' }, "Konfirmasi Kehadiran", '#form');
 
-    ulangFoto(); // Reset tampilan kamera
-    switchView('view-form');
-    if (!forceIzin) {
-        cekLokasiOtomatis(); // Mulai deteksi lokasi hanya jika boleh hadir
+    // Matikan kamera terlebih dahulu saat form awal dirender
+    if (typeof videoStream !== 'undefined' && videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
     }
+    
+    window._isHadirStarted = false;
+
+    switchView('view-form');
 }
 /**
  * Handler utama setelah QR code berhasil dipindai.
@@ -2277,7 +2345,9 @@ async function handleScanSuccess(decodedText) {
 // FUNGSI UNTUK ALUR TIDAK HADIR (IZIN/CUTI)
 // ==========================================
 function toggleTipeKehadiran() {
-    const tipe = document.getElementById('tipeKehadiran').value;
+    const radio = document.querySelector('input[name="tipeKehadiran"]:checked');
+    if (!radio) return; // Jika belum ada yg dipilih, diamkan
+    const tipe = radio.value;
     const flowHadir = document.getElementById('flowHadir');
     const flowIzin = document.getElementById('flowIzin');
     const btnKirim = document.getElementById('btnKirim');
@@ -2288,16 +2358,47 @@ function toggleTipeKehadiran() {
         // btnKirim disabled diserahkan pada alur ambil lokasi & kamera
         btnKirim.disabled = true;
         btnKirim.className = "w-full bg-gray-300 text-gray-500 font-extrabold py-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2";
+        // --- RESET STATE HADIR ---
+        document.getElementById('keterangan').value = '';
+        
+        if (!window._isHadirStarted) {
+            window._isHadirStarted = true;
+            ulangFoto();
+            cekLokasiOtomatis();
+        } else {
+            // Jika sudah pernah dimulai dan cek lokasi sudah selesai, 
+            // tampilkan ulang kameranya
+            const formLanjutan = document.getElementById('form-absen-lanjutan');
+            if (formLanjutan) formLanjutan.classList.remove('hidden-view');
+            
+            // Nyalakan kembali kamera dan reset foto
+            ulangFoto(); 
+            mulaiKameraSelfie();
+        }
     } else {
         flowHadir.classList.add('hidden-view');
         flowIzin.classList.remove('hidden-view');
+        const formLanjutan = document.getElementById('form-absen-lanjutan');
+        if (formLanjutan) formLanjutan.classList.add('hidden-view');
+        
+        // --- RESET STATE IZIN ---
+        document.getElementById('alasanIzin').value = '';
+        document.getElementById('keteranganIzin').value = '';
+        document.getElementById('buktiIzin').value = '';
+        
         checkIzinForm(); // cek form izin untuk enable btnKirim
+        
+        // Matikan kamera jika menyala karena pindah ke tab Izin
+        if (typeof videoStream !== 'undefined' && videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            videoStream = null;
+        }
     }
 }
 
 function checkIzinForm() {
-    const tipe = document.getElementById('tipeKehadiran').value;
-    if (tipe !== 'izin') return;
+    const radio = document.querySelector('input[name="tipeKehadiran"]:checked');
+    if (!radio || radio.value !== 'izin') return;
     
     const alasan = document.getElementById('alasanIzin').value;
     const ket = document.getElementById('keteranganIzin').value.trim();

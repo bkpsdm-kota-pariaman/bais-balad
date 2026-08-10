@@ -47,10 +47,11 @@ class AdminRekapController {
             SELECT 
                 opd as opd_name,
                 COALESCE(status_kehadiran, 'Belum Absen') as status,
+                status_verifikasi,
                 COUNT(*) as count
             FROM app_absensi_data_absensi 
             WHERE kode_akses = ? AND opd IS NOT NULL AND opd != ''
-            GROUP BY opd, status_kehadiran
+            GROUP BY opd, status_kehadiran, status_verifikasi
         ";
         $stmt = $db->prepare($sql);
         $stmt->execute([$kodeAkses]);
@@ -61,7 +62,8 @@ class AdminRekapController {
             $responsePayload = [
                 'summary' => [
                     'total_target' => 0, 
-                    'statuses' => []
+                    'statuses' => [],
+                    'menunggu_verifikasi' => 0
                 ],
                 'per_opd_summary' => [],
             ];
@@ -72,22 +74,33 @@ class AdminRekapController {
         $opdData = [];
         $totalTarget = 0;
         $totalStatuses = [];
+        $totalMenungguVerifikasi = 0;
 
         foreach ($results as $row) {
             $opd = $row['opd_name'];
             $status = $row['status'];
+            $verifikasi = $row['status_verifikasi'];
             $count = (int)$row['count'];
             
             if (!isset($opdData[$opd])) {
                 $opdData[$opd] = [
                     'opd_name' => $opd,
                     'target' => 0,
-                    'statuses' => []
+                    'statuses' => [],
+                    'menunggu_verifikasi' => 0
                 ];
             }
             
             $opdData[$opd]['target'] += $count;
-            $opdData[$opd]['statuses'][$status] = $count;
+            if (!isset($opdData[$opd]['statuses'][$status])) {
+                $opdData[$opd]['statuses'][$status] = 0;
+            }
+            $opdData[$opd]['statuses'][$status] += $count;
+            
+            if ($verifikasi === 'Menunggu Verifikasi Admin') {
+                $opdData[$opd]['menunggu_verifikasi'] += $count;
+                $totalMenungguVerifikasi += $count;
+            }
             
             $totalTarget += $count;
             if (!isset($totalStatuses[$status])) {
@@ -106,7 +119,8 @@ class AdminRekapController {
         $responsePayload = [
             'summary' => [
                 'total_target' => $totalTarget,
-                'statuses' => $totalStatuses
+                'statuses' => $totalStatuses,
+                'menunggu_verifikasi' => $totalMenungguVerifikasi
             ],
             'per_opd_summary' => $finalPerOpdStats,
         ];
@@ -122,10 +136,10 @@ class AdminRekapController {
 
         $inputJSON = file_get_contents('php://input');
         $filters = json_decode($inputJSON, true);
-        $opdList = $filters['opd_list'] ?? [];
-        $statusKehadiranList = $filters['status_kehadiran'] ?? [];
+        $opdFilter = $filters['opd_list'] ?? 'semua';
+        $statusKehadiranFilter = $filters['status_kehadiran'] ?? 'semua';
         $searchFilter = $filters['search'] ?? null;
-        $statusVerifikasiList = $filters['status_verifikasi'] ?? [];
+        $statusVerifikasiFilter = $filters['status_verifikasi'] ?? 'semua';
 
         $sql = "
             SELECT
@@ -139,11 +153,10 @@ class AdminRekapController {
         ";
         $params = [$kodeAkses];
 
-        // Tambahkan filter OPD hanya jika ada yang dipilih
-        if (!empty($opdList)) {
-            $placeholders = implode(',', array_fill(0, count($opdList), '?'));
-            $sql .= " AND opd IN ($placeholders)";
-            array_push($params, ...$opdList);
+        // Tambahkan filter OPD hanya jika ada yang dipilih dan bukan 'semua'
+        if ($opdFilter !== 'semua' && !empty($opdFilter)) {
+            $sql .= " AND opd = ?";
+            $params[] = $opdFilter;
         }
 
         // Tambahkan kondisi pencarian jika ada input dari user
@@ -164,15 +177,15 @@ class AdminRekapController {
             // Tentukan status kehadiran efektif
             $status_kehadiran_efektif = 'alpa';
             if ($pegawai['waktu_absen'] !== null && $pegawai['status_verifikasi'] !== 'Ditolak Oleh Admin') {
-                $status_kehadiran_efektif = $pegawai['status_kehadiran'];
+                $status_kehadiran_efektif = $pegawai['status_kehadiran'] ?? 'Hadir';
             }
 
             // Tentukan status verifikasi efektif (menangani nilai NULL)
             $status_verifikasi_efektif = $pegawai['status_verifikasi'] ?? 'ALPA';
 
-            // Cek kecocokan dengan filter. Jika array filter kosong, anggap cocok (tampilkan semua).
-            $kehadiranMatch = empty($statusKehadiranList) || in_array($status_kehadiran_efektif, $statusKehadiranList);
-            $verifikasiMatch = empty($statusVerifikasiList) || in_array($status_verifikasi_efektif, $statusVerifikasiList);
+            // Cek kecocokan dengan filter. Jika 'semua', anggap cocok.
+            $kehadiranMatch = ($statusKehadiranFilter === 'semua') || (strcasecmp($status_kehadiran_efektif, $statusKehadiranFilter) === 0);
+            $verifikasiMatch = ($statusVerifikasiFilter === 'semua') || (strcasecmp($status_verifikasi_efektif, $statusVerifikasiFilter) === 0);
 
             if ($kehadiranMatch && $verifikasiMatch) {
                 $detailPegawai[] = $pegawai;
@@ -192,9 +205,9 @@ class AdminRekapController {
         
         $startDate = $filters['start_date'] ?? null;
         $endDate = $filters['end_date'] ?? null;
-        $opdList = $filters['opd_list'] ?? [];
-        $statusKehadiranList = $filters['status_kehadiran'] ?? [];
-        $statusVerifikasiList = $filters['status_verifikasi'] ?? [];
+        $opdFilter = $filters['opd_list'] ?? 'semua';
+        $statusKehadiranFilter = $filters['status_kehadiran'] ?? 'semua';
+        $statusVerifikasiFilter = $filters['status_verifikasi'] ?? 'semua';
         $searchFilter = $filters['search'] ?? null;
 
         if (!$startDate || !$endDate) {
@@ -218,10 +231,9 @@ class AdminRekapController {
         
         $params = [$startDate, $endDate];
 
-        if (!empty($opdList)) {
-            $placeholders = implode(',', array_fill(0, count($opdList), '?'));
-            $sql .= " AND a.opd IN ($placeholders)";
-            array_push($params, ...$opdList);
+        if ($opdFilter !== 'semua' && !empty($opdFilter)) {
+            $sql .= " AND a.opd = ?";
+            $params[] = $opdFilter;
         }
 
         if (!empty($searchFilter)) {
@@ -246,8 +258,8 @@ class AdminRekapController {
 
             $status_verifikasi_efektif = $pegawai['status_verifikasi'] ?? 'ALPA';
 
-            $kehadiranMatch = empty($statusKehadiranList) || in_array($status_kehadiran_efektif, $statusKehadiranList);
-            $verifikasiMatch = empty($statusVerifikasiList) || in_array($status_verifikasi_efektif, $statusVerifikasiList);
+            $kehadiranMatch = ($statusKehadiranFilter === 'semua') || (strcasecmp($status_kehadiran_efektif, $statusKehadiranFilter) === 0);
+            $verifikasiMatch = ($statusVerifikasiFilter === 'semua') || (strcasecmp($status_verifikasi_efektif, $statusVerifikasiFilter) === 0);
 
             if ($kehadiranMatch && $verifikasiMatch) {
                 $detailPegawai[] = $pegawai;
@@ -266,7 +278,7 @@ class AdminRekapController {
         
         $startDate = $filters['start_date'] ?? null;
         $endDate = $filters['end_date'] ?? null;
-        $opdList = $filters['opd_list'] ?? [];
+        $opdFilter = $filters['opd_list'] ?? 'semua';
         $statusKehadiran = $filters['status_kehadiran'] ?? 'alpa';
 
         if (!$startDate || !$endDate) {
@@ -302,10 +314,9 @@ class AdminRekapController {
             $endDate
         ];
 
-        if (!empty($opdList)) {
-            $placeholders = implode(',', array_fill(0, count($opdList), '?'));
-            $sql .= " AND a.opd IN ($placeholders)";
-            array_push($params, ...$opdList);
+        if ($opdFilter !== 'semua' && !empty($opdFilter)) {
+            $sql .= " AND a.opd = ?";
+            $params[] = $opdFilter;
         }
 
         $sql .= " GROUP BY a.nip, a.nama_pegawai, a.opd HAVING jumlah > 0 ORDER BY jumlah DESC";
@@ -403,42 +414,52 @@ class AdminRekapController {
             return;
         }
 
-        // Validate file upload
-        if (empty($buktiDukung) || $buktiDukung['error'] !== UPLOAD_ERR_OK) {
-            Response::json(false, 400, "Bukti dukung (Foto/PDF) wajib dilampirkan.");
-            return;
-        }
-
-        if ($buktiDukung['size'] > 1048576) {
-            Response::json(false, 400, "Ukuran file bukti dukung maksimal 1 MB.");
-            return;
-        }
-
-        $allowedExts = ['jpg', 'jpeg', 'png', 'pdf'];
-        $ext = strtolower(pathinfo($buktiDukung['name'], PATHINFO_EXTENSION));
-        if (!in_array($ext, $allowedExts)) {
-            Response::json(false, 400, "Tipe file tidak diizinkan. Hanya JPG, PNG, dan PDF yang diperbolehkan.");
-            return;
-        }
-
-        // Simpan file
-        $uploadDir = '../uploads/foto_absensi/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-        
-        $randomString = bin2hex(random_bytes(4));
-        $newFileName = 'verif_' . $kodeAkses . '_' . $nip . '_' . time() . '_' . $randomString . '.' . $ext;
-        $uploadPath = $uploadDir . $newFileName;
-
-        if (!move_uploaded_file($buktiDukung['tmp_name'], $uploadPath)) {
-            Response::json(false, 500, "Gagal menyimpan file bukti dukung.");
-            return;
-        }
-
-        $stmtCurrent = $db->prepare("SELECT waktu, status_kehadiran FROM app_absensi_data_absensi WHERE kode_akses = :ka AND nip = :nip");
+        // Ambil data absensi saat ini terlebih dahulu
+        $stmtCurrent = $db->prepare("SELECT waktu, status_kehadiran, nama_file_foto FROM app_absensi_data_absensi WHERE kode_akses = :ka AND nip = :nip");
         $stmtCurrent->execute([':ka' => $kodeAkses, ':nip' => $nip]);
         $currentAbsenData = $stmtCurrent->fetch(PDO::FETCH_ASSOC);
+
+        $newFileName = null;
+
+        // Cek apakah ada upload file baru
+        if (!empty($buktiDukung) && $buktiDukung['error'] === UPLOAD_ERR_OK) {
+            if ($buktiDukung['size'] > 1048576) {
+                Response::json(false, 400, "Ukuran file bukti dukung maksimal 1 MB.");
+                return;
+            }
+
+            $allowedExts = ['jpg', 'jpeg', 'png', 'pdf'];
+            $ext = strtolower(pathinfo($buktiDukung['name'], PATHINFO_EXTENSION));
+            if (!in_array($ext, $allowedExts)) {
+                Response::json(false, 400, "Tipe file tidak diizinkan. Hanya JPG, PNG, dan PDF yang diperbolehkan.");
+                return;
+            }
+
+            // Simpan file
+            $uploadDir = '../uploads/foto_absensi/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            
+            $randomString = bin2hex(random_bytes(4));
+            $newFileName = 'verif_' . $kodeAkses . '_' . $nip . '_' . time() . '_' . $randomString . '.' . $ext;
+            $uploadPath = $uploadDir . $newFileName;
+
+            if (!move_uploaded_file($buktiDukung['tmp_name'], $uploadPath)) {
+                Response::json(false, 500, "Gagal menyimpan file bukti dukung.");
+                return;
+            }
+        } else {
+            // Jika tidak ada upload, pastikan data lama sudah punya foto
+            $hasExistingPhoto = $currentAbsenData && !empty($currentAbsenData['nama_file_foto']) && $currentAbsenData['nama_file_foto'] !== 'MANUAL_INPUT.jpg' && $currentAbsenData['nama_file_foto'] !== '-';
+            
+            if (!$hasExistingPhoto) {
+                Response::json(false, 400, "Bukti dukung (Foto/PDF) wajib dilampirkan.");
+                return;
+            }
+            // Gunakan foto lama
+            $newFileName = $currentAbsenData['nama_file_foto'];
+        }
 
         if (!$currentAbsenData) {
             // Jika data tidak ada, buat baru (mirip seperti set masal)
@@ -632,7 +653,7 @@ class AdminRekapController {
         // Ambil filter dari body request POST
         $inputJSON = file_get_contents('php://input');
         $filters = json_decode($inputJSON, true);
-        $opdList = $filters['opd_list'] ?? [];
+        $opdFilter = $filters['opd_list'] ?? 'semua';
         $searchFilter = $filters['search'] ?? null;
         $includeAll = $filters['include_all'] ?? false;
 
@@ -658,10 +679,9 @@ class AdminRekapController {
         }
 
         // Tambahkan filter OPD
-        if (!empty($opdList)) {
-            $placeholders = implode(',', array_fill(0, count($opdList), '?'));
-            $sql .= " AND perangkat_daerah IN ($placeholders)";
-            array_push($params, ...$opdList);
+        if ($opdFilter !== 'semua' && !empty($opdFilter)) {
+            $sql .= " AND perangkat_daerah = ?";
+            $params[] = $opdFilter;
         }
 
         $sql .= " ORDER BY nama_pegawai ASC";

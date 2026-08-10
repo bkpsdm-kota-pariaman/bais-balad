@@ -1,55 +1,90 @@
 {
-  "name": "absensi-kegiatan-asn-worker",
-  "main": "src/index.js",
-  "workers_dev": true,
-  "preview_urls": true,
-  "compatibility_date": "2026-06-26",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
-  "observability": {
-    "enabled": true,
-    "head_sampling_rate": 1,
-    "logs": {
-      "enabled": true,
-      "head_sampling_rate": 1,
-      "persist": true,
-      "invocation_logs": true
-    },
-    "traces": {
-      "enabled": false,
-      "persist": true,
-      "head_sampling_rate": 1
-    }
-  },
-  "kv_namespaces": [
-    {
-      "id": "93df20ab114c4344be203868c380d7a2",
-      "binding": "JADWAL_KV"
-    },
-    {
-      "id": "21afac99b32b4c19a6289a3002f0ee97",
-      "binding": "OPD_KV"
-    },
-    {
-      "id": "1bdb1488a21b4c699aa53de6bbcb7b9d",
-      "binding": "PEGAWAI_KV"
-    }
-  ],
-  "queues": {
-    "producers": [
-      {
-        "binding": "MY_QUEUE",
-        "queue": "absensi-kegiatan-asn-worker"
-      }
-    ],
-    "consumers": [
-      {
-        "queue": "absensi-kegiatan-asn-worker",
-        "max_batch_size": 10, // Berapa maksimal pesan yang diproses sekaligus per eksekusi worker (1-100)
-        "max_batch_timeout": 5, // Maksimal waktu tunggu (detik) sebelum batch diproses walau belum penuh (0-60)
-        "max_retries": 5 // Maksimal percobaan ulang jika terjadi error (default: 3)
-      }
-    ]
-  }
+	"name": "absensi-kegiatan-asn-worker",
+	"main": "src/index.js",
+	"workers_dev": true,
+	"preview_urls": true,
+	"compatibility_date": "2026-06-26",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1,
+		"logs": {
+			"enabled": true,
+			"head_sampling_rate": 1,
+			"persist": true,
+			"invocation_logs": true
+		},
+		"traces": {
+			"enabled": false,
+			"persist": true,
+			"head_sampling_rate": 1
+		}
+	},
+	"kv_namespaces": [
+		{
+			"id": "93df20ab114c4344be203868c380d7a2",
+			"binding": "JADWAL_KV"
+		},
+		{
+			"id": "21afac99b32b4c19a6289a3002f0ee97",
+			"binding": "OPD_KV"
+		},
+		{
+			"id": "1bdb1488a21b4c699aa53de6bbcb7b9d",
+			"binding": "PEGAWAI_KV"
+		}
+	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "MY_QUEUE",
+				"queue": "absensi-kegiatan-asn-worker"
+			}
+		],
+		"consumers": [
+			{
+				"queue": "absensi-kegiatan-asn-worker",
+				"max_batch_size": 10, // Berapa maksimal pesan yang diproses sekaligus per eksekusi worker (1-100)
+				"max_batch_timeout": 5, // Maksimal waktu tunggu (detik) sebelum batch diproses walau belum penuh (0-60)
+				"max_retries": 5 // Maksimal percobaan ulang jika terjadi error (default: 3)
+			}
+		]
+	},
+	"env": {
+		"beta": {
+			"name": "absensi-kegiatan-asn-worker-beta",
+			"kv_namespaces": [
+				{
+					"id": "93df20ab114c4344be203868c380d7a2",
+					"binding": "JADWAL_KV"
+				},
+				{
+					"id": "21afac99b32b4c19a6289a3002f0ee97",
+					"binding": "OPD_KV"
+				},
+				{
+					"id": "1bdb1488a21b4c699aa53de6bbcb7b9d",
+					"binding": "PEGAWAI_KV"
+				}
+			],
+			"queues": {
+				"producers": [
+					{
+						"binding": "MY_QUEUE",
+						"queue": "absensi-kegiatan-asn-worker"
+					}
+				],
+				"consumers": [
+					{
+						"queue": "absensi-kegiatan-asn-worker",
+						"max_batch_size": 10,
+						"max_batch_timeout": 5,
+						"max_retries": 5
+					}
+				]
+			}
+		}
+	}
 }
