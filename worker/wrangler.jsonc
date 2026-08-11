@@ -27,7 +27,7 @@
       {
         "queue": "absensi-kegiatan-asn-worker",
         "max_batch_size": 10,
-        "max_batch_timeout_ms": 5000,
+        "max_batch_timeout": 5,
         "max_retries": 5
       }
     ]
@@ -35,6 +35,9 @@
   "env": {
     "beta": {
       "name": "absensi-kegiatan-asn-worker-dev",
+      "vars": {
+        "ORIGIN_API_URL": "https://api-esdm.pariamankota.go.id/beta-bais-pariaman/api"
+      },
       "kv_namespaces": [
         {
           "id": "903fb3891f7142269f5292abef2cc9a4",
@@ -60,10 +63,16 @@
           {
             "queue": "absensi-kegiatan-asn-worker-dev",
             "max_batch_size": 10,
-            "max_batch_timeout_ms": 5000,
+            "max_batch_timeout": 5,
             "max_retries": 5
           }
         ]
+      },
+      "observability": {
+        "logs": {
+          "enabled": true,
+          "invocation_logs": true
+        }
       }
     }
   }

@@ -1386,6 +1386,15 @@ function renderRekapTable(filteredPegawai) {
                     case 'Hadir Terlambat Diluar Lokasi':
                         kehadiranBadge = `<span class="badge bg-danger">Terlambat &amp; Diluar Lokasi</span>`;
                         break;
+                    case 'Dinas Dalam Daerah':
+                        kehadiranBadge = `<span class="badge bg-primary">Dinas Dalam Daerah</span>`;
+                        break;
+                    case 'Dinas Luar Daerah':
+                        kehadiranBadge = `<span class="badge bg-primary">Dinas Luar Daerah</span>`;
+                        break;
+                    case 'Tugas Belajar':
+                        kehadiranBadge = `<span class="badge bg-info text-dark">Tugas Belajar</span>`;
+                        break;
                     default:
                         kehadiranBadge = `<span class="badge bg-secondary">${statusHadir}</span>`;
                 }
@@ -2650,6 +2659,9 @@ function renderRekapKeseluruhanTable(data) {
             case 'Hadir Terlambat': kehadiranBadge = `<span class="badge bg-warning text-dark">Hadir Terlambat</span>`; break;
             case 'Hadir Diluar Lokasi': kehadiranBadge = `<span class="badge bg-info text-dark">Hadir Diluar Lokasi</span>`; break;
             case 'Hadir Terlambat Diluar Lokasi': kehadiranBadge = `<span class="badge bg-danger">Terlambat &amp; Diluar Lokasi</span>`; break;
+            case 'Dinas Dalam Daerah': kehadiranBadge = `<span class="badge bg-primary">Dinas Dalam Daerah</span>`; break;
+            case 'Dinas Luar Daerah': kehadiranBadge = `<span class="badge bg-primary">Dinas Luar Daerah</span>`; break;
+            case 'Tugas Belajar': kehadiranBadge = `<span class="badge bg-info text-dark">Tugas Belajar</span>`; break;
             default: kehadiranBadge = `<span class="badge bg-secondary">${statusHadir}</span>`;
         }
 
@@ -2845,7 +2857,6 @@ function resetStatistikFilters() {
     const opdSelect = document.getElementById('statistikFilterOpdContainer');
     if (opdSelect && opdSelect.tomselect) opdSelect.tomselect.setValue('semua');
     document.getElementById('statAlpaKes').checked = true;
-    document.getElementById('statistikGroupBy').value = 'opd';
 }
 
 async function terapkanFilterStatistik() {
@@ -2917,17 +2928,17 @@ function renderStatistikTable(data, statusKehadiranLabel) {
             <td class="text-center align-middle h5">
                 <div class="d-flex align-items-center justify-content-center gap-2">
                     <span class="badge bg-danger rounded-pill px-3 py-2">${p.jumlah}x ${humanStatus}</span>
-                    <button class="btn btn-sm btn-outline-info" onclick="lihatDetailStatistik('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}')"><i class="bi bi-eye"></i> Detail</button>
+                    <button class="btn btn-sm btn-outline-info" onclick="lihatDetailStatistik('${p.nip}', '${p.nama_pegawai.replace(/'/g, `\\'`)}', '${statusKehadiranLabel}')"><i class="bi bi-eye"></i> Detail</button>
                 </div>
             </td>
         </tr>`;
     }).join('');
 }
 
-async function lihatDetailStatistik(nip, namaPegawai) {
+async function lihatDetailStatistik(nip, namaPegawai, statusKehadiranFixed) {
     const startDate = document.getElementById('statistikStartDate').value;
     const endDate = document.getElementById('statistikEndDate').value;
-    const statusKehadiran = document.querySelector('input[name="statistikStatusKehadiran"]:checked').value;
+    const statusKehadiran = statusKehadiranFixed || document.querySelector('input[name="statistikStatusKehadiran"]:checked').value;
 
     document.getElementById('detailStatistikNama').innerText = namaPegawai;
     const tbody = document.getElementById('detailStatistikTableBody');

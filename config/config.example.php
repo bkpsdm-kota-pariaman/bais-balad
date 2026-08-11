@@ -17,7 +17,7 @@ $configurations = [
         'db_name' => 'db_bais',
         'db_user' => 'user_bais',
         'db_pass' => 'password_bais',
-        'worker_url' => 'https://absensi-kegiatan-asn-worker.bidpp-bkpsdm.workers.dev', // Ganti dengan URL worker produksi
+        'worker_url' => 'url_worker_production', // Ganti dengan URL worker produksi
         'jwt_secret' => 'jwt_secret_production', // Ganti dengan secret JWT produksi
         'worker_secret' => 'worker_secret_production', // Ganti dengan secret worker produksi
     ],

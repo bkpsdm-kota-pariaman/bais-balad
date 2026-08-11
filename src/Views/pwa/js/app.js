@@ -2,8 +2,7 @@
 
 const ORIGIN_SERVER_URL = "https://api-esdm.pariamankota.go.id/beta-bais-pariaman";
 const API_BASE_URL = `${ORIGIN_SERVER_URL}/api`;
-const WORKER_URL = "https://absensi-kegiatan-asn-worker.bidpp-bkpsdm.workers.dev";
-const APP_VERSION = 'v6.1.44'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
+const APP_VERSION = 'v6.1.50'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
 
 /**
  * =================================================================
@@ -11,7 +10,11 @@ const APP_VERSION = 'v6.1.44'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
  * =================================================================
  * Ubah ke 'beta' untuk aplikasi versi pengembangan/salinan.
  */
-const APP_ENV = 'production'; // 'production' atau 'beta'
+const APP_ENV = 'beta'; // 'production' atau 'beta'
+
+const WORKER_URL = APP_ENV === 'production' 
+    ? "https://absensi-kegiatan-asn-worker.bidpp-bkpsdm.workers.dev" 
+    : "https://absensi-kegiatan-asn-worker-dev.bidpp-bkpsdm.workers.dev";
 
 let html5QrCode = null;
 let currentJadwal = null;
@@ -381,7 +384,7 @@ function switchView(viewId) {
             html5QrCode.stop().catch(e => console.warn("Scanner stop error", e));
         }
     }
-    
+
     // Matikan selfie kamera jika bukan di view-form
     if (viewId !== 'view-form') {
         if (typeof videoStream !== 'undefined' && videoStream) {
@@ -1000,17 +1003,17 @@ async function adminCepatMulaiPindai() {
             });
             const rLat = pos.coords.latitude;
             const rLng = pos.coords.longitude;
-            
+
             const [tLat, tLng] = jadwal.koordinat.replace(/'/g, '').split(',');
             const jarak = getDistanceInMeters(rLat, rLng, parseFloat(tLat), parseFloat(tLng));
             const radius = parseFloat(jadwal.radius_meter);
-            
+
             showLoading(false);
             if (jarak > radius) {
                 Swal.fire('Di Luar Lokasi', `Anda berada ${Math.round(jarak)} meter dari lokasi kegiatan (Maksimal ${radius}m). Absensi Cepat tidak diizinkan karena aturan Lokasi Ketat (Strict Location) aktif.`, 'error');
                 return;
             }
-            
+
             adminCepatState.lat = rLat;
             adminCepatState.lng = rLng;
             proceedToScan();
@@ -1407,10 +1410,10 @@ async function handleJwtValidation(jwt) {
 
     // Validasi tanggal di sisi klien untuk memberikan feedback cepat.
     const nowTime = Date.now();
-    
+
     // Konversi UTC tersinkronisasi ke string tanggal Jakarta (Y-M-D)
     const jakartaDateString = new Date(nowTime).toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-    
+
     if (jakartaDateString !== jadwalFromJwt.tanggal) {
         throw new Error("Jadwal ini tidak berlaku untuk hari ini.");
     }
@@ -1418,7 +1421,7 @@ async function handleJwtValidation(jwt) {
     // --- LOGIKA BARU: Validasi Waktu Mulai di sisi klien tersinkronisasi ---
     const eventStartStr = `${jadwalFromJwt.tanggal}T${jadwalFromJwt.jam_mulai}:00+07:00`;
     const startTime = new Date(eventStartStr).getTime();
-    
+
     if (nowTime < startTime) {
         throw new Error(`Absensi untuk kegiatan ini belum dibuka. Silakan coba lagi pada atau setelah pukul ${jadwalFromJwt.jam_mulai} WIB.`);
     }
@@ -1578,10 +1581,10 @@ async function cekLokasiOtomatis() {
         stGeo.innerHTML = `<span class="inline-block animate-spin mr-1">↻</span> Menerjemahkan alamat...`;
         stGeo.className = "bg-blue-50 text-blue-700 py-2 px-4 rounded-lg text-xs font-bold border border-blue-200";
         const alamat = await getAlamatFromKoordinat(rLat, rLng);
-        
+
         radio = document.querySelector('input[name="tipeKehadiran"]:checked');
         if (!radio || radio.value !== 'hadir') return;
-        
+
         document.getElementById('alamat').value = alamat;
 
         if (currentJadwal.koordinat && currentJadwal.koordinat !== "-") {
@@ -1628,7 +1631,7 @@ async function cekLokasiOtomatis() {
         stGeoLoading.classList.add('hidden-view');
         stGeo.classList.add('hidden-view');
         boxGagal.classList.remove('hidden-view');
-        
+
         // Sembunyikan tombol "Lanjutkan" jika strict location
         const btnLanjut = boxGagal.querySelector('button[onclick="lanjutTanpaLokasiValid()"]');
         if (btnLanjut) {
@@ -1666,7 +1669,7 @@ function cleanupAbsenForm() {
 async function kirimAbsensi() {
     const elTipe = document.querySelector('input[name="tipeKehadiran"]:checked');
     const tipeKehadiran = elTipe ? elTipe.value : 'hadir';
-    
+
     // Ambil semua data yang dibutuhkan dari elemen form
     const b64 = document.getElementById('fotoBase64').value;
     const lat = document.getElementById('lat').value;
@@ -1679,7 +1682,7 @@ async function kirimAbsensi() {
     let statusKehadiran;
     let keterangan;
     let statusVerifikasi;
-    
+
     if (tipeKehadiran === 'izin') {
         const alasan = document.getElementById('alasanIzin').value;
         const ket = document.getElementById('keteranganIzin').value.trim();
@@ -1689,7 +1692,7 @@ async function kirimAbsensi() {
     } else {
         const baseKeterangan = document.getElementById('keterangan').value.trim();
         statusKehadiran = "Hadir";
-        
+
         if (isTerlambat && isLuarRadius) {
             statusVerifikasi = "Menunggu Verifikasi Admin";
             keterangan = "Hadir Terlambat Diluar Lokasi - " + baseKeterangan;
@@ -1724,7 +1727,7 @@ async function kirimAbsensi() {
             formData.append('keterangan', keterangan);
             formData.append('status_kehadiran', statusKehadiran);
             formData.append('status_verifikasi', statusVerifikasi);
-            
+
             if (tipeKehadiran === 'izin') {
                 const fileInput = document.getElementById('buktiIzin');
                 if (fileInput.files.length > 0) {
@@ -1799,7 +1802,7 @@ async function adminCepatKirimAbsensi(userToken) {
         }
 
         const jadwal = adminCepatState.jadwal;
-        
+
         // Cek strict time setiap kali mau kirim, karena waktu berjalan saat scan
         if (jadwal.is_strict_time == 1) {
             const nowTime = getCurrentServerTime().getTime();
@@ -1815,7 +1818,7 @@ async function adminCepatKirimAbsensi(userToken) {
         const statusKehadiran = adminCepatState.status_kehadiran;
         const statusVerifikasi = adminCepatState.status_verifikasi;
         const keteranganAdmin = adminCepatState.keterangan;
-        
+
         // Ambil lokasi dari state (sudah divalidasi sebelumnya)
         const lat = adminCepatState.lat || '0';
         const lng = adminCepatState.lng || '0';
@@ -2056,19 +2059,19 @@ function ambilFoto() {
 
     v.classList.add('hidden-view');
     document.getElementById('hasilFoto').classList.remove('hidden-view');
-    
+
     const pdfPreview = document.getElementById('pdfPreviewContainer');
     if (pdfPreview) pdfPreview.classList.add('hidden-view');
-    
+
     const btnJepret = document.getElementById('btnJepret');
     if (btnJepret) btnJepret.classList.add('hidden-view');
-    
+
     const btnUpload = document.getElementById('btnUploadManual');
     if (btnUpload) btnUpload.classList.add('hidden-view');
-    
+
     const btnUlang = document.getElementById('btnUlang');
     if (btnUlang) btnUlang.classList.remove('hidden-view');
-    
+
     validasiTombolKirim();
 }
 
@@ -2085,26 +2088,26 @@ async function handleManualUpload(event) {
     const isPdf = file.type === 'application/pdf';
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         const b64 = e.target.result;
         document.getElementById('fotoBase64').value = b64;
-        
+
         const kamera = document.getElementById('kamera');
         if (kamera) kamera.classList.add('hidden-view');
-        
+
         const btnJepret = document.getElementById('btnJepret');
         if (btnJepret) btnJepret.classList.add('hidden-view');
-        
+
         const btnUpload = document.getElementById('btnUploadManual');
         if (btnUpload) btnUpload.classList.add('hidden-view');
-        
+
         const btnUlang = document.getElementById('btnUlang');
         if (btnUlang) btnUlang.classList.remove('hidden-view');
-        
+
         const pdfPreview = document.getElementById('pdfPreviewContainer');
         const hasilFoto = document.getElementById('hasilFoto');
         const pdfFileName = document.getElementById('pdfFileName');
-        
+
         if (isPdf) {
             if (hasilFoto) hasilFoto.classList.add('hidden-view');
             if (pdfPreview) pdfPreview.classList.remove('hidden-view');
@@ -2116,7 +2119,7 @@ async function handleManualUpload(event) {
                 hasilFoto.src = b64;
             }
         }
-        
+
         validasiTombolKirim();
     };
     reader.readAsDataURL(file);
@@ -2125,25 +2128,25 @@ async function handleManualUpload(event) {
 function ulangFoto() {
     document.getElementById('fotoBase64').value = "";
     document.getElementById('hasilFoto').classList.add('hidden-view');
-    
+
     const pdfPreview = document.getElementById('pdfPreviewContainer');
     if (pdfPreview) pdfPreview.classList.add('hidden-view');
-    
+
     const fileUpload = document.getElementById('fileUploadManual');
     if (fileUpload) fileUpload.value = "";
-    
+
     const kamera = document.getElementById('kamera');
     if (kamera) kamera.classList.remove('hidden-view');
-    
+
     const btnJepret = document.getElementById('btnJepret');
     if (btnJepret) btnJepret.classList.remove('hidden-view');
-    
+
     const btnUpload = document.getElementById('btnUploadManual');
     if (btnUpload) btnUpload.classList.remove('hidden-view');
-    
+
     const btnUlang = document.getElementById('btnUlang');
     if (btnUlang) btnUlang.classList.add('hidden-view');
-    
+
     validasiTombolKirim();
 }
 
@@ -2242,7 +2245,7 @@ async function setupAbsenForm(jadwalData) {
     document.getElementById('statusGeo').classList.add('hidden-view');
     document.getElementById('statusGeoLoading').classList.remove('hidden-view');
     document.getElementById('keterangan').value = '';
-    
+
     // Reset Tipe Kehadiran & form Izin
     const elTipeHadir = document.querySelector('input[name="tipeKehadiran"][value="hadir"]');
     const elTipeIzin = document.querySelector('input[name="tipeKehadiran"][value="izin"]');
@@ -2260,7 +2263,7 @@ async function setupAbsenForm(jadwalData) {
             document.getElementById('flowIzin').classList.add('hidden-view');
             document.getElementById('statusGeoLoading').classList.add('hidden-view');
         }
-        
+
         document.getElementById('alasanIzin').value = '';
         document.getElementById('keteranganIzin').value = '';
         document.getElementById('buktiIzin').value = '';
@@ -2275,7 +2278,7 @@ async function setupAbsenForm(jadwalData) {
         videoStream.getTracks().forEach(track => track.stop());
         videoStream = null;
     }
-    
+
     window._isHadirStarted = false;
 
     switchView('view-form');
@@ -2351,7 +2354,7 @@ function toggleTipeKehadiran() {
     const flowHadir = document.getElementById('flowHadir');
     const flowIzin = document.getElementById('flowIzin');
     const btnKirim = document.getElementById('btnKirim');
-    
+
     if (tipe === 'hadir') {
         flowHadir.classList.remove('hidden-view');
         flowIzin.classList.add('hidden-view');
@@ -2360,7 +2363,7 @@ function toggleTipeKehadiran() {
         btnKirim.className = "w-full bg-gray-300 text-gray-500 font-extrabold py-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2";
         // --- RESET STATE HADIR ---
         document.getElementById('keterangan').value = '';
-        
+
         if (!window._isHadirStarted) {
             window._isHadirStarted = true;
             ulangFoto();
@@ -2370,9 +2373,9 @@ function toggleTipeKehadiran() {
             // tampilkan ulang kameranya
             const formLanjutan = document.getElementById('form-absen-lanjutan');
             if (formLanjutan) formLanjutan.classList.remove('hidden-view');
-            
+
             // Nyalakan kembali kamera dan reset foto
-            ulangFoto(); 
+            ulangFoto();
             mulaiKameraSelfie();
         }
     } else {
@@ -2380,14 +2383,14 @@ function toggleTipeKehadiran() {
         flowIzin.classList.remove('hidden-view');
         const formLanjutan = document.getElementById('form-absen-lanjutan');
         if (formLanjutan) formLanjutan.classList.add('hidden-view');
-        
+
         // --- RESET STATE IZIN ---
         document.getElementById('alasanIzin').value = '';
         document.getElementById('keteranganIzin').value = '';
         document.getElementById('buktiIzin').value = '';
-        
+
         checkIzinForm(); // cek form izin untuk enable btnKirim
-        
+
         // Matikan kamera jika menyala karena pindah ke tab Izin
         if (typeof videoStream !== 'undefined' && videoStream) {
             videoStream.getTracks().forEach(track => track.stop());
@@ -2399,24 +2402,24 @@ function toggleTipeKehadiran() {
 function checkIzinForm() {
     const radio = document.querySelector('input[name="tipeKehadiran"]:checked');
     if (!radio || radio.value !== 'izin') return;
-    
+
     const alasan = document.getElementById('alasanIzin').value;
     const ket = document.getElementById('keteranganIzin').value.trim();
     const bukti = document.getElementById('buktiIzin');
     const btnKirim = document.getElementById('btnKirim');
-    
+
     // Validasi dasar
     let isValid = true;
     if (!alasan || alasan === "") isValid = false;
     if (ket === "") isValid = false;
     if (bukti.files.length === 0) isValid = false;
-    
+
     // Validasi File
     if (bukti.files.length > 0) {
         const file = bukti.files[0];
         const fileSizeMB = file.size / (1024 * 1024);
         const fileExt = file.name.split('.').pop().toLowerCase();
-        
+
         if (fileSizeMB > 1.05) {
             isValid = false;
             Swal.fire('File Terlalu Besar', 'Ukuran maksimal file bukti dukung adalah 1 MB.', 'warning');
@@ -2427,7 +2430,7 @@ function checkIzinForm() {
             bukti.value = '';
         }
     }
-    
+
     if (isValid) {
         btnKirim.disabled = false;
         btnKirim.className = "w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer";

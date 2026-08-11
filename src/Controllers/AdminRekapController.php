@@ -298,9 +298,9 @@ class AdminRekapController {
                 SUM(
                     CASE 
                         WHEN ? = 'alpa' THEN 
-                            CASE WHEN a.status_verifikasi = 'Ditolak Oleh Admin' OR a.status_kehadiran = 'Alpa' OR (a.status_kehadiran IS NULL AND a.waktu IS NULL) THEN 1 ELSE 0 END
+                            CASE WHEN a.status_verifikasi = 'Ditolak Oleh Admin' OR a.status_kehadiran = 'Alpa' OR ((a.status_kehadiran IS NULL OR a.status_kehadiran = '') AND a.waktu IS NULL) THEN 1 ELSE 0 END
                         WHEN ? = 'Hadir' THEN
-                            CASE WHEN a.status_verifikasi != 'Ditolak Oleh Admin' AND (a.status_kehadiran = 'Hadir' OR (a.status_kehadiran IS NULL AND a.waktu IS NOT NULL)) THEN 1 ELSE 0 END
+                            CASE WHEN a.status_verifikasi != 'Ditolak Oleh Admin' AND (a.status_kehadiran = 'Hadir' OR ((a.status_kehadiran IS NULL OR a.status_kehadiran = '') AND a.waktu IS NOT NULL)) THEN 1 ELSE 0 END
                         ELSE 
                             CASE WHEN a.status_verifikasi != 'Ditolak Oleh Admin' AND a.status_kehadiran = ? THEN 1 ELSE 0 END
                     END
@@ -367,9 +367,9 @@ class AdminRekapController {
 
         // Apply status condition exactly like the SUM query
         if (strcasecmp($statusKehadiran, 'alpa') === 0) {
-            $sql .= " AND (a.status_verifikasi = 'Ditolak Oleh Admin' OR a.status_kehadiran = 'Alpa' OR (a.status_kehadiran IS NULL AND a.waktu IS NULL))";
+            $sql .= " AND (a.status_verifikasi = 'Ditolak Oleh Admin' OR a.status_kehadiran = 'Alpa' OR ((a.status_kehadiran IS NULL OR a.status_kehadiran = '') AND a.waktu IS NULL))";
         } elseif (strcasecmp($statusKehadiran, 'Hadir') === 0) {
-            $sql .= " AND a.status_verifikasi != 'Ditolak Oleh Admin' AND (a.status_kehadiran = 'Hadir' OR (a.status_kehadiran IS NULL AND a.waktu IS NOT NULL))";
+            $sql .= " AND a.status_verifikasi != 'Ditolak Oleh Admin' AND (a.status_kehadiran = 'Hadir' OR ((a.status_kehadiran IS NULL OR a.status_kehadiran = '') AND a.waktu IS NOT NULL))";
         } else {
             $sql .= " AND a.status_verifikasi != 'Ditolak Oleh Admin' AND a.status_kehadiran = ?";
             $params[] = $statusKehadiran;
