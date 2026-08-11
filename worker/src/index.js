@@ -90,7 +90,7 @@ export default {
 				return { error: true, code: 403, message: `Gagal: Absensi belum dibuka. Silakan tunggu hingga pukul ${cachedJadwal.jam_mulai} WIB.` };
 			}
 
-			const status = (payload.status_kehadiran || "").toLowerCase();
+			const status = (payload.status_kehadiran || "hadir").toLowerCase();
 
 			// Jika pegawai mencoba Hadir murni (bukan Izin/Sakit/Cuti)
 			if (status === "hadir") {

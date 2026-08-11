@@ -175,9 +175,11 @@ class AdminRekapController {
         $detailPegawai = [];
         foreach ($results as $pegawai) {
             // Tentukan status kehadiran efektif
-            $status_kehadiran_efektif = 'alpa';
-            if ($pegawai['waktu_absen'] !== null && $pegawai['status_verifikasi'] !== 'Ditolak Oleh Admin') {
-                $status_kehadiran_efektif = $pegawai['status_kehadiran'] ?? 'Hadir';
+            $status_kehadiran_efektif = $pegawai['status_kehadiran'] ?? 'Hadir';
+            if ($pegawai['status_verifikasi'] === 'Ditolak Oleh Admin') {
+                $status_kehadiran_efektif = 'alpa';
+            } elseif ($pegawai['status_kehadiran'] === null && $pegawai['waktu_absen'] === null) {
+                $status_kehadiran_efektif = 'alpa';
             }
 
             // Tentukan status verifikasi efektif (menangani nilai NULL)
@@ -251,9 +253,11 @@ class AdminRekapController {
 
         $detailPegawai = [];
         foreach ($results as $pegawai) {
-            $status_kehadiran_efektif = 'alpa';
-            if ($pegawai['waktu_absen'] !== null && $pegawai['status_verifikasi'] !== 'Ditolak Oleh Admin') {
-                $status_kehadiran_efektif = $pegawai['status_kehadiran'] ?? 'Hadir';
+            $status_kehadiran_efektif = $pegawai['status_kehadiran'] ?? 'Hadir';
+            if ($pegawai['status_verifikasi'] === 'Ditolak Oleh Admin') {
+                $status_kehadiran_efektif = 'alpa';
+            } elseif ($pegawai['status_kehadiran'] === null && $pegawai['waktu_absen'] === null) {
+                $status_kehadiran_efektif = 'alpa';
             }
 
             $status_verifikasi_efektif = $pegawai['status_verifikasi'] ?? 'ALPA';
@@ -294,11 +298,11 @@ class AdminRekapController {
                 SUM(
                     CASE 
                         WHEN ? = 'alpa' THEN 
-                            CASE WHEN a.waktu IS NULL OR a.status_verifikasi = 'Ditolak Oleh Admin' THEN 1 ELSE 0 END
+                            CASE WHEN a.status_verifikasi = 'Ditolak Oleh Admin' OR a.status_kehadiran = 'Alpa' OR (a.status_kehadiran IS NULL AND a.waktu IS NULL) THEN 1 ELSE 0 END
                         WHEN ? = 'Hadir' THEN
-                            CASE WHEN a.waktu IS NOT NULL AND a.status_verifikasi != 'Ditolak Oleh Admin' AND (a.status_kehadiran = 'Hadir' OR a.status_kehadiran IS NULL) THEN 1 ELSE 0 END
+                            CASE WHEN a.status_verifikasi != 'Ditolak Oleh Admin' AND (a.status_kehadiran = 'Hadir' OR (a.status_kehadiran IS NULL AND a.waktu IS NOT NULL)) THEN 1 ELSE 0 END
                         ELSE 
-                            CASE WHEN a.waktu IS NOT NULL AND a.status_verifikasi != 'Ditolak Oleh Admin' AND a.status_kehadiran = ? THEN 1 ELSE 0 END
+                            CASE WHEN a.status_verifikasi != 'Ditolak Oleh Admin' AND a.status_kehadiran = ? THEN 1 ELSE 0 END
                     END
                 ) as jumlah
             FROM app_absensi_data_absensi a
@@ -362,12 +366,12 @@ class AdminRekapController {
         $params = [$startDate, $endDate, $nip];
 
         // Apply status condition exactly like the SUM query
-        if ($statusKehadiran === 'alpa') {
-            $sql .= " AND (a.waktu IS NULL OR a.status_verifikasi = 'Ditolak Oleh Admin')";
-        } elseif ($statusKehadiran === 'Hadir') {
-            $sql .= " AND a.waktu IS NOT NULL AND a.status_verifikasi != 'Ditolak Oleh Admin' AND (a.status_kehadiran = 'Hadir' OR a.status_kehadiran IS NULL)";
+        if (strcasecmp($statusKehadiran, 'alpa') === 0) {
+            $sql .= " AND (a.status_verifikasi = 'Ditolak Oleh Admin' OR a.status_kehadiran = 'Alpa' OR (a.status_kehadiran IS NULL AND a.waktu IS NULL))";
+        } elseif (strcasecmp($statusKehadiran, 'Hadir') === 0) {
+            $sql .= " AND a.status_verifikasi != 'Ditolak Oleh Admin' AND (a.status_kehadiran = 'Hadir' OR (a.status_kehadiran IS NULL AND a.waktu IS NOT NULL))";
         } else {
-            $sql .= " AND a.waktu IS NOT NULL AND a.status_verifikasi != 'Ditolak Oleh Admin' AND a.status_kehadiran = ?";
+            $sql .= " AND a.status_verifikasi != 'Ditolak Oleh Admin' AND a.status_kehadiran = ?";
             $params[] = $statusKehadiran;
         }
 
