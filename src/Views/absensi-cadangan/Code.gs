@@ -225,7 +225,16 @@ function prosesAbsen(data) {
             data.keterangan
         ]);
 
-        return { status: true, message: 'Data Absensi Cadangan berhasil dikirim!' };
+        return { 
+            status: true, 
+            message: 'Data Absensi Cadangan berhasil dikirim!',
+            data: {
+                waktu: waktu,
+                nip: data.nip,
+                nama: data.nama,
+                fileUrl: fileUrl
+            }
+        };
 
     } catch (error) {
         return { status: false, message: error.toString() };

@@ -10,6 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
         body { background-color: #fcf5f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -207,6 +208,42 @@
                     </button>
                 </div>
             </form>
+            
+            <!-- Receipt View -->
+            <div id="receiptView" class="hidden-view fade-in">
+                <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden text-center p-6 relative">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-green-500"></div>
+                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="bi bi-check-circle-fill text-3xl text-green-500"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-gray-800 mb-1">ABSENSI BERHASIL</h3>
+                    <p class="text-sm text-gray-500 font-medium mb-6">Data absensi cadangan Anda telah tersimpan.</p>
+                    
+                    <div class="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-100 text-left">
+                        <div class="mb-2">
+                            <p class="text-[10px] uppercase font-bold text-gray-400">Waktu Absen</p>
+                            <p id="receiptWaktu" class="text-sm font-bold text-gray-800">-</p>
+                        </div>
+                        <div class="mb-2">
+                            <p class="text-[10px] uppercase font-bold text-gray-400">Nama Pegawai</p>
+                            <p id="receiptNama" class="text-sm font-bold text-gray-800">-</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] uppercase font-bold text-gray-400">NIP</p>
+                            <p id="receiptNip" class="text-sm font-bold text-gray-800">-</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <p class="text-xs font-bold text-red-600 mb-3 uppercase tracking-wide border-b border-dashed border-red-200 pb-2">Mohon Lakukan Screenshot (Tangkapan Layar) QR Code di Bawah Sebagai Bukti Cadangan Anda</p>
+                        <div id="receiptQr" class="bg-white p-3 inline-block rounded-xl border border-gray-200 shadow-sm mx-auto"></div>
+                    </div>
+                    
+                    <button type="button" onclick="selesaiAbsensi()" class="w-full mt-2 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 font-bold py-3.5 rounded-xl transition-all shadow-sm">
+                        Selesai & Kembali
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div class="px-5 text-center text-xs text-gray-400 mt-4 pb-4 border-t border-gray-200 pt-5">
@@ -473,19 +510,34 @@
                 
                 showLoading(false);
                 if (res.status) {
-                    Swal.fire({
-                        title: 'BERHASIL!',
-                        text: res.message,
-                        icon: 'success',
-                        confirmButtonText: 'Tutup'
-                    }).then(() => {
-                        document.getElementById('formAbsenCadangan').reset();
-                        document.getElementById('boxKeteranganLainnya').classList.add('hidden-view');
-                        document.getElementById('inpOpd').tomselect.clear();
-                        ulangFoto();
-                        deteksiLokasi();
-                        window.scrollTo(0,0);
-                    });
+                    const dataRes = res.data || {};
+                    
+                    // Isi data struk
+                    document.getElementById('receiptWaktu').innerText = dataRes.waktu || new Date().toLocaleString();
+                    document.getElementById('receiptNama').innerText = dataRes.nama || document.getElementById('inpNama').value;
+                    document.getElementById('receiptNip').innerText = dataRes.nip || inputNip;
+                    
+                    // Generate QR
+                    const qrContainer = document.getElementById('receiptQr');
+                    qrContainer.innerHTML = '';
+                    if (dataRes.fileUrl) {
+                        new QRCode(qrContainer, {
+                            text: dataRes.fileUrl,
+                            width: 150,
+                            height: 150,
+                            colorDark : "#000000",
+                            colorLight : "#ffffff",
+                            correctLevel : QRCode.CorrectLevel.L
+                        });
+                    } else {
+                        qrContainer.innerHTML = '<span class="text-xs text-red-500">QR Gagal Dimuat</span>';
+                    }
+                    
+                    // Tampilkan Struk
+                    document.getElementById('formAbsenCadangan').classList.add('hidden-view');
+                    document.getElementById('receiptView').classList.remove('hidden-view');
+                    window.scrollTo(0,0);
+
                 } else {
                     Swal.fire('Gagal', res.message, 'error');
                 }
@@ -494,6 +546,23 @@
                 Swal.fire('Error Koneksi', 'Gagal terhubung ke server. Pastikan URL Script benar atau coba lagi.', 'error');
                 console.error("Fetch Error:", error);
             }
+        }
+
+        function selesaiAbsensi() {
+            document.getElementById('receiptView').classList.add('hidden-view');
+            document.getElementById('formAbsenCadangan').reset();
+            document.getElementById('boxKeteranganLainnya').classList.add('hidden-view');
+            if(document.getElementById('inpOpd').tomselect) {
+                document.getElementById('inpOpd').tomselect.clear();
+            }
+            ulangFoto();
+            
+            // Sembunyikan form utama karena kondisi awal form hanya menampilkan loading/tombol Lanjut Lokasi
+            document.getElementById('formUtama').classList.add('hidden-view'); 
+            deteksiLokasi();
+            
+            document.getElementById('formAbsenCadangan').classList.remove('hidden-view');
+            window.scrollTo(0,0);
         }
     </script>
 </body>
