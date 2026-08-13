@@ -24,10 +24,30 @@ class AdminJadwalController {
     public function listJadwal() {
         AdminAuthHelper::validate();
         $db = Database::getConnection(); 
-        // Tambahkan kv_sync_status ke SELECT
-        $stmt = $db->query("SELECT *, kv_sync_status FROM app_absensi_jadwal_kegiatan ORDER BY tanggal DESC, jam_mulai DESC");
+        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+        $limit = isset($_GET['limit']) ? max(1, (int)$_GET['limit']) : 10;
+        $offset = ($page - 1) * $limit;
+
+        $countStmt = $db->query("SELECT COUNT(*) FROM app_absensi_jadwal_kegiatan");
+        $totalRows = $countStmt->fetchColumn();
+
+        $stmt = $db->prepare("SELECT *, kv_sync_status FROM app_absensi_jadwal_kegiatan ORDER BY tanggal DESC, jam_mulai DESC LIMIT :limit OFFSET :offset");
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
         $jadwal = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        Response::json(true, 200, "OK", $jadwal);
+
+        $payload = [
+            'data' => $jadwal,
+            'pagination' => [
+                'total_rows' => (int)$totalRows,
+                'total_pages' => ceil($totalRows / $limit),
+                'current_page' => $page,
+                'limit' => $limit
+            ]
+        ];
+
+        Response::json(true, 200, "OK", $payload);
     }
 
     public function getJadwal($vars) {

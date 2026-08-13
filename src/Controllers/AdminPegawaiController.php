@@ -58,11 +58,37 @@ class AdminPegawaiController {
         
         $sql .= " ORDER BY p.nama_pegawai ASC";
 
+        // Query hitung total (sebelum LIMIT/OFFSET)
+        $countSql = "SELECT COUNT(*) FROM app_absensi_data_pegawai p LEFT JOIN app_absensi_data_admin a ON p.nip = a.username";
+        if (count($conditions) > 0) {
+            $countSql .= " WHERE " . implode(' AND ', $conditions);
+        }
+        $countStmt = $db->prepare($countSql);
+        $countStmt->execute($params);
+        $totalRows = $countStmt->fetchColumn();
+
+        // Paginasi
+        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+        $limit = isset($_GET['limit']) ? max(1, (int)$_GET['limit']) : 10;
+        $offset = ($page - 1) * $limit;
+
+        $sql .= " LIMIT $limit OFFSET $offset";
+
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
         $pegawai = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        Response::json(true, 200, "Data pegawai berhasil diambil", $pegawai);
+        $payload = [
+            'data' => $pegawai,
+            'pagination' => [
+                'total_rows' => (int)$totalRows,
+                'total_pages' => ceil($totalRows / $limit),
+                'current_page' => $page,
+                'limit' => $limit
+            ]
+        ];
+
+        Response::json(true, 200, "Data pegawai berhasil diambil", $payload);
     }
 
     public function getPegawaiStats() {

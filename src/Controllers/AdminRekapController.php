@@ -167,6 +167,8 @@ class AdminRekapController {
             $params[] = '%' . $searchFilter . '%';
         }
 
+        $sql .= " ORDER BY opd ASC, nama_pegawai ASC";
+
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -194,7 +196,23 @@ class AdminRekapController {
             }
         }
         
-        Response::json(true, 200, "Detail rekap berhasil diambil", $detailPegawai);
+        $totalRows = count($detailPegawai);
+        $page = isset($filters['page']) ? max(1, (int)$filters['page']) : 1;
+        $limit = isset($filters['limit']) ? max(1, (int)$filters['limit']) : 10;
+        $offset = ($page - 1) * $limit;
+        $paginatedData = array_slice($detailPegawai, $offset, $limit);
+
+        $payload = [
+            'data' => $paginatedData,
+            'pagination' => [
+                'total_rows' => $totalRows,
+                'total_pages' => ceil($totalRows / $limit),
+                'current_page' => $page,
+                'limit' => $limit
+            ]
+        ];
+        
+        Response::json(true, 200, "Detail rekap berhasil diambil", $payload);
     }
 
     // New function for Rekap Keseluruhan
@@ -245,7 +263,7 @@ class AdminRekapController {
             $params[] = '%' . $searchFilter . '%';
         }
 
-        $sql .= " ORDER BY j.tanggal DESC, a.waktu DESC";
+        $sql .= " ORDER BY a.opd ASC, a.nama_pegawai ASC, j.tanggal DESC";
 
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
@@ -270,7 +288,23 @@ class AdminRekapController {
             }
         }
 
-        Response::json(true, 200, "Data rekap keseluruhan berhasil difilter", $detailPegawai);
+        $totalRows = count($detailPegawai);
+        $page = isset($filters['page']) ? max(1, (int)$filters['page']) : 1;
+        $limit = isset($filters['limit']) ? max(1, (int)$filters['limit']) : 10;
+        $offset = ($page - 1) * $limit;
+        $paginatedData = array_slice($detailPegawai, $offset, $limit);
+
+        $payload = [
+            'data' => $paginatedData,
+            'pagination' => [
+                'total_rows' => $totalRows,
+                'total_pages' => ceil($totalRows / $limit),
+                'current_page' => $page,
+                'limit' => $limit
+            ]
+        ];
+
+        Response::json(true, 200, "Data rekap keseluruhan berhasil difilter", $payload);
     }
 
     public function getStatistikKehadiran() {
@@ -294,6 +328,7 @@ class AdminRekapController {
             SELECT 
                 a.nip, 
                 a.nama_pegawai, 
+                a.jabatan,
                 a.opd AS perangkat_daerah,
                 SUM(
                     CASE 
@@ -323,13 +358,29 @@ class AdminRekapController {
             $params[] = $opdFilter;
         }
 
-        $sql .= " GROUP BY a.nip, a.nama_pegawai, a.opd HAVING jumlah > 0 ORDER BY jumlah DESC";
+        $sql .= " GROUP BY a.nip, a.nama_pegawai, a.jabatan, a.opd HAVING jumlah > 0 ORDER BY a.opd ASC, a.nama_pegawai ASC";
 
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        Response::json(true, 200, "Data statistik kehadiran berhasil diambil", $results);
+        $totalRows = count($results);
+        $page = isset($filters['page']) ? max(1, (int)$filters['page']) : 1;
+        $limit = isset($filters['limit']) ? max(1, (int)$filters['limit']) : 10;
+        $offset = ($page - 1) * $limit;
+        $paginatedData = array_slice($results, $offset, $limit);
+
+        $payload = [
+            'data' => $paginatedData,
+            'pagination' => [
+                'total_rows' => $totalRows,
+                'total_pages' => ceil($totalRows / $limit),
+                'current_page' => $page,
+                'limit' => $limit
+            ]
+        ];
+
+        Response::json(true, 200, "Data statistik kehadiran berhasil diambil", $payload);
     }
 
     public function getStatistikDetail() {

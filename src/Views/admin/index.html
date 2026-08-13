@@ -96,6 +96,8 @@
         <button class="btn btn-danger fw-bold px-4 shadow-sm" onclick="bukaModalBuatKegiatan()"><i class="bi bi-plus-circle"></i> Buat Jadwal Baru</button>
       </div>
 
+      <!-- TOP PAGINATION JADWAL -->
+      <div id="jadwalPaginationTop" class="d-none"></div>
       <div class="box-container table-responsive">
         <table class="table table-hover align-middle">
           <thead> 
@@ -103,6 +105,7 @@
           </thead>
           <tbody id="listKegiatanBody"></tbody>
         </table>
+        <div id="jadwalPagination" class="d-flex justify-content-between align-items-center mt-3 border-top pt-3 d-none"></div>
       </div>
     </div>
 
@@ -120,7 +123,6 @@
         </div>
       </div>
     
-      <!-- Filter dan Tabel Data Pegawai -->
       <div class="box-container table-responsive">
           <h5 class="fw-bold mb-3">Detail Data Pegawai</h5>
           <div class="d-flex justify-content-between align-items-start mb-3">
@@ -183,6 +185,8 @@
                 </div>
             </div>
           
+          <!-- TOP PAGINATION REKAP -->
+          <div id="rekapPaginationTop" class="d-none"></div>
           <div id="rekapTableView" class="table-responsive">
               <table class="table table-hover table-bordered align-middle" id="rekapDataTable">
                   <thead>
@@ -203,6 +207,7 @@
           <div id="rekapPhotoGridView" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-3 d-none">
               <!-- Photo grid will be rendered here -->
           </div>
+          <div id="rekapPagination" class="d-flex justify-content-between align-items-center mt-3 border-top pt-3 d-none"></div>
       </div>
     </div>
 
@@ -274,6 +279,8 @@
                 </div>
             </div>
           
+          <!-- TOP PAGINATION REKAP KESELURUHAN -->
+          <div id="rekapKeseluruhanPaginationTop" class="d-none"></div>
           <div id="rekapKeseluruhanTableView" class="table-responsive">
               <table class="table table-hover table-bordered align-middle" id="rekapKeseluruhanDataTable">
                   <thead>
@@ -289,6 +296,7 @@
                   <tbody id="rekapKeseluruhanTableBody"><tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih rentang tanggal, filter, dan tekan "Tampilkan Data".</td></tr></tbody>
               </table>
           </div>
+          <div id="rekapKeseluruhanPagination" class="d-flex justify-content-between align-items-center mt-3 border-top pt-3 d-none"></div>
       </div>
     </div>
 
@@ -344,20 +352,24 @@
       </div>
 
       <div class="bg-white p-3 rounded shadow-sm border">
+          <!-- TOP PAGINATION STATISTIK -->
+          <div id="statistikPaginationTop" class="d-none"></div>
           <div id="statistikTableView" class="table-responsive">
               <table class="table table-hover table-bordered align-middle" id="statistikDataTable">
                   <thead>
                     <tr>
                         <th class="text-center" style="width: 5%;">No</th>
-                        <th style="width: 25%;">NIP</th>
-                        <th style="width: 35%;">Nama Pegawai</th>
-                        <th style="width: 25%;">Perangkat Daerah (OPD)</th>
+                        <th style="width: 20%;">NIP</th>
+                        <th style="width: 25%;">Nama Pegawai</th>
+                        <th style="width: 20%;">Jabatan</th>
+                        <th style="width: 20%;">Perangkat Daerah (OPD)</th>
                         <th class="text-center" style="width: 10%;">Jumlah</th>
                     </tr>
                 </thead>
-                  <tbody id="statistikTableBody"><tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih rentang tanggal, filter status, dan tekan "Tampilkan Statistik".</td></tr></tbody>
+                  <tbody id="statistikTableBody"><tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih rentang tanggal, filter status, dan tekan "Tampilkan Statistik".</td></tr></tbody>
               </table>
           </div>
+          <div id="statistikPagination" class="d-flex justify-content-between align-items-center mt-3 border-top pt-3 d-none"></div>
       </div>
     </div>
 
@@ -431,6 +443,8 @@
               </div>
           </div>
   
+          <!-- TOP PAGINATION PEGAWAI -->
+          <div id="pegawaiPaginationTop" class="d-none"></div>
           <div class="table-responsive">
               <table class="table table-hover table-bordered align-middle">
                   <thead>
@@ -453,6 +467,7 @@
                   </tbody>
               </table>
           </div>
+          <div id="pegawaiPagination" class="d-flex justify-content-between align-items-center mt-3 border-top pt-3 d-none"></div>
       </div>
     </div>
 

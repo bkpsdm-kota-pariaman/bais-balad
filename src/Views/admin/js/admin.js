@@ -11,6 +11,129 @@ let mapEdit, circleEdit, markerEdit;
 let currentQrData = { kode: '', judul: '' };
 let opdState = { add: { available: [], selected: [] }, edit: { available: [], selected: [] } };
 
+
+let paginasiState = { page: 1, limit: 10 };
+
+function resetPaginasi() {
+    paginasiState.page = 1;
+    paginasiState.limit = 10;
+    
+    const containers = [
+        'jadwalPagination', 'jadwalPaginationTop',
+        'pegawaiPagination', 'pegawaiPaginationTop',
+        'rekapPagination', 'rekapPaginationTop',
+        'rekapKeseluruhanPagination', 'rekapKeseluruhanPaginationTop',
+        'statistikPagination', 'statistikPaginationTop'
+    ];
+    
+    containers.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('d-none');
+    });
+}
+
+function gantiPage(fitur, page, limit) {
+    paginasiState.page = page;
+    paginasiState.limit = limit;
+    
+    switch (fitur) {
+        case 'jadwal': loadJadwalKegiatan(true); break;
+        case 'pegawai': loadPegawai(true); break;
+        case 'rekap': terapkanFilterRekap(true); break;
+        case 'rekapKeseluruhan': terapkanFilterRekapKeseluruhan(true); break;
+        case 'statistik': terapkanFilterStatistik(true); break;
+    }
+}
+
+function renderPaginationControls(containerId, paginationData, onPageChangeName) {
+    if (!paginationData) return;
+    
+    const { current_page: currentPage, limit, total_pages: totalPages, total_rows: totalRows } = paginationData;
+    const containerBottom = document.getElementById(containerId);
+    const containerTop = document.getElementById(containerId + "Top");
+    
+    if (!containerBottom) return;
+
+    if (totalRows === 0) {
+        if(containerTop) containerTop.classList.add('d-none');
+        containerBottom.classList.add('d-none');
+        return;
+    }
+
+    if(containerTop) containerTop.classList.remove('d-none');
+    containerBottom.classList.remove('d-none');
+
+    let htmlTop = `
+        <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center bg-white py-2 px-3 border rounded shadow-sm mb-3">
+            <div class="small text-muted mb-2 mb-md-0">
+                Total Data: <span class="fw-bold text-dark">${totalRows}</span>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="small text-muted">Tampilkan</span>
+                <select class="form-select form-select-sm" style="width: auto;" onchange="gantiPage('${onPageChangeName}', 1, this.value)">
+                    <option value="10" ${limit == 10 ? 'selected' : ''}>10</option>
+                    <option value="25" ${limit == 25 ? 'selected' : ''}>25</option>
+                    <option value="50" ${limit == 50 ? 'selected' : ''}>50</option>
+                    <option value="100" ${limit == 100 ? 'selected' : ''}>100</option>
+                </select>
+                <span class="small text-muted">baris</span>
+            </div>
+        </div>
+    `;
+
+    let htmlBottom = `
+        <nav aria-label="Page navigation" class="mt-3 overflow-auto">
+            <ul class="pagination justify-content-center mb-0 flex-wrap gap-1">
+                <li class="page-item ${currentPage <= 1 ? 'disabled' : ''}">
+                    <button class="page-link" onclick="gantiPage('${onPageChangeName}', ${currentPage - 1}, ${limit})" tabindex="-1">&laquo; Prev</button>
+                </li>
+    `;
+
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, currentPage + 2);
+    
+    if (startPage > 1) {
+        htmlBottom += `
+                <li class="page-item">
+                    <button class="page-link" onclick="gantiPage('${onPageChangeName}', 1, ${limit})">1</button>
+                </li>
+        `;
+        if (startPage > 2) {
+            htmlBottom += `<li class="page-item disabled"><span class="page-link bg-light border-0">...</span></li>`;
+        }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        htmlBottom += `
+                <li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <button class="page-link" onclick="gantiPage('${onPageChangeName}', ${i}, ${limit})">${i}</button>
+                </li>
+        `;
+    }
+
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            htmlBottom += `<li class="page-item disabled"><span class="page-link bg-light border-0">...</span></li>`;
+        }
+        htmlBottom += `
+                <li class="page-item">
+                    <button class="page-link" onclick="gantiPage('${onPageChangeName}', ${totalPages}, ${limit})">${totalPages}</button>
+                </li>
+        `;
+    }
+
+    htmlBottom += `
+                <li class="page-item ${currentPage >= totalPages ? 'disabled' : ''}">
+                    <button class="page-link" onclick="gantiPage('${onPageChangeName}', ${currentPage + 1}, ${limit})">Next &raquo;</button>
+                </li>
+            </ul>
+        </nav>
+    `;
+    
+    if (containerTop) containerTop.innerHTML = htmlTop;
+    containerBottom.innerHTML = htmlBottom;
+}
+
 const modalBuatKegiatan = new bootstrap.Modal(document.getElementById('modalBuatKegiatan'));
 const modalEditKegiatan = new bootstrap.Modal(document.getElementById('modalEditKegiatan'));
 const modalQrCode = new bootstrap.Modal(document.getElementById('modalQrCode'));
@@ -40,7 +163,7 @@ function showAdminLoading(show, title = 'Memproses...') {
     }
 }
 
-let currentPegawaiMode = 'add'; // 'add' or 'edit'
+let currentPegawaiMode = 'add';
 let tambahPesertaSearchTimeout = null;
 let tambahPesertaState = { available: [], selected: [] }; // State untuk modal tambah peserta dual-list
 /**
@@ -221,7 +344,10 @@ async function fetchWithAuth(url, options = {}) {
 /**
  * Memuat daftar jadwal kegiatan dari server.
  */
-async function loadJadwalKegiatan() {
+async function loadJadwalKegiatan(isFromPagination = false) {
+    if (isFromPagination !== true) paginasiState.page = 1;
+    const pt = document.getElementById("jadwalPaginationTop"); if(pt) pt.classList.add("d-none");
+    const pb = document.getElementById("jadwalPagination"); if(pb) pb.classList.add("d-none");
     const loading = document.getElementById('loading');
     const container = document.getElementById('dashboardContainer');
     loading.classList.remove('d-none');
@@ -229,9 +355,10 @@ async function loadJadwalKegiatan() {
 
     try {
         // Tambahkan parameter unik (timestamp) untuk mencegah browser caching pada request GET
-        const result = await fetchWithAuth(`${API_BASE_URL}/admin/jadwal?_=${new Date().getTime()}`);
+        const result = await fetchWithAuth(`${API_BASE_URL}/admin/jadwal?page=${paginasiState.page}&limit=${paginasiState.limit}&_=${new Date().getTime()}`);
         if (result.status) {
-            renderJadwalTable(result.data);
+            renderJadwalTable(result.data.data);
+            renderPaginationControls('jadwalPagination', result.data.pagination, 'jadwal');
         } else {
             alert('Gagal memuat jadwal: ' + result.message);
         }
@@ -294,7 +421,7 @@ function renderJadwalTable(jadwalList) {
         }
         const row = `
             <tr>
-                <td class="text-center">${index + 1}</td>
+                <td class="text-center">${(paginasiState.page - 1) * paginasiState.limit + index + 1}</td>
                 <td>
                     <strong class="d-block">${jadwal.judul}</strong>
                     <small class="text-muted d-block">${new Date(jadwal.tanggal).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</small>
@@ -893,6 +1020,7 @@ function selectOpdDinas(mode) {
  */
 
 function kembaliKeDaftar() {
+    resetPaginasi();
     document.getElementById('opdContainer').classList.add('d-none');
     document.getElementById('pegawaiContainer').classList.add('d-none');
     document.getElementById('rekapContainer').classList.add('d-none');
@@ -903,6 +1031,7 @@ function kembaliKeDaftar() {
 }
 
 function bukaHalamanPegawai() {
+    resetPaginasi();
     document.getElementById('dashboardContainer').classList.add('d-none');
     document.getElementById('rekapContainer').classList.add('d-none');
     document.getElementById('rekapKeseluruhanContainer').classList.add('d-none');
@@ -921,6 +1050,7 @@ function bukaHalamanPegawai() {
 }
 
 function bukaHalamanOpd() {
+    resetPaginasi();
     document.getElementById('dashboardContainer').classList.add('d-none');
     document.getElementById('rekapContainer').classList.add('d-none');
     document.getElementById('rekapKeseluruhanContainer').classList.add('d-none');
@@ -1078,7 +1208,10 @@ function resetRekapFilters() {
     document.getElementById('rekapFilterStatus').value = 'semua';
     document.getElementById('rekapFilterVerifikasi').value = 'semua';
 }
-async function terapkanFilterRekap() {
+async function terapkanFilterRekap(isFromPagination = false) {
+    if (isFromPagination !== true) paginasiState.page = 1;
+    const pt = document.getElementById("rekapPaginationTop"); if(pt) pt.classList.add("d-none");
+    const pb = document.getElementById("rekapPagination"); if(pb) pb.classList.add("d-none");
     const selectedOpds = getSelectedOpdFromCheckbox('rekapFilterOpdContainer');
     const statusKehadiran = document.getElementById('rekapFilterStatus').value;
     const statusVerifikasi = document.getElementById('rekapFilterVerifikasi').value;
@@ -1111,16 +1244,12 @@ async function terapkanFilterRekap() {
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/details/${currentRekapData.jadwal.kode_akses}`, {
             method: 'POST',
-            body: JSON.stringify({
-                opd_list: selectedOpds,
-                status_kehadiran: statusKehadiran,
-                status_verifikasi: statusVerifikasi,
-                search: searchInput
-            })
+            body: JSON.stringify({ opd_list: selectedOpds, status_kehadiran: statusKehadiran, status_verifikasi: statusVerifikasi, search: searchInput, page: paginasiState.page, limit: paginasiState.limit })
         });
 
         if (result.status) {
-            currentRekapData.filtered_pegawai = result.data;
+            currentRekapData.filtered_pegawai = result.data.data;
+            renderPaginationControls('rekapPagination', result.data.pagination, 'rekap');
             if (selectedView === 'table') {
                 renderRekapTable(currentRekapData.filtered_pegawai);
             } else {
@@ -1128,7 +1257,7 @@ async function terapkanFilterRekap() {
             }
 
             // Tampilkan tombol download jika ada data
-            if (result.data.length > 0) {
+            if (result.data.data.length > 0) {
                 btnDownload.classList.remove('d-none');
             }
         } else {
@@ -1445,7 +1574,7 @@ function renderRekapTable(filteredPegawai) {
 
             return `<tr>
                 <td class="text-center align-middle"><input class="form-check-input rekap-pilih-checkbox" type="checkbox" value="${p.nip}" onchange="updateTombolHapusMassal()"></td>
-                <td class="text-center">${i + 1}</td>
+                <td class="text-center">${(paginasiState.page - 1) * paginasiState.limit + i + 1}</td>
                 <td>${pegawaiInfo}</td>
                 <td>${p.perangkat_daerah}</td>
                 <td>${detailAbsensiInfo}</td>
@@ -2164,7 +2293,10 @@ async function populatePegawaiFilterOpd() {
     select.value = selectedValue;
 }
 
-async function loadPegawai() {
+async function loadPegawai(isFromPagination = false) {
+    if (isFromPagination !== true) paginasiState.page = 1;
+    const pt = document.getElementById("pegawaiPaginationTop"); if(pt) pt.classList.add("d-none");
+    const pb = document.getElementById("pegawaiPagination"); if(pb) pb.classList.add("d-none");
     const opd = document.getElementById('pegawaiFilterOpd').value;
     const installStatus = document.getElementById('pegawaiFilterInstall').value;
     const syncStatus = document.getElementById('pegawaiFilterSync').value;
@@ -2174,9 +2306,10 @@ async function loadPegawai() {
     tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm"></div> Memuat data pegawai...</td></tr>';
 
     try {
-        const result = await fetchWithAuth(`${API_BASE_URL}/admin/pegawai?opd=${encodeURIComponent(opd)}&search=${encodeURIComponent(search)}&install=${encodeURIComponent(installStatus)}&sync=${encodeURIComponent(syncStatus)}`);
+        const result = await fetchWithAuth(`${API_BASE_URL}/admin/pegawai?page=${paginasiState.page}&limit=${paginasiState.limit}`);
         if (result.status) {
-            renderPegawaiTable(result.data);
+            renderPegawaiTable(result.data.data);
+            renderPaginationControls('pegawaiPagination', result.data.pagination, 'pegawai');
         } else {
             tbody.innerHTML = `<tr><td colspan="11" class="text-center text-danger py-4">Gagal memuat data: ${result.message}</td></tr>`;
         }
@@ -2238,7 +2371,7 @@ function renderPegawaiTable(pegawaiList) {
 
         return `
             <tr>
-                <td class="text-center">${i + 1}</td>
+                <td class="text-center">${(paginasiState.page - 1) * paginasiState.limit + i + 1}</td>
                 <td>${p.nama_pegawai}</td>
                 <td>${p.nip}</td>
                 <td>${p.perangkat_daerah}</td>
@@ -2526,6 +2659,7 @@ function initRekapKeseluruhanUI() {
 }
 
 async function bukaHalamanRekapKeseluruhan() {
+    resetPaginasi();
     document.getElementById('dashboardContainer').classList.add('d-none');
     document.getElementById('rekapContainer').classList.add('d-none');
     document.getElementById('pegawaiContainer').classList.add('d-none');
@@ -2556,7 +2690,10 @@ function resetRekapKeseluruhanFilters() {
     document.getElementById('rekapKeseluruhanFilterVerifikasi').value = 'semua';
 }
 
-async function terapkanFilterRekapKeseluruhan() {
+async function terapkanFilterRekapKeseluruhan(isFromPagination = false) {
+    if (isFromPagination !== true) paginasiState.page = 1;
+    const pt = document.getElementById("rekapKeseluruhanPaginationTop"); if(pt) pt.classList.add("d-none");
+    const pb = document.getElementById("rekapKeseluruhanPagination"); if(pb) pb.classList.add("d-none");
     const startDate = document.getElementById('rekapKeseluruhanStartDate').value;
     const endDate = document.getElementById('rekapKeseluruhanEndDate').value;
     
@@ -2582,18 +2719,12 @@ async function terapkanFilterRekapKeseluruhan() {
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/keseluruhan`, {
             method: 'POST',
-            body: JSON.stringify({
-                start_date: startDate,
-                end_date: endDate,
-                opd_list: selectedOpds,
-                status_kehadiran: statusKehadiran,
-                status_verifikasi: statusVerifikasi,
-                search: searchInput
-            })
+            body: JSON.stringify({ start_date: startDate, end_date: endDate, opd_list: selectedOpds, status_kehadiran: statusKehadiran, status_verifikasi: statusVerifikasi, search: searchInput, page: paginasiState.page, limit: paginasiState.limit })
         });
 
         if (result.status) {
-            currentRekapKeseluruhanData = result.data;
+            currentRekapKeseluruhanData = result.data.data;
+            renderPaginationControls('rekapKeseluruhanPagination', result.data.pagination, 'rekapKeseluruhan');
             renderRekapKeseluruhanTable(currentRekapKeseluruhanData);
 
             if (result.data.length > 0) {
@@ -2697,7 +2828,7 @@ function renderRekapKeseluruhanTable(data) {
         const statusKeteranganInfo = `${verifikasiBadge}${fotoLink}${keteranganText}`;
 
         return `<tr>
-            <td class="text-center align-middle">${i + 1}</td>
+            <td class="text-center align-middle">${(paginasiState.page - 1) * paginasiState.limit + i + 1}</td>
             <td class="align-middle">${kegiatanInfo}</td>
             <td class="align-middle">${pegawaiInfo}</td>
             <td class="align-middle">${detailAbsensiInfo}</td>
@@ -2831,6 +2962,7 @@ function initStatistikUI() {
 }
 
 async function bukaHalamanStatistikKehadiran() {
+    resetPaginasi();
     document.getElementById('dashboardContainer').classList.add('d-none');
     document.getElementById('rekapContainer').classList.add('d-none');
     document.getElementById('pegawaiContainer').classList.add('d-none');
@@ -2859,7 +2991,10 @@ function resetStatistikFilters() {
     document.getElementById('statAlpaKes').checked = true;
 }
 
-async function terapkanFilterStatistik() {
+async function terapkanFilterStatistik(isFromPagination = false) {
+    if (isFromPagination !== true) paginasiState.page = 1;
+    const pt = document.getElementById("statistikPaginationTop"); if(pt) pt.classList.add("d-none");
+    const pb = document.getElementById("statistikPagination"); if(pb) pb.classList.add("d-none");
     const startDate = document.getElementById('statistikStartDate').value;
     const endDate = document.getElementById('statistikEndDate').value;
     
@@ -2883,16 +3018,12 @@ async function terapkanFilterStatistik() {
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/statistik`, {
             method: 'POST',
-            body: JSON.stringify({
-                start_date: startDate,
-                end_date: endDate,
-                opd_list: selectedOpds,
-                status_kehadiran: statusKehadiran
-            })
+            body: JSON.stringify({ start_date: startDate, end_date: endDate, opd_list: selectedOpds, status_kehadiran: statusKehadiran, page: paginasiState.page, limit: paginasiState.limit })
         });
 
         if (result.status) {
-            currentStatistikData = result.data;
+            currentStatistikData = result.data.data;
+            renderPaginationControls('statistikPagination', result.data.pagination, 'statistik');
             renderStatistikTable(currentStatistikData, statusKehadiran);
 
             if (result.data.length > 0) {
@@ -2921,7 +3052,7 @@ function renderStatistikTable(data, statusKehadiranLabel) {
 
     tbody.innerHTML = data.map((p, i) => {
         return `<tr>
-            <td class="text-center align-middle">${i + 1}</td>
+            <td class="text-center align-middle">${(paginasiState.page - 1) * paginasiState.limit + i + 1}</td>
             <td class="align-middle">${p.nip}</td>
             <td class="align-middle fw-bold">${p.nama_pegawai}</td>
             <td class="align-middle">${p.perangkat_daerah}</td>
