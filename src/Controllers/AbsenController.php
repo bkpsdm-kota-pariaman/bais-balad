@@ -16,6 +16,15 @@ use Firebase\JWT\Key;
 
 class AbsenController {
 
+    private function haversineDistance($lat1, $lon1, $lat2, $lon2) {
+        $earthRadius = 6371000;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a = sin($dLat/2) * sin($dLat/2) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon/2) * sin($dLon/2);
+        $c = 2 * atan2(sqrt($a), sqrt(1-$a));
+        return $earthRadius * $c;
+    }
+
     /**
      * Menerima dan menyimpan data absensi dari PWA, termasuk foto selfie.
      */
@@ -108,7 +117,7 @@ class AbsenController {
 
         // 5. Dapatkan detail jadwal untuk disimpan di log absensi
         // $db sudah diinisialisasi di atas
-        $stmtJadwal = $db->prepare("SELECT judul, kategori, is_strict_location, is_strict_time FROM app_absensi_jadwal_kegiatan WHERE kode_akses = :kode_akses LIMIT 1");
+        $stmtJadwal = $db->prepare("SELECT judul, kategori, is_strict_location, is_strict_time, tanggal, jam_selesai, koordinat, radius_meter FROM app_absensi_jadwal_kegiatan WHERE kode_akses = :kode_akses LIMIT 1");
         $stmtJadwal->bindParam(':kode_akses', $kodeAkses);
         $stmtJadwal->execute();
         $jadwal = $stmtJadwal->fetch(PDO::FETCH_ASSOC);
@@ -121,18 +130,48 @@ class AbsenController {
             return;
         }
 
-        // 5b. Validasi Strictness (Ketetatan)
-        $statusLower = strtolower($statusKehadiran);
-        if ($jadwal['is_strict_time'] == 1 && strpos($statusLower, 'terlambat') !== false) {
-            if ($uploadPath && file_exists($uploadPath)) { unlink($uploadPath); }
-            Response::json(false, 403, "Gagal: Absensi terlambat tidak diizinkan untuk kegiatan ini (Strict Time).");
-            return;
-        }
+        $now = new DateTime('now', new DateTimeZone('Asia/Jakarta'));
 
-        if ($jadwal['is_strict_location'] == 1 && strpos($statusLower, 'diluar lokasi') !== false) {
-            if ($uploadPath && file_exists($uploadPath)) { unlink($uploadPath); }
-            Response::json(false, 403, "Gagal: Absensi di luar lokasi tidak diizinkan untuk kegiatan ini (Strict Location).");
-            return;
+        // 5b. Validasi Strictness (Ketetatan) server side
+        $statusLower = strtolower($statusKehadiran);
+        if ($statusLower === 'hadir') {
+            // Validasi Strict Time
+            if ($jadwal['is_strict_time'] == 1) {
+                $endTime = new DateTime($jadwal['tanggal'] . ' ' . $jadwal['jam_selesai'], new DateTimeZone('Asia/Jakarta'));
+                if ($now > $endTime) {
+                    if ($uploadPath && file_exists($uploadPath)) { unlink($uploadPath); }
+                    Response::json(false, 403, "Gagal: Waktu Habis. Anda hanya bisa mengirim Izin/Keterangan karena aturan Waktu Ketat (Strict Time) aktif.");
+                    return;
+                }
+            }
+
+            // Validasi Strict Location
+            if ($jadwal['is_strict_location'] == 1 && !empty($jadwal['koordinat']) && $jadwal['koordinat'] !== '-') {
+                $lokasiPayload = $_POST['lokasi'] ?? '';
+                if (empty($lokasiPayload)) {
+                    if ($uploadPath && file_exists($uploadPath)) { unlink($uploadPath); }
+                    Response::json(false, 403, "Gagal: Lokasi tidak ditemukan. Aturan Lokasi Ketat (Strict Location) mewajibkan koordinat yang valid.");
+                    return;
+                }
+                
+                $tParts = explode(',', str_replace("'", "", $jadwal['koordinat']));
+                $pParts = explode(',', str_replace("'", "", $lokasiPayload));
+                
+                if (count($tParts) >= 2 && count($pParts) >= 2) {
+                    $tLat = (float) trim($tParts[0]);
+                    $tLng = (float) trim($tParts[1]);
+                    $pLat = (float) trim($pParts[0]);
+                    $pLng = (float) trim($pParts[1]);
+                    $radius = (float) $jadwal['radius_meter'];
+
+                    $jarak = $this->haversineDistance($pLat, pLng, $tLat, $tLng);
+                    if ($jarak > $radius) {
+                        if ($uploadPath && file_exists($uploadPath)) { unlink($uploadPath); }
+                        Response::json(false, 403, "Gagal: Anda di luar lokasi (" . round($jarak) . "m). Anda hanya bisa mengirim Izin/Keterangan karena aturan Lokasi Ketat (Strict Location) aktif.");
+                        return;
+                    }
+                }
+            }
         }
 
         // 6. UPDATE atau INSERT data absensi di database

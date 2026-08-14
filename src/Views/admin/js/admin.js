@@ -1006,7 +1006,7 @@ function deselectAllOpd(mode) {
 }
 
 function selectOpdDinas(mode) {
-    const toSelect = opdState[mode].available.filter(opd => !/sd|smp|puskesmas/i.test(opd));
+    const toSelect = opdState[mode].available.filter(opd => !/\b(sd|smp|tk|paud|ra|mts|mi|ma|puskesmas)\b/i.test(opd));
     opdState[mode].available = opdState[mode].available.filter(opd => !toSelect.includes(opd));
     opdState[mode].selected.push(...toSelect);
     opdState[mode].selected.sort();
