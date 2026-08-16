@@ -358,7 +358,7 @@ class AdminRekapController {
             $params[] = $opdFilter;
         }
 
-        $sql .= " GROUP BY a.nip, a.nama_pegawai, a.jabatan, a.opd HAVING jumlah > 0 ORDER BY a.opd ASC, a.nama_pegawai ASC";
+        $sql .= " GROUP BY a.nip, a.nama_pegawai, a.jabatan, a.opd HAVING jumlah > 0 ORDER BY jumlah DESC, a.opd ASC, a.nama_pegawai ASC";
 
         $stmt = $db->prepare($sql);
         $stmt->execute($params);

@@ -1,3 +1,6 @@
+let currentJadwalData = [];
+let currentPegawaiData = [];
+let currentOpdData = [];
 // File: public_html/admin.js
 
 const ORIGIN_SERVER_URL = 'https://api-esdm.pariamankota.go.id/beta-bais-pariaman';
@@ -63,10 +66,25 @@ function renderPaginationControls(containerId, paginationData, onPageChangeName)
     if(containerTop) containerTop.classList.remove('d-none');
     containerBottom.classList.remove('d-none');
 
+
+    let exportBtnHtml = '';
+    if (onPageChangeName === 'jadwal') {
+        exportBtnHtml = '<button class="btn btn-outline-success btn-sm fw-bold ms-3" onclick="exportJadwalToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>';
+    } else if (onPageChangeName === 'pegawai') {
+        exportBtnHtml = '<button class="btn btn-outline-success btn-sm fw-bold ms-3" onclick="exportPegawaiToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>';
+    } else if (onPageChangeName === 'rekap') {
+        exportBtnHtml = '<button class="btn btn-outline-success btn-sm fw-bold ms-3" onclick="exportRekapToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>';
+    } else if (onPageChangeName === 'rekapKeseluruhan') {
+        exportBtnHtml = '<button class="btn btn-outline-success btn-sm fw-bold ms-3" onclick="exportRekapKeseluruhanToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>';
+    } else if (onPageChangeName === 'statistik') {
+        exportBtnHtml = '<button class="btn btn-outline-success btn-sm fw-bold ms-3" onclick="exportStatistikToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>';
+    }
+
     let htmlTop = `
         <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center bg-white py-2 px-3 border rounded shadow-sm mb-3">
-            <div class="small text-muted mb-2 mb-md-0">
-                Total Data: <span class="fw-bold text-dark">${totalRows}</span>
+            <div class="small text-muted mb-2 mb-md-0 d-flex align-items-center">
+                <span>Total Data: <span class="fw-bold text-dark">${totalRows}</span></span>
+                ${exportBtnHtml}
             </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
                 <span class="small text-muted">Tampilkan</span>
@@ -75,11 +93,13 @@ function renderPaginationControls(containerId, paginationData, onPageChangeName)
                     <option value="25" ${limit == 25 ? 'selected' : ''}>25</option>
                     <option value="50" ${limit == 50 ? 'selected' : ''}>50</option>
                     <option value="100" ${limit == 100 ? 'selected' : ''}>100</option>
+                    <option value="999999" ${limit == 999999 ? 'selected' : ''}>Semua Data</option>
                 </select>
                 <span class="small text-muted">baris</span>
             </div>
         </div>
     `;
+
 
     let htmlBottom = `
         <nav aria-label="Page navigation" class="mt-3 overflow-auto">
@@ -357,7 +377,8 @@ async function loadJadwalKegiatan(isFromPagination = false) {
         // Tambahkan parameter unik (timestamp) untuk mencegah browser caching pada request GET
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/jadwal?page=${paginasiState.page}&limit=${paginasiState.limit}&_=${new Date().getTime()}`);
         if (result.status) {
-            renderJadwalTable(result.data.data);
+            currentJadwalData = result.data.data;
+            renderJadwalTable(currentJadwalData);
             renderPaginationControls('jadwalPagination', result.data.pagination, 'jadwal');
         } else {
             alert('Gagal memuat jadwal: ' + result.message);
@@ -1086,7 +1107,7 @@ async function lihatRekap(kodeAkses) {
     document.getElementById('rekapPerOpdContainerModal').innerHTML = '';
 
     // Sembunyikan tombol download excel saat rekap baru dibuka
-    document.getElementById('btnDownloadExcel').classList.add('d-none');
+    
 
     try {
         // Panggil API untuk mendapatkan info dasar jadwal dan list OPD untuk filter
@@ -1221,7 +1242,7 @@ async function terapkanFilterRekap(isFromPagination = false) {
     const tbody = document.getElementById('rekapTableBody');
     const tableView = document.getElementById('rekapTableView');
     const photoGridView = document.getElementById('rekapPhotoGridView');
-    const btnDownload = document.getElementById('btnDownloadExcel');
+    
     const checkAllHeader = document.getElementById('rekapPilihSemua').parentElement;
 
     // Atur tampilan dan tampilkan indikator muat data
@@ -1239,7 +1260,7 @@ async function terapkanFilterRekap(isFromPagination = false) {
     }
 
     // Selalu sembunyikan tombol download saat filter baru diterapkan
-    btnDownload.classList.add('d-none');
+    
 
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/details/${currentRekapData.jadwal.kode_akses}`, {
@@ -1258,7 +1279,7 @@ async function terapkanFilterRekap(isFromPagination = false) {
 
             // Tampilkan tombol download jika ada data
             if (result.data.data.length > 0) {
-                btnDownload.classList.remove('d-none');
+                
             }
         } else {
             // Tangani error dari API, ganti indikator muat dengan pesan error
@@ -1294,7 +1315,8 @@ async function loadOpdData() {
         // Tambahkan timestamp untuk bypass cache
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/opd?_=${new Date().getTime()}`);
         if (result.status) {
-            renderOpdTable(result.data);
+            currentOpdData = result.data;
+            renderOpdTable(currentOpdData);
         } else {
             tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger py-4">Gagal memuat data: ${result.message}</td></tr>`;
         }
@@ -2306,9 +2328,10 @@ async function loadPegawai(isFromPagination = false) {
     tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm"></div> Memuat data pegawai...</td></tr>';
 
     try {
-        const result = await fetchWithAuth(`${API_BASE_URL}/admin/pegawai?page=${paginasiState.page}&limit=${paginasiState.limit}`);
+        const result = await fetchWithAuth(`${API_BASE_URL}/admin/pegawai?page=${paginasiState.page}&limit=${paginasiState.limit}&opd=${encodeURIComponent(opd === 'semua' ? '' : opd)}&install=${installStatus}&sync=${syncStatus}&search=${encodeURIComponent(search)}`);
         if (result.status) {
-            renderPegawaiTable(result.data.data);
+            currentPegawaiData = result.data.data;
+            renderPegawaiTable(currentPegawaiData);
             renderPaginationControls('pegawaiPagination', result.data.pagination, 'pegawai');
         } else {
             tbody.innerHTML = `<tr><td colspan="11" class="text-center text-danger py-4">Gagal memuat data: ${result.message}</td></tr>`;
@@ -2678,7 +2701,7 @@ async function bukaHalamanRekapKeseluruhan() {
     
     // Reset state
     document.getElementById('rekapKeseluruhanTableBody').innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih filter di atas dan tekan "Tampilkan Data" untuk menampilkan rekap.</td></tr>';
-    document.getElementById('btnDownloadExcelKeseluruhan').classList.add('d-none');
+    
     resetRekapKeseluruhanFilters();
 }
 
@@ -2709,12 +2732,12 @@ async function terapkanFilterRekapKeseluruhan(isFromPagination = false) {
 
     const tbody = document.getElementById('rekapKeseluruhanTableBody');
     const tableView = document.getElementById('rekapKeseluruhanTableView');
-    const btnDownload = document.getElementById('btnDownloadExcelKeseluruhan');
+    
 
     tableView.classList.remove('d-none');
     tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm"></div> Memuat data keseluruhan...</td></tr>';
 
-    btnDownload.classList.add('d-none');
+    
 
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/keseluruhan`, {
@@ -2728,7 +2751,7 @@ async function terapkanFilterRekapKeseluruhan(isFromPagination = false) {
             renderRekapKeseluruhanTable(currentRekapKeseluruhanData);
 
             if (result.data.length > 0) {
-                btnDownload.classList.remove('d-none');
+                
             }
         } else {
             tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Gagal memuat data: ${result.message}</td></tr>`;
@@ -2981,7 +3004,7 @@ async function bukaHalamanStatistikKehadiran() {
 
     // Reset state
     document.getElementById('statistikTableBody').innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih filter di atas dan tekan "Tampilkan Statistik" untuk menampilkan data.</td></tr>';
-    document.getElementById('btnDownloadExcelStatistik').classList.add('d-none');
+    
     resetStatistikFilters();
 }
 
@@ -3008,12 +3031,12 @@ async function terapkanFilterStatistik(isFromPagination = false) {
 
     const tbody = document.getElementById('statistikTableBody');
     const tableView = document.getElementById('statistikTableView');
-    const btnDownload = document.getElementById('btnDownloadExcelStatistik');
+    
 
     tableView.classList.remove('d-none');
     tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm"></div> Memuat data statistik...</td></tr>';
 
-    btnDownload.classList.add('d-none');
+    
 
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/statistik`, {
@@ -3027,14 +3050,14 @@ async function terapkanFilterStatistik(isFromPagination = false) {
             renderStatistikTable(currentStatistikData, statusKehadiran);
 
             if (result.data.length > 0) {
-                btnDownload.classList.remove('d-none');
+                
             }
         } else {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Gagal memuat data: ${result.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Gagal memuat data: ${result.message}</td></tr>`;
         }
     } catch (error) {
         console.error('Error fetching statistik kehadiran:', error);
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Terjadi kesalahan koneksi.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Terjadi kesalahan koneksi.</td></tr>`;
     }
 }
 
@@ -3043,7 +3066,7 @@ function renderStatistikTable(data, statusKehadiranLabel) {
     document.getElementById('statistikTableView').classList.remove('d-none');
 
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Tidak ada data statistik yang ditemukan.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Tidak ada data statistik yang ditemukan.</td></tr>';
         return;
     }
 
@@ -3055,6 +3078,7 @@ function renderStatistikTable(data, statusKehadiranLabel) {
             <td class="text-center align-middle">${(paginasiState.page - 1) * paginasiState.limit + i + 1}</td>
             <td class="align-middle">${p.nip}</td>
             <td class="align-middle fw-bold">${p.nama_pegawai}</td>
+            <td class="align-middle">${p.jabatan || '-'}</td>
             <td class="align-middle">${p.perangkat_daerah}</td>
             <td class="text-center align-middle h5">
                 <div class="d-flex align-items-center justify-content-center gap-2">
@@ -3127,6 +3151,7 @@ function exportStatistikToExcel() {
             'No': index + 1,
             'NIP': p.nip,
             'Nama Pegawai': p.nama_pegawai,
+            'Jabatan': p.jabatan || '-',
             'Perangkat Daerah (OPD)': p.perangkat_daerah,
             [`Jumlah ${statusKehadiranLabel}`]: p.jumlah
         };
@@ -3140,6 +3165,7 @@ function exportStatistikToExcel() {
         { wch: 5 },  // No
         { wch: 20 }, // NIP
         { wch: 35 }, // Nama Pegawai
+        { wch: 30 }, // Jabatan
         { wch: 40 }, // OPD
         { wch: 15 }  // Jumlah
     ];
@@ -3152,4 +3178,45 @@ if (typeof module !== 'undefined') {
     if (module.exports) {
         module.exports = { formatIndonesianDateTime, selectAllOpd, deselectAllOpd };
     }
+}
+
+
+
+function exportRawDataToExcel(data, fileNamePrefix) {
+    if (!data || data.length === 0) {
+        Swal.fire('Data Kosong', 'Tidak ada data untuk diekspor.', 'warning');
+        return;
+    }
+    const dataForExcel = data.map((item, index) => {
+        return { 'No': index + 1, ...item };
+    });
+    const worksheet = XLSX.utils.json_to_sheet(dataForExcel);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
+    const fileName = `${fileNamePrefix}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+}
+
+function exportJadwalToExcel() {
+    exportRawDataToExcel(currentJadwalData, 'Data_Kegiatan');
+}
+
+function exportPegawaiToExcel() {
+    exportRawDataToExcel(currentPegawaiData, 'Data_Pegawai');
+}
+
+function exportOpdToExcel() {
+    exportRawDataToExcel(currentOpdData, 'Data_OPD');
+}
+
+function exportRekapToExcel() {
+    exportRawDataToExcel(currentRekapData ? currentRekapData.filtered_pegawai : [], 'Rekap_Kehadiran_Kegiatan');
+}
+
+function exportRekapKeseluruhanToExcel() {
+    exportRawDataToExcel(currentRekapKeseluruhanData, 'Rekap_Keseluruhan');
+}
+
+function exportStatistikToExcel() {
+    exportRawDataToExcel(currentStatistikData, 'Statistik_Kehadiran');
 }
