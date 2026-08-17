@@ -224,6 +224,9 @@
           <div class="d-flex gap-2">
             <button class="btn btn-danger" onclick="bukaModalTambahPeserta()"><i class="bi bi-person-plus-fill"></i>
               Tambah Peserta / Set Kehadiran Massal</button>
+            <button class="btn btn-warning text-dark fw-bold" onclick="bukaModalImportAbsen()"><i
+                class="bi bi-upload"></i>
+              Import Data Absen</button>
             <button id="btnHapusTerpilih" class="btn btn-danger d-none" onclick="hapusDataAbsensiMassal()"><i
                 class="bi bi-trash-fill"></i> Hapus Terpilih</button>
           </div>
@@ -637,7 +640,8 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h4 class="fw-bold mb-0"><i class="bi bi-building"></i> Manajemen Data OPD</h4>
           <div class="d-flex gap-2">
-            <button id="btnDownloadExcelOpd" class="btn btn-outline-success fw-bold px-4 shadow-sm me-2" onclick="exportOpdToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>
+            <button id="btnDownloadExcelOpd" class="btn btn-outline-success fw-bold px-4 shadow-sm me-2"
+              onclick="exportOpdToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>
             <button class="btn btn-info text-white fw-bold px-4 shadow-sm" onclick="syncOpdList()"><i
                 class="bi bi-cloud-arrow-up-fill"></i> Sinkronisasi Cache</button>
             <button class="btn btn-danger fw-bold px-4 shadow-sm" onclick="bukaModalTambahOpd()"><i
@@ -844,7 +848,7 @@
           </form>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
           <button type="submit" form="formTambahPesertaBulk" id="btnSimpanTambahPeserta"
             class="btn btn-danger fw-bold"><i class="bi bi-floppy"></i> Simpan Pilihan & Kehadiran</button>
         </div>
@@ -976,7 +980,9 @@
               <small class="text-muted d-block mt-1" style="font-size: 0.8em;">Gunakan mode 'Aktif' jika Anda
                 mengantisipasi lonjakan absensi dalam waktu singkat, bahkan dengan peserta di bawah 300 orang.</small>
             </div>
-            <button type="submit" id="btnSimpanKegiatan" class="btn btn-danger w-100 fw-bold py-2">Simpan Jadwal</button>
+            <div class="d-flex gap-2 mt-4"><button type="button" class="btn btn-secondary w-50 fw-bold py-2"
+                data-bs-dismiss="modal">Tutup</button><button type="submit" id="btnSimpanKegiatan"
+                class="btn btn-danger w-50 fw-bold py-2">Simpan Jadwal</button></div>
           </form>
         </div>
       </div>
@@ -1106,7 +1112,8 @@
               <small class="text-muted d-block mt-1" style="font-size: 0.8em;">Gunakan mode 'Aktif' jika Anda
                 mengantisipasi lonjakan absensi dalam waktu singkat, bahkan dengan peserta di bawah 300 orang.</small>
             </div>
-            <button type="submit" id="btnSimpanEditKegiatan" class="btn btn-warning w-100 fw-bold py-2">Perbarui Jadwal</button>
+            <button type="submit" id="btnSimpanEditKegiatan" class="btn btn-warning w-100 fw-bold py-2">Perbarui
+              Jadwal</button>
           </form>
         </div>
       </div>
@@ -1230,7 +1237,9 @@
                 <option value="Admin">Admin</option>
               </select>
             </div>
-            <button type="submit" id="btnSimpanPegawai" class="btn w-100 fw-bold py-2"></button>
+            <div class="d-flex gap-2 mt-4"><button type="button" class="btn btn-secondary w-50 fw-bold py-2"
+                data-bs-dismiss="modal">Tutup</button><button type="submit" id="btnSimpanPegawai"
+                class="btn w-50 fw-bold py-2"></button></div>
           </form>
         </div>
       </div>
@@ -1252,7 +1261,9 @@
               <label class="form-label fw-bold small">Nama Perangkat Daerah (OPD)</label>
               <input type="text" id="opdNama" class="form-control" required>
             </div>
-            <button type="submit" id="btnSimpanOpd" class="btn w-100 fw-bold py-2"></button>
+            <div class="d-flex gap-2 mt-4"><button type="button" class="btn btn-secondary w-50 fw-bold py-2"
+                data-bs-dismiss="modal">Tutup</button><button type="submit" id="btnSimpanOpd"
+                class="btn w-50 fw-bold py-2"></button></div>
           </form>
         </div>
       </div>
@@ -1287,6 +1298,106 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL IMPORT ABSEN -->
+  <div class="modal fade" id="modalImportAbsen" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-warning text-dark border-0">
+          <h5 class="modal-title fw-bold"><i class="bi bi-upload"></i> Import Data Absen</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="alert alert-info small d-flex justify-content-between align-items-center">
+            <div>
+              <strong>Info:</strong> Proses import ini menggunakan format data CSV. Proses ini akan mengupdate data
+              absensi yang sudah ada jika pegawai sebelumnya sudah absen, atau menambah data baru jika belum ada.
+              Silahkan pelajari format datanya dengan mendownload template terlebih dahulu.
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-dark fw-bold ms-3 flex-shrink-0"
+              onclick="downloadTemplateCSV()">
+              <i class="bi bi-download"></i> Download Template CSV
+            </button>
+          </div>
+
+          <form id="formImportAbsen" onsubmit="submitImportAbsen(event)">
+            <input type="hidden" id="importKodeAkses">
+
+            <div class="mb-4">
+              <label class="form-label fw-bold small">Upload File CSV</label>
+              <input type="file" id="importFileCsv" class="form-control form-control-lg" accept=".csv"
+                onchange="handlePreviewCSV(event)">
+            </div>
+
+            <div id="previewImportContainer" class="d-none">
+              <h6 class="fw-bold mb-2">Preview Data CSV <span id="previewImportCount"
+                  class="badge bg-secondary ms-2">0</span></h6>
+              <div class="table-responsive border rounded mb-3" style="max-height: 300px;">
+                <table class="table table-sm table-hover mb-0 text-nowrap">
+                  <thead class="table-light sticky-top">
+                    <tr>
+                      <th class="text-center" style="width: 40px;">
+                        <input class="form-check-input" type="checkbox" id="checkAllImport"
+                          onchange="toggleImportCheckAll(this)">
+                      </th>
+                      <th>Status</th>
+                      <th>Waktu</th>
+                      <th>NIP</th>
+                      <th>Nama</th>
+                      <th>OPD</th>
+                      <th>Nama File Foto</th>
+                    </tr>
+                  </thead>
+                  <tbody id="previewImportBody">
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="row g-3 mb-2 bg-light p-3 border rounded">
+                <h6 class="fw-bold mb-1 w-100">Set Status untuk Data Terpilih</h6>
+                <div class="col-md-6 mt-2">
+                  <label class="form-label fw-bold small">Status Verifikasi</label>
+                  <select id="importStatusVerifikasi" class="form-select" required>
+                    <option value="Terverifikasi Sistem">Terverifikasi Sistem</option>
+                    <option value="Terverifikasi Oleh Admin">Terverifikasi Oleh Admin</option>
+                    <option value="Menunggu Verifikasi Admin">Menunggu Verifikasi Admin</option>
+                    <option value="Ditolak Oleh Admin">Ditolak Oleh Admin</option>
+                    <option value="ALPA">ALPA</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mt-2">
+                  <label class="form-label fw-bold small">Status Kehadiran</label>
+                  <select id="importStatusKehadiran" class="form-select" required>
+                    <option value="Hadir">Hadir</option>
+                    <option value="Alpa">Alpa</option>
+                    <option value="Sakit">Sakit</option>
+                    <option value="Izin Atasan">Izin Atasan</option>
+                    <option value="Cuti">Cuti</option>
+                    <option value="Dinas Dalam Daerah">Dinas Dalam Daerah</option>
+                    <option value="Dinas Luar Daerah">Dinas Luar Daerah</option>
+                    <option value="Tugas Belajar">Tugas Belajar</option>
+                    <option value="Kegiatan lain dengan SPT">Kegiatan lain dengan SPT</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                </div>
+                <div class="col-md-12 mt-2">
+                  <label class="form-label fw-bold small">Keterangan Tambahan</label>
+                  <textarea id="importKeterangan" class="form-control" rows="2" placeholder="Opsional..."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+              <button type="button" class="btn btn-secondary flex-grow-1 fw-bold py-2"
+                data-bs-dismiss="modal">Tutup</button>
+              <button type="submit" id="btnProsesImport" class="btn btn-warning flex-grow-1 fw-bold py-2 d-none"><i
+                  class="bi bi-cloud-upload"></i> Proses Import Data Terpilih</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

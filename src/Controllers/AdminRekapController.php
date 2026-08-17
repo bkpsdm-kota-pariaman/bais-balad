@@ -1009,4 +1009,75 @@ class AdminRekapController {
             Response::json(false, 404, "Tidak ada data absensi yang cocok untuk dihapus.");
         }
     }
+
+    public function importCsv() {
+        AdminAuthHelper::validate();
+        $db = Database::getConnection();
+        
+        $inputJSON = file_get_contents('php://input');
+        $input = json_decode($inputJSON, true);
+
+        $kodeAkses = $input['kode_akses'] ?? null;
+        $statusKehadiranDef = $input['status_kehadiran'] ?? 'Hadir';
+        $statusVerifikasiDef = $input['status_verifikasi'] ?? 'Terverifikasi Oleh Admin';
+        $keteranganDef = $input['keterangan'] ?? '';
+        $dataRows = $input['data'] ?? [];
+
+        if (!$kodeAkses || empty($dataRows)) {
+            Response::json(false, 400, "Kode akses dan data import wajib diisi.");
+            return;
+        }
+
+        $berhasil = 0;
+        $db->beginTransaction();
+        try {
+            foreach ($dataRows as $data) {
+                // Ensure data has required fields
+                $waktu = trim($data['waktu'] ?? '');
+                $nip = trim($data['nip'] ?? '');
+                $nama = trim($data['nama_pegawai'] ?? '');
+                $jabatan = trim($data['jabatan'] ?? '');
+                $opd = trim($data['opd'] ?? '');
+                $lokasi = trim($data['lokasi'] ?? '');
+                $foto = trim($data['nama_file_foto'] ?? '');
+
+                if (empty($nip)) continue;
+                if (empty($waktu)) $waktu = null;
+
+                $sql = "INSERT INTO app_absensi_data_absensi 
+                        (kode_akses, nip, nama_pegawai, opd, jabatan, waktu, lokasi, nama_file_foto, keterangan, status_verifikasi, status_kehadiran)
+                        VALUES 
+                        (:ka, :nip, :nama, :opd, :jabatan, :waktu, :lokasi, :foto, :ket, :sv, :sk)
+                        ON DUPLICATE KEY UPDATE 
+                        waktu = VALUES(waktu),
+                        lokasi = VALUES(lokasi),
+                        nama_file_foto = VALUES(nama_file_foto),
+                        keterangan = VALUES(keterangan),
+                        status_verifikasi = VALUES(status_verifikasi),
+                        status_kehadiran = VALUES(status_kehadiran)";
+
+                $stmt = $db->prepare($sql);
+                $stmt->execute([
+                    ':ka' => $kodeAkses,
+                    ':nip' => $nip,
+                    ':nama' => $nama,
+                    ':opd' => $opd,
+                    ':jabatan' => $jabatan,
+                    ':waktu' => $waktu,
+                    ':lokasi' => $lokasi,
+                    ':foto' => empty($foto) ? 'MANUAL_INPUT.jpg' : $foto,
+                    ':ket' => $keteranganDef,
+                    ':sv' => $statusVerifikasiDef,
+                    ':sk' => $statusKehadiranDef
+                ]);
+
+                $berhasil++;
+            }
+            $db->commit();
+            Response::json(true, 200, "$berhasil data berhasil diimport/diupdate.");
+        } catch (\Exception $e) {
+            $db->rollBack();
+            Response::json(false, 500, "Terjadi kesalahan saat import: " . $e->getMessage());
+        }
+    }
 }

@@ -162,12 +162,9 @@ const modalRingkasan = new bootstrap.Modal(document.getElementById('modalRingkas
 const modalPegawai = new bootstrap.Modal(document.getElementById('modalPegawai'));
 const modalTambahPeserta = new bootstrap.Modal(document.getElementById('modalTambahPeserta'));
 const modalOpd = new bootstrap.Modal(document.getElementById('modalOpd'));
+const modalImportAbsen = new bootstrap.Modal(document.getElementById('modalImportAbsen'));
 
 /**
- * Menampilkan atau menyembunyikan overlay loading menggunakan SweetAlert.
- * @param {boolean} show - True untuk menampilkan, false untuk menyembunyikan.
- * @param {string} [title='Memproses...'] - Teks judul yang akan ditampilkan.
- */
 function showAdminLoading(show, title = 'Memproses...') {
     if (show) {
         Swal.fire({
@@ -3219,4 +3216,240 @@ function exportRekapKeseluruhanToExcel() {
 
 function exportStatistikToExcel() {
     exportRawDataToExcel(currentStatistikData, 'Statistik_Kehadiran');
+}
+
+/**
+ * =================================================
+ * IMPORT CSV ABSEN MANUAL
+ * =================================================
+ */
+function bukaModalImportAbsen() {
+    if (!currentRekapData || !currentRekapData.jadwal) {
+        Swal.fire('Error', 'Data jadwal tidak ditemukan.', 'error');
+        return;
+    }
+    
+    document.getElementById('formImportAbsen').reset();
+    document.getElementById('importKodeAkses').value = currentRekapData.jadwal.kode_akses;
+    
+    // Reset preview data just in case
+    parsedImportData = [];
+    document.getElementById('previewImportBody').innerHTML = '';
+    document.getElementById('previewImportContainer').classList.add('d-none');
+    document.getElementById('btnProsesImport').classList.add('d-none');
+    
+    modalImportAbsen.show();
+}
+
+document.getElementById('modalImportAbsen').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('formImportAbsen').reset();
+    parsedImportData = [];
+    document.getElementById('previewImportBody').innerHTML = '';
+    document.getElementById('previewImportContainer').classList.add('d-none');
+    document.getElementById('btnProsesImport').classList.add('d-none');
+});
+
+let parsedImportData = [];
+
+function downloadTemplateCSV() {
+    const headers = "waktu;nip;nama_pegawai;jabatan;opd;lokasi;lat;lng;nama_file_foto\n";
+    // Get the first OPD for the sample if available, else a dummy one
+    const sampleOpd = (allOpdList && allOpdList.length > 0) ? allOpdList[0] : "Dinas Komunikasi dan Informatika";
+    
+    // Sample rows
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} 07:30:00`;
+    
+    const rows = [
+        `${dateStr};198001012010011001;Budi Santoso;Staf;${sampleOpd};Kantor Walikota;-0.6276;100.1209;foto_budi.jpg`,
+        `${dateStr};198502022015022002;Siti Aminah;Kasubag;${sampleOpd};Kantor Walikota;-0.6276;100.1209;foto_siti.jpg`,
+        `${dateStr};199003032020031003;Andi Kurniawan;Kepala Bidang;${sampleOpd};Kantor Walikota;-0.6276;100.1209;foto_andi.jpg`
+    ];
+    
+    const csvContent = "data:text/csv;charset=utf-8," + headers + rows.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "template_import_absen.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function handlePreviewCSV(event) {
+    const file = event.target.files[0];
+    const previewContainer = document.getElementById('previewImportContainer');
+    const tbody = document.getElementById('previewImportBody');
+    const btnProses = document.getElementById('btnProsesImport');
+    
+    if (!file) {
+        previewContainer.classList.add('d-none');
+        btnProses.classList.add('d-none');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+        
+        parsedImportData = [];
+        tbody.innerHTML = '';
+        
+        if (lines.length <= 1) {
+            Swal.fire('Error', 'File CSV kosong atau hanya berisi header.', 'error');
+            return;
+        }
+        
+        // Ensure opd names are mapped correctly for validation
+        const validOpds = allOpdList.map(opd => opd.trim().toLowerCase());
+        
+        // Validasi waktu regex: YYYY-MM-DD HH:MM:SS
+        const waktuRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+        
+        for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(';');
+            
+            const waktu = cols[0] ? cols[0].trim() : '';
+            const nip = cols[1] ? cols[1].trim() : '';
+            const nama = cols[2] ? cols[2].trim() : '';
+            const jabatan = cols[3] ? cols[3].trim() : '';
+            const opd = cols[4] ? cols[4].trim() : '';
+            const lokasi = cols[5] ? cols[5].trim() : '';
+            const lat = cols[6] ? cols[6].trim() : '';
+            const lng = cols[7] ? cols[7].trim() : '';
+            const foto = cols[8] ? cols[8].trim() : '';
+            
+            let validationMsgs = [];
+            
+            // Validasi
+            if (!waktu) {
+                validationMsgs.push('<span class="text-danger"><i class="bi bi-x-circle"></i> Waktu kosong</span>');
+            } else if (!waktuRegex.test(waktu)) {
+                validationMsgs.push('<span class="text-danger"><i class="bi bi-x-circle"></i> Format waktu harus YYYY-MM-DD HH:MM:SS</span>');
+            }
+            if (!nip) {
+                validationMsgs.push('<span class="text-danger"><i class="bi bi-x-circle"></i> NIP kosong</span>');
+            }
+            if (!nama) {
+                validationMsgs.push('<span class="text-danger"><i class="bi bi-x-circle"></i> Nama kosong</span>');
+            }
+            if (!jabatan) {
+                validationMsgs.push('<span class="text-danger"><i class="bi bi-x-circle"></i> Jabatan kosong</span>');
+            }
+            if (!opd) {
+                validationMsgs.push('<span class="text-danger"><i class="bi bi-x-circle"></i> OPD kosong</span>');
+            } else if (validOpds.length > 0 && !validOpds.includes(opd.toLowerCase())) {
+                validationMsgs.push('<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> OPD tidak terdaftar</span>');
+            }
+            if (!lokasi) {
+                validationMsgs.push('<span class="text-danger"><i class="bi bi-x-circle"></i> Lokasi kosong</span>');
+            }
+            if (!lat) {
+                validationMsgs.push('<span class="text-danger"><i class="bi bi-x-circle"></i> Latitude kosong</span>');
+            }
+            if (!lng) {
+                validationMsgs.push('<span class="text-danger"><i class="bi bi-x-circle"></i> Longitude kosong</span>');
+            }
+            if (!foto) {
+                validationMsgs.push('<span class="text-danger"><i class="bi bi-x-circle"></i> Foto kosong</span>');
+            }
+            
+            const isValid = validationMsgs.length === 0;
+            if (isValid) {
+                validationMsgs.push('<span class="text-success"><i class="bi bi-check-circle"></i> Valid</span>');
+            }
+            
+            const dataRow = { waktu, nip, nama_pegawai: nama, jabatan, opd, lokasi, lat, lng, nama_file_foto: foto };
+            parsedImportData.push({ data: dataRow, valid: isValid });
+            
+            const idx = parsedImportData.length - 1;
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="text-center"><input class="form-check-input import-row-check" type="checkbox" value="${idx}" ${isValid ? 'checked' : 'disabled'}></td>
+                <td>${validationMsgs.join('<br>')}</td>
+                <td>${waktu || '<em class="text-muted">Kosong</em>'}</td>
+                <td>${nip}</td>
+                <td>${nama}</td>
+                <td>${opd}</td>
+                <td>${foto}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+        
+        previewContainer.classList.remove('d-none');
+        const countSpan = document.getElementById('previewImportCount');
+        if (countSpan) countSpan.innerText = parsedImportData.length;
+        
+        if (parsedImportData.length > 0) {
+            btnProses.classList.remove('d-none');
+        }
+    };
+    reader.readAsText(file);
+}
+
+function toggleImportCheckAll(el) {
+    const checkboxes = document.querySelectorAll('.import-row-check:not(:disabled)');
+    checkboxes.forEach(cb => cb.checked = el.checked);
+}
+
+async function submitImportAbsen(event) {
+    event.preventDefault();
+    
+    const checkboxes = document.querySelectorAll('.import-row-check:checked');
+    if (checkboxes.length === 0) {
+        Swal.fire('Peringatan', 'Silakan centang minimal 1 baris data untuk diimport.', 'warning');
+        return;
+    }
+    
+    const selectedData = [];
+    checkboxes.forEach(cb => {
+        const idx = parseInt(cb.value);
+        if (parsedImportData[idx]) {
+            selectedData.push(parsedImportData[idx].data);
+        }
+    });
+    
+    const kodeAkses = document.getElementById('importKodeAkses').value;
+    const statusKehadiran = document.getElementById('importStatusKehadiran').value;
+    const statusVerifikasi = document.getElementById('importStatusVerifikasi').value;
+    const keterangan = document.getElementById('importKeterangan').value;
+    
+    const payload = {
+        kode_akses: kodeAkses,
+        status_kehadiran: statusKehadiran,
+        status_verifikasi: statusVerifikasi,
+        keterangan: keterangan,
+        data: selectedData
+    };
+    
+    const btnProses = document.getElementById('btnProsesImport');
+    btnProses.disabled = true;
+    btnProses.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Memproses...';
+    
+    try {
+        const response = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/import-csv`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        
+        if (response.status) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Import Berhasil',
+                text: response.message
+            });
+            modalImportAbsen.hide();
+            terapkanFilterRekap(false); // Reload rekap
+        } else {
+            Swal.fire('Gagal', response.message || 'Terjadi kesalahan saat import data.', 'error');
+        }
+    } catch (error) {
+        console.error('Import Error:', error);
+        Swal.fire('Error', 'Terjadi kesalahan jaringan atau server.', 'error');
+    } finally {
+        btnProses.disabled = false;
+        btnProses.innerHTML = '<i class="bi bi-cloud-upload"></i> Proses Import Data Terpilih';
+    }
 }

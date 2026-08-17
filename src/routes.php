@@ -52,6 +52,7 @@ return function(RouteCollector $r) {
 
     // API baru untuk detail pegawai yang difilter
     $r->addRoute('POST', '/admin/rekap/details/{kode_akses}', ['App\Controllers\AdminRekapController', 'getRekapDetails']);
+    $r->addRoute('POST', '/admin/rekap/import-csv', ['App\Controllers\AdminRekapController', 'importCsv']);
     $r->addRoute('POST', '/admin/rekap/keseluruhan', ['App\Controllers\AdminRekapController', 'getRekapKeseluruhan']);
     $r->addRoute('POST', '/admin/statistik', ['App\Controllers\AdminRekapController', 'getStatistikKehadiran']);
     $r->addRoute('POST', '/admin/statistik/detail', ['App\Controllers\AdminRekapController', 'getStatistikDetail']);

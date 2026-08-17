@@ -1,1 +1,0 @@
-const { minify } = require('html-minifier-terser'); const fs = require('fs'); async function check() { const html = fs.readFileSync('src/Views/admin/index.html', 'utf8'); try { await minify(html, { collapseWhitespace: true, removeComments: true, minifyCSS: true, minifyJS: true }); console.log('Success'); } catch (err) { fs.writeFileSync('err.txt', err.message); } } check();
