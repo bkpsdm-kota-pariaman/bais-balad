@@ -116,15 +116,14 @@ class AbsenController {
         }
 
         // 5. Dapatkan detail jadwal untuk disimpan di log absensi
-        // $db sudah diinisialisasi di atas
-        $stmtJadwal = $db->prepare("SELECT judul, kategori, is_strict_location, is_strict_time, tanggal, jam_selesai, koordinat, radius_meter FROM app_absensi_jadwal_kegiatan WHERE kode_akses = :kode_akses LIMIT 1");
+        $stmtJadwal = $db->prepare("SELECT judul, kategori, tanggal, jam_selesai, koordinat, radius_meter, is_strict_time, is_strict_location FROM app_absensi_jadwal_kegiatan WHERE kode_akses = :kode_akses LIMIT 1");
         $stmtJadwal->bindParam(':kode_akses', $kodeAkses);
         $stmtJadwal->execute();
         $jadwal = $stmtJadwal->fetch(PDO::FETCH_ASSOC);
 
         if (!$jadwal) {
             if ($uploadPath && file_exists($uploadPath)) {
-                unlink($uploadPath); // Hapus foto yang sudah terunggah jika jadwal tidak valid
+                unlink($uploadPath);
             }
             Response::json(false, 404, "Jadwal kegiatan tidak valid atau sudah berakhir.");
             return;
@@ -132,50 +131,62 @@ class AbsenController {
 
         $now = new DateTime('now', new DateTimeZone('Asia/Jakarta'));
 
-        // 5b. Validasi Strictness (Ketetatan) server side
-        $statusLower = strtolower($statusKehadiran);
-        if ($statusLower === 'hadir') {
-            // Validasi Strict Time
-            if ($jadwal['is_strict_time'] == 1) {
-                $endTime = new DateTime($jadwal['tanggal'] . ' ' . $jadwal['jam_selesai'], new DateTimeZone('Asia/Jakarta'));
-                if ($now > $endTime) {
-                    if ($uploadPath && file_exists($uploadPath)) { unlink($uploadPath); }
-                    Response::json(false, 403, "Gagal: Waktu Habis. Anda hanya bisa mengirim Izin/Keterangan karena aturan Waktu Ketat (Strict Time) aktif.");
-                    return;
-                }
-            }
+        // 5b. Pengecekan server-side: tentukan kondisi terlambat & luar lokasi
+        // Jika user terlambat atau di luar lokasi, status verifikasi di-override menjadi
+        // "Menunggu Verifikasi Admin" agar admin bisa mengecek bukti dukung.
+        $isTerlambat = false;
+        $isLuarRadius = false;
 
-            // Validasi Strict Location
-            if ($jadwal['is_strict_location'] == 1 && !empty($jadwal['koordinat']) && $jadwal['koordinat'] !== '-') {
-                $lokasiPayload = $_POST['lokasi'] ?? '';
-                if (empty($lokasiPayload)) {
-                    if ($uploadPath && file_exists($uploadPath)) { unlink($uploadPath); }
-                    Response::json(false, 403, "Gagal: Lokasi tidak ditemukan. Aturan Lokasi Ketat (Strict Location) mewajibkan koordinat yang valid.");
-                    return;
-                }
-                
-                $tParts = explode(',', str_replace("'", "", $jadwal['koordinat']));
-                $pParts = explode(',', str_replace("'", "", $lokasiPayload));
-                
-                if (count($tParts) >= 2 && count($pParts) >= 2) {
-                    $tLat = (float) trim($tParts[0]);
-                    $tLng = (float) trim($tParts[1]);
-                    $pLat = (float) trim($pParts[0]);
-                    $pLng = (float) trim($pParts[1]);
-                    $radius = (float) $jadwal['radius_meter'];
+        // Cek keterlambatan (pakai waktu server Jakarta)
+        $endTime = new DateTime($jadwal['tanggal'] . ' ' . $jadwal['jam_selesai'], new DateTimeZone('Asia/Jakarta'));
+        if ($now > $endTime) {
+            $isTerlambat = true;
+        }
 
-                    $jarak = $this->haversineDistance($pLat, pLng, $tLat, $tLng);
+        // Cek radius lokasi
+        if (!empty($jadwal['koordinat']) && $jadwal['koordinat'] !== '-') {
+            $tParts = explode(',', str_replace("'", '', $jadwal['koordinat']));
+            if (count($tParts) >= 2) {
+                $tLat = (float) trim($tParts[0]);
+                $tLng = (float) trim($tParts[1]);
+                $pLat = (float) ($lat ?? 0);
+                $pLng = (float) ($lng ?? 0);
+                $radius = (float) ($jadwal['radius_meter'] ?? 0);
+                if ($radius > 0) {
+                    $jarak = $this->haversineDistance($pLat, $pLng, $tLat, $tLng);
                     if ($jarak > $radius) {
-                        if ($uploadPath && file_exists($uploadPath)) { unlink($uploadPath); }
-                        Response::json(false, 403, "Gagal: Anda di luar lokasi (" . round($jarak) . "m). Anda hanya bisa mengirim Izin/Keterangan karena aturan Lokasi Ketat (Strict Location) aktif.");
-                        return;
+                        $isLuarRadius = true;
                     }
                 }
             }
         }
 
+        // 5c. Validasi Server-side Strict Mode
+        if (strtolower($statusKehadiran) === 'hadir') {
+            if ($isTerlambat && !empty($jadwal['is_strict_time']) && $jadwal['is_strict_time'] == 1) {
+                if ($uploadPath && file_exists($uploadPath)) {
+                    unlink($uploadPath);
+                }
+                Response::json(false, 403, "Gagal: Waktu Berakhir. Anda melanggar Aturan Waktu Berlaku.");
+                return;
+            }
+            if ($isLuarRadius && !empty($jadwal['is_strict_location']) && $jadwal['is_strict_location'] == 1) {
+                if ($uploadPath && file_exists($uploadPath)) {
+                    unlink($uploadPath);
+                }
+                Response::json(false, 403, "Gagal: Di Luar Lokasi. Anda melanggar Aturan Wajib Sesuai Lokasi.");
+                return;
+            }
+        }
+
+        // Override status verifikasi jika terlambat, luar lokasi, atau tidak hadir (izin/sakit/dll)
+        if (strtolower($statusKehadiran) !== 'hadir' || $isTerlambat || $isLuarRadius) {
+            if ($statusVerifikasi !== 'Terverifikasi Oleh Admin') {
+                $statusVerifikasi = 'Menunggu Verifikasi Admin';
+            }
+        }
+
         // 6. UPDATE atau INSERT data absensi di database
-        $now = new DateTime('now', new DateTimeZone('Asia/Jakarta'));
         $waktu = $now->format('Y-m-d H:i:s');
 
         $nip = null; $nama = null; $opd = null; $jabatan = null;

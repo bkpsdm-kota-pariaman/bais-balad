@@ -48,7 +48,7 @@ class AdminAuthController {
         $payload = [
             'iat' => $issuedAt,
             'exp' => $expirationTime,
-            'iss' => 'bais-balad-apps-admin',
+            'iss' => 'bais-pariaman-apps-admin',
             'data' => [
                 'username' => $admin['username'],
                 'role' => 'admin' // Penanda bahwa ini adalah token admin

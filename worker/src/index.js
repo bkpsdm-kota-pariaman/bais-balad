@@ -78,47 +78,60 @@ export default {
 			if (!kodeAkses || !env.JADWAL_KV) return null;
 			const cachedJadwal = await env.JADWAL_KV.get(`jadwal:${kodeAkses}`, 'json');
 			if (!cachedJadwal) return null;
-			
+
 			const now = new Date();
 			const todayYMD = now.toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });
 			if (cachedJadwal.tanggal !== todayYMD) {
 				return { error: true, code: 403, message: "Gagal: Jadwal ini tidak berlaku untuk hari ini." };
 			}
-			
+
 			const startTime = new Date(`${cachedJadwal.tanggal}T${cachedJadwal.jam_mulai}+07:00`);
 			if (now < startTime) {
 				return { error: true, code: 403, message: `Gagal: Absensi belum dibuka. Silakan tunggu hingga pukul ${cachedJadwal.jam_mulai} WIB.` };
 			}
 
 			const status = (payload.status_kehadiran || "hadir").toLowerCase();
+			let isTerlambat = false;
+			let isLuarRadius = false;
+
+			const endTime = new Date(`${cachedJadwal.tanggal}T${cachedJadwal.jam_selesai}+07:00`);
+			if (now > endTime) {
+				isTerlambat = true;
+			}
+
+			if (cachedJadwal.koordinat && cachedJadwal.koordinat !== "-") {
+				const parts = cachedJadwal.koordinat.replace(/'/g, '').split(',');
+				if (parts.length === 2) {
+					const tLat = parseFloat(parts[0]);
+					const tLng = parseFloat(parts[1]);
+					const pLat = parseFloat(payload.lat);
+					const pLng = parseFloat(payload.lng);
+					const radius = parseFloat(cachedJadwal.radius_meter) || 0;
+
+					const jarak = haversineDistance(pLat, pLng, tLat, tLng);
+					if (jarak > radius) {
+						isLuarRadius = true;
+					}
+				}
+			}
 
 			// Jika pegawai mencoba Hadir murni (bukan Izin/Sakit/Cuti)
 			if (status === "hadir") {
 				// Validasi Strict Time
-				if (cachedJadwal.is_strict_time && cachedJadwal.is_strict_time == 1) {
-					const endTime = new Date(`${cachedJadwal.tanggal}T${cachedJadwal.jam_selesai}+07:00`);
-					if (now > endTime) {
-						return { error: true, code: 403, message: "Gagal: Waktu Habis. Anda hanya bisa mengirim Izin/Keterangan karena aturan Waktu Ketat (Strict Time) aktif." };
-					}
+				if (cachedJadwal.is_strict_time && cachedJadwal.is_strict_time == 1 && isTerlambat) {
+					return { error: true, code: 403, message: "Gagal: Waktu Berakhir. Anda hanya bisa mengirim Izin/Keterangan karena Aturan Waktu Berlaku aktif." };
 				}
 
 				// Validasi Strict Location
-				if (cachedJadwal.is_strict_location && cachedJadwal.is_strict_location == 1) {
-					if (cachedJadwal.koordinat && cachedJadwal.koordinat !== "-") {
-						const parts = cachedJadwal.koordinat.replace(/'/g, '').split(',');
-						if (parts.length === 2) {
-							const tLat = parseFloat(parts[0]);
-							const tLng = parseFloat(parts[1]);
-							const pLat = parseFloat(payload.lat);
-							const pLng = parseFloat(payload.lng);
-							const radius = parseFloat(cachedJadwal.radius_meter) || 0;
-							
-							const jarak = haversineDistance(pLat, pLng, tLat, tLng);
-							if (jarak > radius) {
-								return { error: true, code: 403, message: `Gagal: Anda di luar lokasi (${Math.round(jarak)}m). Anda hanya bisa mengirim Izin/Keterangan karena aturan Lokasi Ketat (Strict Location) aktif.` };
-							}
-						}
-					}
+				if (cachedJadwal.is_strict_location && cachedJadwal.is_strict_location == 1 && isLuarRadius) {
+					return { error: true, code: 403, message: `Gagal: Anda di luar lokasi. Anda hanya bisa mengirim Izin/Keterangan karena Aturan Wajib Sesuai Lokasi aktif.` };
+				}
+			}
+
+			// Jika pegawai terlambat, di luar lokasi, atau tidak hadir (izin dll)
+			if (status !== "hadir" || isTerlambat || isLuarRadius) {
+				if (payload.status_verifikasi !== "Terverifikasi Oleh Admin") {
+					payload.status_verifikasi = "Menunggu Verifikasi Admin";
 				}
 			}
 
@@ -261,7 +274,7 @@ export default {
 			// --- CACHE MISS ---
 			else {
 				// Jadwal tidak ditemukan di cache. Kembalikan 404 untuk memicu fallback di PWA.
-				return new Response(JSON.stringify({ status: false, message: 'Jadwal tidak ditemukan di cache.' }), {
+				return new Response(JSON.stringify({ status: false, message: 'Jadwal tidak ditemukan.' }), {
 					status: 404,
 					headers: { 'Content-Type': 'application/json', ...corsHeaders, 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' },
 				});
@@ -778,8 +791,8 @@ export default {
 					return new Response(JSON.stringify({ status: false, code: 400, message: "Token pegawai yang diabsenkan tidak ada dalam request body." }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
 				}
 
-				// Validasi waktu mulai jadwal
-				const validationError = await validateJadwalWaktuMulai(payload.kode_akses);
+				// Validasi aturan ketat (waktu dan lokasi)
+				const validationError = await validateJadwalAbsen(payload.kode_akses, payload);
 				if (validationError) {
 					return new Response(JSON.stringify({ status: false, code: validationError.code, message: validationError.message }), { status: validationError.code, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
 				}

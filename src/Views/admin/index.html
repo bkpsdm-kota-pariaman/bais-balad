@@ -735,9 +735,8 @@
             </div>
 
             <div class="mb-4">
-              <label class="fw-bold small text-muted text-danger">Upload Bukti Dukung (Wajib, Maks 1MB)</label>
-              <input type="file" id="verifBuktiDukung" class="form-control border-danger"
-                accept="image/*,application/pdf" required>
+              <label class="fw-bold small text-muted">Upload Bukti Dukung (Opsional, Maks 1MB)</label>
+              <input type="file" id="verifBuktiDukung" class="form-control" accept="image/*,application/pdf">
               <small class="text-muted">Format: JPG, PNG, PDF. Menimpa bukti foto yang sudah ada.</small>
             </div>
 
@@ -910,26 +909,6 @@
               </div>
             </div>
 
-            <div class="row g-2 mb-3">
-              <div class="col-md-6">
-                <div class="form-check form-switch bg-light p-2 rounded border">
-                  <input class="form-check-input ms-0 me-2" type="checkbox" id="addStrictLocation"
-                    style="width: 2.5em; height: 1.25em;">
-                  <label class="form-check-label small fw-bold" for="addStrictLocation">
-                    <i class="bi bi-geo-fill text-danger"></i> Tolak Absen Luar Lokasi
-                  </label>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-check form-switch bg-light p-2 rounded border">
-                  <input class="form-check-input ms-0 me-2" type="checkbox" id="addStrictTime"
-                    style="width: 2.5em; height: 1.25em;">
-                  <label class="form-check-label small fw-bold" for="addStrictTime">
-                    <i class="bi bi-clock-fill text-primary"></i> Tolak Absen Terlambat
-                  </label>
-                </div>
-              </div>
-            </div>
 
             <div class="mb-3">
               <label class="fw-bold">Target Perangkat Daerah</label>
@@ -964,6 +943,28 @@
                 </div>
               </div>
             </div>
+            <div class="row mb-3 px-3 py-2 bg-white rounded border mx-1 shadow-sm">
+              <div class="col-12 mb-2"><span class="fw-bold text-danger"><i class="bi bi-shield-lock-fill"></i>
+                  Pengaturan Absensi</span></div>
+              <div class="col-md-6 d-flex align-items-center">
+                <div class="form-check form-switch form-switch-md">
+                  <input class="form-check-input" type="checkbox" id="addStrictTime" style="cursor: pointer;">
+                  <label class="form-check-label small fw-bold ms-2" for="addStrictTime" style="cursor: pointer;">Wajib
+                    Hadir Tepat Waktu</label>
+                </div>
+              </div>
+              <div class="col-md-6 d-flex align-items-center">
+                <div class="form-check form-switch form-switch-md">
+                  <input class="form-check-input" type="checkbox" id="addStrictLocation" style="cursor: pointer;">
+                  <label class="form-check-label small fw-bold ms-2" for="addStrictLocation"
+                    style="cursor: pointer;">Wajib Hadir di Lokasi</label>
+                </div>
+              </div>
+              <div class="col-12 mt-1">
+                <small class="text-muted" style="font-size: 0.8rem;">Jika aktif, pegawai yang terlambat / di luar lokasi
+                  tidak dapat melakukan absensi Hadir tanpa terkecuali.</small>
+              </div>
+            </div>
             <div class="text-center my-3">
               <a href="#" class="text-secondary text-decoration-none small"
                 onclick="tampilkanPengaturanLanjutan('add')">
@@ -977,8 +978,6 @@
                 <option value="1">Aktif (Paksa gunakan antrian)</option>
                 <option value="0">Non-Aktif (Langsung ke server)</option>
               </select>
-              <small class="text-muted d-block mt-1" style="font-size: 0.8em;">Gunakan mode 'Aktif' jika Anda
-                mengantisipasi lonjakan absensi dalam waktu singkat, bahkan dengan peserta di bawah 300 orang.</small>
             </div>
             <div class="d-flex gap-2 mt-4"><button type="button" class="btn btn-secondary w-50 fw-bold py-2"
                 data-bs-dismiss="modal">Tutup</button><button type="submit" id="btnSimpanKegiatan"
@@ -1042,26 +1041,6 @@
               </div>
             </div>
 
-            <div class="row g-2 mb-3">
-              <div class="col-md-6">
-                <div class="form-check form-switch bg-light p-2 rounded border">
-                  <input class="form-check-input ms-0 me-2" type="checkbox" id="editStrictLocation"
-                    style="width: 2.5em; height: 1.25em;">
-                  <label class="form-check-label small fw-bold" for="editStrictLocation">
-                    <i class="bi bi-geo-fill text-danger"></i> Tolak Absen Luar Lokasi
-                  </label>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-check form-switch bg-light p-2 rounded border">
-                  <input class="form-check-input ms-0 me-2" type="checkbox" id="editStrictTime"
-                    style="width: 2.5em; height: 1.25em;">
-                  <label class="form-check-label small fw-bold" for="editStrictTime">
-                    <i class="bi bi-clock-fill text-primary"></i> Tolak Absen Terlambat
-                  </label>
-                </div>
-              </div>
-            </div>
 
             <div class="mb-3">
               <label class="fw-bold">Target Perangkat Daerah</label>
@@ -1094,6 +1073,28 @@
                       style="max-height: 200px; overflow-y: auto;"></div>
                   </div>
                 </div>
+              </div>
+            </div>
+            <div class="row mb-3 px-3 py-2 bg-white rounded border mx-1 shadow-sm">
+              <div class="col-12 mb-2"><span class="fw-bold text-danger"><i class="bi bi-shield-lock-fill"></i> Aturan
+                  Ketat (Strict Mode)</span></div>
+              <div class="col-md-6 d-flex align-items-center">
+                <div class="form-check form-switch form-switch-md">
+                  <input class="form-check-input" type="checkbox" id="editStrictTime" style="cursor: pointer;">
+                  <label class="form-check-label small fw-bold ms-2" for="editStrictTime" style="cursor: pointer;">Waktu
+                    Ketat</label>
+                </div>
+              </div>
+              <div class="col-md-6 d-flex align-items-center">
+                <div class="form-check form-switch form-switch-md">
+                  <input class="form-check-input" type="checkbox" id="editStrictLocation" style="cursor: pointer;">
+                  <label class="form-check-label small fw-bold ms-2" for="editStrictLocation"
+                    style="cursor: pointer;">Lokasi Ketat</label>
+                </div>
+              </div>
+              <div class="col-12 mt-1">
+                <small class="text-muted" style="font-size: 0.8rem;">Jika aktif, pengguna yang melanggar (terlambat / di
+                  luar lokasi) tidak dapat melakukan absensi Hadir (ditolak).</small>
               </div>
             </div>
             <div class="text-center my-3">
@@ -1312,18 +1313,42 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body p-4">
-          <div class="alert alert-info small d-flex justify-content-between align-items-center">
-            <div>
-              <strong>Info:</strong> Proses import ini menggunakan format data CSV. Proses ini akan mengupdate data
-              absensi yang sudah ada jika pegawai sebelumnya sudah absen, atau menambah data baru jika belum ada.
-              Silahkan pelajari format datanya dengan mendownload template terlebih dahulu.
-            </div>
-            <button type="button" class="btn btn-sm btn-outline-dark fw-bold ms-3 flex-shrink-0"
-              onclick="downloadTemplateCSV()">
-              <i class="bi bi-download"></i> Download Template CSV
-            </button>
-          </div>
+          <div class="alert alert-info small mb-4">
+            <div class="d-flex flex-column gap-3">
+              <div>
+                <strong>Petunjuk Singkat:</strong>
+                <ol class="mb-0 mt-2 ps-3">
+                  <li>Unduh file template CSV agar format kolomnya sudah sesuai sistem.</li>
+                  <li>Isi data absensi pegawai di file CSV tersebut.</li>
+                  <li>Simpan file dalam format <strong>.csv</strong>, lalu upload ke form import ini.</li>
+                  <li>Periksa preview data, lalu centang baris yang ingin diproses.</li>
+                </ol>
+              </div>
 
+              <div>
+                <button type="button" class="btn btn-sm btn-outline-dark fw-bold"
+                  onclick="downloadTemplateCSV()">
+                  <i class="bi bi-download"></i> Download Template CSV
+                </button>
+              </div>
+
+              <hr class="my-1 border-info">
+
+              <div>
+                <strong>Isi Kolom CSV yang Wajib Disiapkan:</strong>
+                <ul class="mb-0 mt-2 ps-3">
+                  <li><code>waktu</code>: tanggal dan jam absensi, format <code>YYYY-MM-DD HH:MM:SS</code>. Contoh: <code>2026-08-17 07:30:00</code></li>
+                  <li><code>nip</code>: NIP pegawai. Contoh: <code>198001012010011001</code></li>
+                  <li><code>nama_pegawai</code>: nama lengkap pegawai. Contoh: <code>Budi Santoso</code></li>
+                  <li><code>jabatan</code>: nama jabatan pegawai. Contoh: <code>Staf Analis</code></li>
+                  <li><code>opd</code>: nama OPD atau instansi. Contoh: <code>Dinas Komunikasi dan Informatika</code></li>
+                  <li><code>lokasi</code>: nama lokasi absensi. Contoh: <code>Kantor Walikota</code></li>
+                  <li><code>lat</code> dan <code>lng</code>: koordinat lokasi absensi. Contoh: <code>-0.6276</code> dan <code>100.1209</code></li>
+                  <li><code>nama_file_foto</code>: nama file foto atau link Google Drive bukti absensi. Contoh: <code>foto_budi.jpg</code> atau <code>https://drive.google.com/file/d/xxxx/view</code></li>
+                </ul>
+              </div>
+            </div>
+          </div>
           <form id="formImportAbsen" onsubmit="submitImportAbsen(event)">
             <input type="hidden" id="importKodeAkses">
 

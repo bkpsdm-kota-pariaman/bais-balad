@@ -1,230 +1,403 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
     <title>BAIS Pariaman : Absensi Cadangan</title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
-        body { background-color: #fcf5f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .hidden-view { display: none !important; }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .ts-control { padding: 0.75rem 1rem !important; border-radius: 0.75rem !important; border-color: #d1d5db !important; font-weight: 500;}
-        .ts-control.focus { border-color: #facc15 !important; box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.4) !important; }
-        .ts-dropdown { border-radius: 0.75rem !important; overflow: hidden; margin-top: 5px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        
-        div:where(.swal2-container) button:where(.swal2-styled).swal2-confirm { background-color: #b91c1c !important; }
-        
-        /* Custom Scrollbar */
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #fef08a; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #eab308; border-radius: 4px; }
+        body {
+            background-color: #fef2f2;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .hidden-view {
+            display: none !important;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.35s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        div:where(.swal2-container) button:where(.swal2-styled).swal2-confirm {
+            background-color: #b91c1c !important;
+        }
+
+        .inp-field {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            border: 1px solid #d1d5db;
+            outline: none;
+            font-weight: 600;
+            color: #374151;
+            transition: all .2s;
+            background: #fff;
+        }
+
+        .inp-field:focus {
+            border-color: #fbbf24;
+            box-shadow: 0 0 0 3px rgba(251, 191, 36, .25);
+        }
     </style>
 </head>
+
 <body class="text-gray-800 overflow-x-hidden">
 
+    <!-- Loading Overlay -->
     <div id="loadingOverlay" class="fixed inset-0 bg-white/95 z-[9999] hidden flex-col justify-center items-center">
-        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600 mb-3"></div>
-        <h6 class="text-red-700 font-bold" id="loadingText">Memproses...</h6>
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-red-200 border-t-red-600 mb-4"></div>
+        <h6 class="text-red-700 font-bold text-sm" id="loadingText">Memproses...</h6>
     </div>
 
-    <div class="max-w-[480px] mx-auto bg-gray-50 min-h-screen relative shadow-xl pb-10">
-        
-        <!-- Header Aplikasi -->
-        <div class="p-4 bg-red-700 text-white flex flex-col items-center shadow-md sticky top-0 z-10 rounded-b-[20px]">
-            <h6 class="text-yellow-300 font-bold text-[10px] tracking-wider mb-1 mt-2 drop-shadow-sm uppercase">PEMERINTAH KOTA PARIAMAN</h6>
-            <h2 class="text-xl font-extrabold tracking-tight drop-shadow-md"><i class="bi bi-shield-exclamation text-red-200"></i> BAIS Pariaman</h2>
-            <div class="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded text-white mb-1 tracking-widest mt-1">SERVER CADANGAN</div>
-            <p class="text-xs text-red-200 mt-1 font-medium text-center">Gunakan form ini hanya jika aplikasi utama mengalami kendala.</p>
+    <div class="max-w-[480px] mx-auto bg-gray-50 min-h-screen relative shadow-xl pb-12">
+
+        <!-- Header -->
+        <div class="p-4 bg-red-700 text-white flex flex-col items-center shadow-lg rounded-b-[24px]">
+            <h6 class="text-yellow-300 font-bold text-[10px] tracking-wider mb-1 mt-1 uppercase">Pemerintah Kota
+                Pariaman</h6>
+            <h2 class="text-xl font-extrabold tracking-tight drop-shadow-md flex items-center gap-2">
+                <i class="bi bi-shield-exclamation text-red-300"></i> BAIS Pariaman
+            </h2>
+            <div
+                class="text-[10px] font-bold bg-white/20 px-3 py-0.5 rounded-full text-yellow-200 mt-1 tracking-widest">
+                ABSENSI CADANGAN</div>
+            <p class="text-[11px] text-red-200 mt-1.5 font-medium text-center leading-snug">
+                Gunakan form ini <strong class="text-white">hanya jika aplikasi utama</strong> mengalami kendala.
+            </p>
         </div>
 
-        <div class="p-5 -mt-3">
-            <form id="formAbsenCadangan" onsubmit="kirimData(event)">
-                
-                <!-- Status GPS Lokasi -->
-                <div id="locationSection" class="mb-5">
-                    <div id="statusGeoLoading" class="bg-white text-gray-800 p-6 rounded-xl border border-gray-200 shadow-md text-center">
-                        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600 mx-auto mb-4"></div>
-                        <h3 class="font-bold text-lg mb-1 text-red-700">MENDETEKSI LOKASI</h3>
-                        <p class="text-sm font-medium text-gray-500">Sedang mengambil koordinat GPS Anda.<br>Pastikan izin lokasi aktif.</p>
-                    </div>
-                    
-                    <div id="statusGeo" class="hidden-view bg-white py-3 px-4 rounded-xl text-xs font-bold border shadow-sm text-center mb-4"></div>
+        <div class="p-5">
 
-                    <div id="boxLokasiGagal" class="hidden-view p-5 bg-red-100 border-2 border-red-200 rounded-xl text-left shadow-sm">
-                        <h6 class="text-red-700 font-bold text-sm mb-2 flex items-center gap-2"><i class="bi bi-exclamation-triangle-fill text-lg"></i> Gagal Deteksi Lokasi</h6>
-                        <p class="text-xs text-gray-700 mb-4 leading-relaxed">Sistem tidak dapat menemukan lokasi GPS Anda. Jika Anda melanjutkan, Anda <strong>wajib mengisi keterangan</strong>.</p>
-                        <div class="grid grid-cols-2 gap-3">
-                            <button type="button" onclick="deteksiLokasi()" class="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold py-2.5 rounded-lg transition active:scale-95 flex items-center justify-center gap-2 text-sm shadow-sm">
-                                <i class="bi bi-arrow-repeat"></i> Coba Lagi
-                            </button>
-                            <button type="button" onclick="lanjutTanpaLokasi()" class="w-full bg-red-600 text-white font-bold py-2.5 rounded-lg transition active:scale-95 flex items-center justify-center gap-2 text-sm shadow-sm">
-                                Lanjutkan <i class="bi bi-chevron-right"></i>
-                            </button>
+            <!-- ============================================================ -->
+            <!-- VIEW 1: LOGIN                                                -->
+            <!-- ============================================================ -->
+            <div id="viewLogin" class="fade-in">
+                <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-4">
+                    <div class="bg-red-50 border-b border-red-100 px-5 py-4 flex items-center gap-3">
+                        <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <i class="bi bi-person-lock text-red-700 text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-red-700 text-sm">Login Pegawai</h3>
+                            <p class="text-xs text-gray-500">Masukkan NIP dan NIK untuk melanjutkan</p>
+                        </div>
+                    </div>
+                    <div class="p-5">
+                        <div class="mb-4">
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5">NIP (18 Digit) <span
+                                    class="text-red-500">*</span></label>
+                            <input type="text" inputmode="numeric" id="loginNip" class="inp-field"
+                                placeholder="Masukkan 18 Digit NIP"
+                                oninput="this.value = this.value.replace(/\D/g, '').substring(0, 18)" maxlength="18">
+                        </div>
+                        <div class="mb-5">
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5">NIK (16 Digit) <span
+                                    class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <input type="password" inputmode="numeric" id="loginNik" class="inp-field"
+                                    style="padding-right:3rem;" placeholder="Masukkan 16 Digit NIK"
+                                    oninput="this.value = this.value.replace(/\D/g, '').substring(0, 16)"
+                                    maxlength="16">
+                                <button type="button" onclick="toggleNikVisibility()"
+                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 p-1 transition">
+                                    <i class="bi bi-eye" id="nikEyeIcon"></i>
+                                </button>
+                            </div>
+                            <p class="text-[10px] text-gray-400 mt-1 ml-1">NIK adalah Nomor Induk Kependudukan di KTP
+                                Anda (16 digit).</p>
+                        </div>
+                        <button type="button" onclick="prosesLogin()"
+                            class="w-full bg-red-700 hover:bg-red-800 active:scale-95 text-white font-extrabold py-3.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
+                            <i class="bi bi-box-arrow-in-right text-lg"></i> MASUK
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-xs text-yellow-800">
+                    <p class="font-bold mb-1 flex items-center gap-1.5"><i
+                            class="bi bi-info-circle-fill text-yellow-600"></i> Informasi</p>
+                    <p class="leading-relaxed">Login menggunakan <strong>NIP</strong> dan <strong>NIK</strong> (bukan
+                        password aplikasi).</p>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- VIEW 2: DATA DIRI + FORM ABSEN                              -->
+            <!-- ============================================================ -->
+            <div id="viewAbsen" class="hidden-view fade-in">
+
+                <!-- Kartu Data Pegawai yang Login -->
+                <div class="bg-white rounded-2xl border border-green-200 shadow-sm overflow-hidden mb-5">
+                    <div class="bg-green-600 px-5 py-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="bi bi-person-check-fill text-white text-lg"></i>
+                            <span class="text-white font-bold text-sm">Teridentifikasi</span>
+                        </div>
+                        <button type="button" onclick="logout()"
+                            class="text-green-200 hover:text-white text-xs font-bold flex items-center gap-1 transition">
+                            <i class="bi bi-box-arrow-right"></i> Ganti Akun
+                        </button>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-xs text-gray-400 uppercase font-bold tracking-wide mb-0.5">Nama Pegawai</p>
+                        <p id="displayNama" class="font-extrabold text-gray-800 text-base mb-3">-</p>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                            <div>
+                                <span class="text-gray-400 font-semibold block">NIP</span>
+                                <span id="displayNip" class="font-bold text-gray-700">-</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400 font-semibold block">Jabatan</span>
+                                <span id="displayJabatan" class="font-bold text-gray-700">-</span>
+                            </div>
+                            <div class="col-span-2">
+                                <span class="text-gray-400 font-semibold block">Perangkat Daerah</span>
+                                <span id="displayOpd" class="font-bold text-gray-700">-</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <input type="hidden" id="lat">
-                <input type="hidden" id="lng">
-                <input type="hidden" id="lokasi">
+                <!-- Form Absensi -->
+                <form id="formAbsenCadangan" onsubmit="kirimData(event)">
+                    <input type="hidden" id="lat">
+                    <input type="hidden" id="lng">
+                    <input type="hidden" id="lokasi">
 
-                <div id="formUtama" class="hidden-view">
-                    <!-- Form Identitas, dicabut overflow-hidden nya agar dropdown tidak terpotong -->
-                    <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm relative mb-5">
-                        <div class="absolute top-0 left-0 w-1 h-full bg-red-700 rounded-l-xl"></div>
-                        <h6 class="font-extrabold text-red-700 mb-4 text-lg leading-tight"><i class="bi bi-person-lines-fill mr-1"></i> Data Pegawai</h6>
-                        
-                        <div class="mb-4 text-left">
-                            <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Kode Akses Kegiatan <span class="text-red-500">*</span></label>
-                            <input type="text" id="inpKode" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-400 outline-none font-semibold text-gray-700 transition uppercase" placeholder="Masukkan Kode (Misal: APELPAGI)" required>
+                    <!-- Status GPS -->
+                    <div id="locationSection" class="mb-5">
+                        <div id="statusGeoLoading"
+                            class="bg-white text-gray-800 p-6 rounded-xl border border-gray-200 shadow-sm text-center">
+                            <div
+                                class="animate-spin rounded-full h-10 w-10 border-4 border-red-100 border-t-red-600 mx-auto mb-3">
+                            </div>
+                            <h3 class="font-bold text-base mb-1 text-red-700">Mendeteksi Lokasi</h3>
+                            <p class="text-xs font-medium text-gray-500">Sedang mengambil koordinat GPS
+                                Anda.<br>Pastikan izin lokasi aktif.</p>
                         </div>
-                        
-                        <div class="mb-4 text-left">
-                            <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">NIP (18 Digit) <span class="text-red-500">*</span></label>
-                            <!-- Validasi real-time agar hanya angka yang bisa diketik -->
-                            <input type="text" inputmode="numeric" id="inpNip" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-400 outline-none font-semibold text-gray-700 transition" placeholder="Masukkan 18 Digit NIP" oninput="this.value = this.value.replace(/\D/g, '').substring(0, 18)" required>
+                        <div id="statusGeo"
+                            class="hidden-view py-3 px-4 rounded-xl text-xs font-bold border shadow-sm text-center mb-4">
                         </div>
-                        
-                        <div class="mb-4 text-left">
-                            <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Nama (Tanpa Gelar) <span class="text-red-500">*</span></label>
-                            <!-- Validasi agar huruf saja tanpa simbol/titik -->
-                            <input type="text" id="inpNama" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-400 outline-none font-semibold text-gray-700 transition" placeholder="Nama Lengkap" oninput="this.value = this.value.replace(/[^a-zA-Z\s]/g, '')" required>
-                        </div>
-                        
-                        <div class="mb-4 text-left">
-                            <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Jabatan <span class="text-red-500">*</span></label>
-                            <input type="text" id="inpJabatan" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-400 outline-none font-semibold text-gray-700 transition" placeholder="Nama Jabatan" required>
-                        </div>
-                        
-                        <div class="mb-2">
-                            <label class="block text-xs font-bold text-gray-500 mb-1 ml-1">Perangkat Daerah (OPD) <span class="text-red-500">*</span></label>
-                            <select id="inpOpd" class="w-full" required></select>
-                        </div>
-                    </div>
-
-                    <!-- Keterangan dengan Radio Button Modern -->
-                    <div class="text-left p-5 bg-yellow-50 border border-yellow-300 rounded-xl shadow-sm mb-5">
-                        <label class="block text-sm font-bold text-yellow-700 mb-3"><i class="bi bi-exclamation-circle-fill text-yellow-600 mr-1"></i> Alasan Absen Cadangan <span class="text-red-500">*</span></label>
-                        <div class="space-y-2.5">
-                            <label class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-100 transition shadow-sm">
-                                <input type="radio" name="inpKeterangan" value="Malas menggunakan aplikasi karena ribet/tidak paham." class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
-                                <span class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">1. Malas menggunakan aplikasi karena ribet/tidak paham.</span>
-                            </label>
-                            
-                            <label class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-100 transition shadow-sm">
-                                <input type="radio" name="inpKeterangan" value="Aplikasi tidak bisa terinstall karena tampilan layar warna putih" class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
-                                <span class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">2. Aplikasi tidak bisa terinstall karena tampilan layar warna putih</span>
-                            </label>
-                            
-                            <label class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-100 transition shadow-sm">
-                                <input type="radio" name="inpKeterangan" value="Aplikasi tidak bisa terinstall karena akses ditolak" class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
-                                <span class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">3. Aplikasi tidak bisa terinstall karena akses ditolak</span>
-                            </label>
-                            
-                            <label class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-100 transition shadow-sm">
-                                <input type="radio" name="inpKeterangan" value="Aplikasi tidak bisa terbuka (force close)" class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
-                                <span class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">4. Aplikasi tidak bisa terbuka (force close)</span>
-                            </label>
-                            
-                            <label class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-100 transition shadow-sm">
-                                <input type="radio" name="inpKeterangan" value="Tidak bisa login (NIP dan password salah)" class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
-                                <span class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">5. Tidak bisa login (NIP dan password salah)</span>
-                            </label>
-                            
-                            <label class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-100 transition shadow-sm">
-                                <input type="radio" name="inpKeterangan" value="Tidak bisa login karena loading aplikasi lama" class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
-                                <span class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">6. Tidak bisa login karena loading aplikasi lama</span>
-                            </label>
-                            
-                            <label class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-100 transition shadow-sm">
-                                <input type="radio" name="inpKeterangan" value="Akses kamera ditolak" class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
-                                <span class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">7. Akses kamera ditolak</span>
-                            </label>
-                            
-                            <label class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-100 transition shadow-sm">
-                                <input type="radio" name="inpKeterangan" value="Tampilan kamera hitam" class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
-                                <span class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">8. Tampilan kamera hitam</span>
-                            </label>
-                            
-                            <label class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-100 transition shadow-sm">
-                                <input type="radio" name="inpKeterangan" value="Lokasi tidak terdeteksi" class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
-                                <span class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">9. Lokasi tidak terdeteksi</span>
-                            </label>
-
-                            <label class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-100 transition shadow-sm">
-                                <input type="radio" name="inpKeterangan" value="Data jadwal/kode tidak ditemukan" class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
-                                <span class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">10. Data jadwal/kode tidak ditemukan</span>
-                            </label>
-                            
-                            <label class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-100 transition shadow-sm">
-                                <input type="radio" name="inpKeterangan" value="Data absensi tidak tersimpan/error" class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
-                                <span class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">11. Data absensi tidak tersimpan/error</span>
-                            </label>
-
-                            <label class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-100 transition shadow-sm">
-                                <input type="radio" name="inpKeterangan" value="Lainnya" class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
-                                <span class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">12. Lainnya (tulis manual)</span>
-                            </label>
-                            
-                            <div id="boxKeteranganLainnya" class="hidden-view mt-2">
-                                <textarea id="inpKeteranganLainnya" rows="2" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-400 outline-none font-semibold text-gray-700 transition text-xs" placeholder="Tuliskan keterangan kendala Anda secara detail di sini..."></textarea>
+                        <div id="boxLokasiGagal"
+                            class="hidden-view p-5 bg-red-50 border-2 border-red-200 rounded-xl text-left shadow-sm">
+                            <h6 class="text-red-700 font-bold text-sm mb-2 flex items-center gap-2"><i
+                                    class="bi bi-exclamation-triangle-fill text-lg"></i> Gagal Deteksi Lokasi</h6>
+                            <p class="text-xs text-gray-700 mb-4 leading-relaxed">Sistem tidak dapat menemukan lokasi
+                                GPS Anda. Jika Anda melanjutkan, Anda <strong>wajib mengisi keterangan</strong>.</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <button type="button" onclick="deteksiLokasi()"
+                                    class="w-full bg-white border border-gray-300 text-gray-700 font-bold py-2.5 rounded-lg transition active:scale-95 flex items-center justify-center gap-2 text-sm shadow-sm"><i
+                                        class="bi bi-arrow-repeat"></i> Coba Lagi</button>
+                                <button type="button" onclick="lanjutTanpaLokasi()"
+                                    class="w-full bg-red-600 text-white font-bold py-2.5 rounded-lg transition active:scale-95 flex items-center justify-center gap-2 text-sm shadow-sm">Lanjutkan
+                                    <i class="bi bi-chevron-right"></i></button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Selfie Camera -->
-                    <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm text-center mb-5">
-                        <label class="block text-sm font-bold text-gray-700 mb-3"><i class="bi bi-camera-fill text-red-700 mr-1"></i> Swafoto (Selfie) Kehadiran <span class="text-red-500">*</span></label>
-                        
-                        <div class="w-full max-w-[280px] h-[370px] mx-auto rounded-2xl overflow-hidden bg-gray-900 relative border-[6px] border-white shadow-lg mb-4">
-                            <video id="kamera" class="w-full h-full object-cover" autoplay playsinline></video>
-                            <img id="hasilFoto" class="w-full h-full object-cover hidden-view">
-                            <div id="face-guide" class="absolute inset-0 border-[3px] border-dashed border-white/50 m-8 rounded-xl pointer-events-none"></div>
+                    <!-- Form Isi -->
+                    <!-- Validasi Kode Akses Terlebih Dahulu -->
+                    <div id="formKodeAkses" class="mb-5 fade-in">
+                        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+                            <label class="block text-xs font-bold text-gray-500 mb-1.5">Kode Akses Kegiatan <span
+                                    class="text-red-500">*</span></label>
+                            <input type="text" id="inpKode"
+                                class="inp-field uppercase tracking-widest text-lg font-black text-center"
+                                placeholder="KODE AKSES" required>
+                            <button type="button" onclick="cekKodeAkses()"
+                                class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 rounded-xl transition active:scale-95 shadow-md flex items-center justify-center gap-2">
+                                <i class="bi bi-search"></i> Validasi Kode &amp; Lanjut
+                            </button>
                         </div>
-                        
-                        <button type="button" id="btnJepret" class="w-full max-w-[280px] mx-auto bg-gradient-to-r from-gray-800 to-gray-900 text-white hover:from-gray-900 hover:to-black font-bold py-3.5 rounded-xl transition active:scale-95 flex items-center justify-center gap-2 shadow-md" onclick="ambilFoto()">
-                            <i class="bi bi-camera text-xl"></i> AMBIL FOTO
-                        </button>
-                        <button type="button" id="btnUlang" class="w-full max-w-[280px] mx-auto bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-3.5 rounded-xl transition active:scale-95 hidden-view flex items-center justify-center gap-2 shadow-sm" onclick="ulangFoto()">
-                            <i class="bi bi-arrow-counterclockwise text-xl"></i> FOTO ULANG
-                        </button>
-                        <input type="hidden" id="fotoBase64" required>
                     </div>
 
-                    <!-- Submit -->
-                    <button type="submit" id="btnKirim" class="w-full bg-red-700 active:scale-95 text-white font-extrabold py-4 rounded-xl shadow-[0_5px_15px_rgba(185,28,28,0.4)] transition-all flex items-center justify-center gap-2">
-                        <i class="bi bi-send-fill"></i>
-                        KIRIM PRESENSI CADANGAN
-                    </button>
-                </div>
-            </form>
-            
-            <!-- Receipt View -->
+                    <div id="formUtama" class="hidden-view">
+                        <!-- Detail Kegiatan (Ditampilkan jika validasi sukses) -->
+                        <div id="boxDetailKegiatan"
+                            class="hidden-view bg-blue-50 border border-blue-200 p-4 rounded-xl mb-5 text-blue-900 shadow-sm text-left">
+                            <h4 class="font-black text-sm mb-1 leading-tight" id="detJudul">Judul Kegiatan</h4>
+                            <p class="text-xs font-semibold text-blue-700 mb-0"><i class="bi bi-clock-fill mr-1"></i>
+                                <span id="detWaktu"></span> WIB</p>
+                        </div>
+
+                        <!-- Alasan Absen -->
+                        <div class="text-left p-5 bg-yellow-50 border border-yellow-300 rounded-2xl shadow-sm mb-5">
+                            <label class="block text-sm font-bold text-yellow-700 mb-3"><i
+                                    class="bi bi-exclamation-circle-fill text-yellow-600 mr-1"></i> Alasan Absen
+                                Cadangan <span class="text-red-500">*</span></label>
+                            <div class="space-y-2">
+                                <label
+                                    class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-50 transition shadow-sm"><input
+                                        type="radio" name="inpKeterangan"
+                                        value="Malas menggunakan aplikasi karena ribet/tidak paham."
+                                        class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 flex-shrink-0"><span
+                                        class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">1. Malas
+                                        menggunakan aplikasi karena ribet/tidak paham.</span></label>
+                                <label
+                                    class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-50 transition shadow-sm"><input
+                                        type="radio" name="inpKeterangan"
+                                        value="Aplikasi tidak bisa terinstall karena tampilan layar warna putih"
+                                        class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 flex-shrink-0"><span
+                                        class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">2. Aplikasi
+                                        tidak bisa terinstall karena tampilan layar warna putih</span></label>
+                                <label
+                                    class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-50 transition shadow-sm"><input
+                                        type="radio" name="inpKeterangan"
+                                        value="Aplikasi tidak bisa terinstall karena akses ditolak"
+                                        class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 flex-shrink-0"><span
+                                        class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">3. Aplikasi
+                                        tidak bisa terinstall karena akses ditolak</span></label>
+                                <label
+                                    class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-50 transition shadow-sm"><input
+                                        type="radio" name="inpKeterangan"
+                                        value="Aplikasi tidak bisa terbuka (force close)"
+                                        class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 flex-shrink-0"><span
+                                        class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">4. Aplikasi
+                                        tidak bisa terbuka (force close)</span></label>
+                                <label
+                                    class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-50 transition shadow-sm"><input
+                                        type="radio" name="inpKeterangan"
+                                        value="Tidak bisa login (NIP dan password salah)"
+                                        class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 flex-shrink-0"><span
+                                        class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">5. Tidak bisa
+                                        login (NIP dan password salah)</span></label>
+                                <label
+                                    class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-50 transition shadow-sm"><input
+                                        type="radio" name="inpKeterangan"
+                                        value="Tidak bisa login karena loading aplikasi lama"
+                                        class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 flex-shrink-0"><span
+                                        class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">6. Tidak bisa
+                                        login karena loading aplikasi lama</span></label>
+                                <label
+                                    class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-50 transition shadow-sm"><input
+                                        type="radio" name="inpKeterangan" value="Akses kamera ditolak"
+                                        class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 flex-shrink-0"><span
+                                        class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">7. Akses kamera
+                                        ditolak</span></label>
+                                <label
+                                    class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-50 transition shadow-sm"><input
+                                        type="radio" name="inpKeterangan" value="Tampilan kamera hitam"
+                                        class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 flex-shrink-0"><span
+                                        class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">8. Tampilan
+                                        kamera hitam</span></label>
+                                <label
+                                    class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-50 transition shadow-sm"><input
+                                        type="radio" name="inpKeterangan" value="Lokasi tidak terdeteksi"
+                                        class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 flex-shrink-0"><span
+                                        class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">9. Lokasi tidak
+                                        terdeteksi</span></label>
+                                <label
+                                    class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-50 transition shadow-sm"><input
+                                        type="radio" name="inpKeterangan" value="Data jadwal/kode tidak ditemukan"
+                                        class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 flex-shrink-0"><span
+                                        class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">10. Data
+                                        jadwal/kode tidak ditemukan</span></label>
+                                <label
+                                    class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-50 transition shadow-sm"><input
+                                        type="radio" name="inpKeterangan" value="Data absensi tidak tersimpan/error"
+                                        class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 flex-shrink-0"><span
+                                        class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">11. Data
+                                        absensi tidak tersimpan/error</span></label>
+                                <label
+                                    class="flex items-start p-3 bg-white border border-yellow-200 rounded-xl cursor-pointer hover:bg-yellow-50 transition shadow-sm"><input
+                                        type="radio" name="inpKeterangan" value="Lainnya"
+                                        class="mt-0.5 w-4 h-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 flex-shrink-0"><span
+                                        class="ml-2.5 text-xs font-semibold text-gray-700 leading-tight">12. Lainnya
+                                        (tulis manual)</span></label>
+                                <div id="boxKeteranganLainnya" class="hidden-view mt-1 px-1">
+                                    <textarea id="inpKeteranganLainnya" rows="2" class="inp-field text-xs"
+                                        placeholder="Tuliskan keterangan kendala Anda secara detail..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Selfie -->
+                        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm text-center mb-5">
+                            <label class="block text-sm font-bold text-gray-700 mb-3"><i
+                                    class="bi bi-camera-fill text-red-700 mr-1"></i> Swafoto (Selfie) Kehadiran <span
+                                    class="text-red-500">*</span></label>
+
+                            <!-- Pilihan Kamera & Error Box -->
+                            <div class="mb-3 max-w-[280px] mx-auto hidden-view text-left" id="boxKameraPilihan">
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Ganti Kamera:</label>
+                                <select id="pilihanKamera" onchange="gantiKamera()"
+                                    class="inp-field text-xs py-2 px-2 w-full"></select>
+                            </div>
+                            <div id="boxErrorKamera"
+                                class="hidden-view mb-3 max-w-[280px] mx-auto bg-red-50 border border-red-200 text-red-700 text-xs p-3 rounded-xl text-left">
+                                <p class="font-bold mb-1"><i class="bi bi-exclamation-triangle-fill"></i> Akses Kamera
+                                    Gagal</p>
+                                <p class="mb-2">Gagal mengakses kamera. Pastikan Anda telah mengizinkan akses kamera di
+                                    browser Anda.</p>
+                                <button type="button" onclick="mulaiKameraSelfie()"
+                                    class="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition active:scale-95"><i
+                                        class="bi bi-arrow-repeat"></i> Coba Lagi</button>
+                            </div>
+
+                            <div
+                                class="w-full max-w-[280px] h-[370px] mx-auto rounded-2xl overflow-hidden bg-gray-900 relative border-[6px] border-white shadow-lg mb-4">
+                                <video id="kamera" class="w-full h-full object-cover" autoplay playsinline></video>
+                                <img id="hasilFoto" class="w-full h-full object-cover hidden-view" alt="Foto selfie">
+                                <div
+                                    class="absolute inset-0 border-[3px] border-dashed border-white/50 m-8 rounded-xl pointer-events-none">
+                                </div>
+                            </div>
+                            <button type="button" id="btnJepret" onclick="ambilFoto()"
+                                class="w-full max-w-[280px] mx-auto bg-gradient-to-r from-gray-800 to-gray-900 text-white font-bold py-3.5 rounded-xl transition active:scale-95 flex items-center justify-center gap-2 shadow-md">
+                                <i class="bi bi-camera text-xl"></i> AMBIL FOTO
+                            </button>
+                            <button type="button" id="btnUlang" onclick="ulangFoto()"
+                                class="w-full max-w-[280px] mx-auto bg-white border-2 border-gray-300 text-gray-700 font-bold py-3.5 rounded-xl transition active:scale-95 hidden-view flex items-center justify-center gap-2 shadow-sm">
+                                <i class="bi bi-arrow-counterclockwise text-xl"></i> FOTO ULANG
+                            </button>
+                            <input type="hidden" id="fotoBase64" required>
+                        </div>
+
+                        <!-- Submit -->
+                        <button type="submit"
+                            class="w-full bg-red-700 hover:bg-red-800 active:scale-95 text-white font-extrabold py-4 rounded-2xl shadow-[0_6px_20px_rgba(185,28,28,.35)] transition-all flex items-center justify-center gap-2 text-base">
+                            <i class="bi bi-send-fill"></i> KIRIM PRESENSI CADANGAN
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- VIEW 3: STRUK BERHASIL                                      -->
+            <!-- ============================================================ -->
             <div id="receiptView" class="hidden-view fade-in">
-                <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden text-center p-6 relative">
-                    <div class="absolute top-0 left-0 w-full h-1 bg-green-500"></div>
-                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div
+                    class="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden text-center p-6 relative">
+                    <div class="absolute top-0 left-0 w-full h-1.5 bg-green-500"></div>
+                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
                         <i class="bi bi-check-circle-fill text-3xl text-green-500"></i>
                     </div>
                     <h3 class="text-xl font-black text-gray-800 mb-1">ABSENSI BERHASIL</h3>
-                    <p class="text-sm text-gray-500 font-medium mb-6">Data absensi cadangan Anda telah tersimpan.</p>
-                    
-                    <div class="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-100 text-left">
-                        <div class="mb-2">
+                    <p class="text-sm text-gray-500 font-medium mb-5">Data absensi cadangan Anda telah tersimpan.</p>
+                    <div class="bg-gray-50 rounded-xl p-4 mb-5 border border-gray-100 text-left space-y-2">
+                        <div>
                             <p class="text-[10px] uppercase font-bold text-gray-400">Waktu Absen</p>
                             <p id="receiptWaktu" class="text-sm font-bold text-gray-800">-</p>
                         </div>
-                        <div class="mb-2">
+                        <div>
                             <p class="text-[10px] uppercase font-bold text-gray-400">Nama Pegawai</p>
                             <p id="receiptNama" class="text-sm font-bold text-gray-800">-</p>
                         </div>
@@ -233,337 +406,480 @@
                             <p id="receiptNip" class="text-sm font-bold text-gray-800">-</p>
                         </div>
                     </div>
-                    
-                    <div class="mb-4">
-                        <p class="text-xs font-bold text-red-600 mb-3 uppercase tracking-wide border-b border-dashed border-red-200 pb-2">Mohon Lakukan Screenshot (Tangkapan Layar) QR Code di Bawah Sebagai Bukti Cadangan Anda</p>
-                        <div id="receiptQr" class="bg-white p-3 inline-block rounded-xl border border-gray-200 shadow-sm mx-auto"></div>
+                    <div class="mb-5">
+                        <p
+                            class="text-xs font-bold text-red-600 mb-3 uppercase tracking-wide border-b border-dashed border-red-200 pb-2">
+                            Screenshot QR Code ini sebagai bukti cadangan Anda</p>
+                        <div id="receiptQr"
+                            class="bg-white p-3 inline-block rounded-xl border border-gray-200 shadow-sm mx-auto"></div>
                     </div>
-                    
-                    <button type="button" onclick="selesaiAbsensi()" class="w-full mt-2 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 font-bold py-3.5 rounded-xl transition-all shadow-sm">
-                        Selesai & Kembali
+                    <button type="button" onclick="selesaiAbsensi()"
+                        class="w-full bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 font-bold py-3.5 rounded-xl transition-all shadow-sm">
+                        <i class="bi bi-arrow-repeat mr-1"></i> Selesai &amp; Absen Lagi
                     </button>
                 </div>
             </div>
+
         </div>
 
         <div class="px-5 text-center text-xs text-gray-400 mt-4 pb-4 border-t border-gray-200 pt-5">
             <p class="font-bold text-gray-500 uppercase">Pemerintah Kota Pariaman</p>
             <p>Dikembangkan oleh BKPSDM Kota Pariaman</p>
-            <p class="mt-2">BAIS Pariaman &copy; 2026</p>
+            <p class="mt-1">BAIS Pariaman &copy; 2026</p>
         </div>
     </div>
 
     <script>
         // =========================================================================
-        // PENTING: Ganti URL di bawah ini dengan URL Web App dari Google Apps Script Anda
+        // KONFIGURASI HYBRID — DUAL HOST
+        // [MODE 1] Server sendiri → SCRIPT_URL ke GAS eksternal
+        // [MODE 2] Dihosting dari GAS → SCRIPT_URL = URL halaman itu sendiri
+        // Deploy ke GAS: salin file ini ke 'index.html' di editor Apps Script
         // =========================================================================
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNTJlk-53sKqyF1Sy2RR2zqkOitDKvBSAA2ZD6fKDcfpKKqMrj4BacioA60aLtx-N82w/exec";
-        
+        const GAS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNTJlk-53sKqyF1Sy2RR2zqkOitDKvBSAA2ZD6fKDcfpKKqMrj4BacioA60aLtx-N82w/exec";
+        let SCRIPT_URL = GAS_SCRIPT_URL;
+
+        // Konfigurasi URL API Eksternal (Worker / Server PHP)
+        const IS_BETA = false; // Ubah ke true saat testing di environment beta
+        const API_WORKER_URL = IS_BETA ? "https://absensi-kegiatan-asn-worker-dev.bidpp-bkpsdm.workers.dev" : "https://absensi-kegiatan-asn-worker.bidpp-bkpsdm.workers.dev"; // Sesuaikan URL
+        const API_PHP_URL = IS_BETA ? "https://api-esdm.pariamankota.go.id/beta-bais-pariaman/api" : "https://bais-balad.pariamankota.go.id/api"; // Sesuaikan URL
+
+        // Deteksi dinamis jika halaman dibuka dari URL GAS (/dev atau /exec)
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+            google.script.run.withSuccessHandler(function (url) {
+                if (url) SCRIPT_URL = url;
+            }).getScriptUrl();
+        }
+
+        // =========================================================================
+        // STATE SESI LOGIN
+        // =========================================================================
+        let sesiPegawai = null; // { nip, nama, jabatan, opd, token }
         let videoStream = null;
-        let opdSelectInstance = null;
+        let kameraDevices = [];
+        let currentDeviceId = null;
 
+        // =========================================================================
+        // INIT
+        // =========================================================================
         window.onload = () => {
-            opdSelectInstance = new TomSelect("#inpOpd", {
-                create: false,
-                valueField: 'value',
-                labelField: 'text',
-                searchField: 'text',
-                placeholder: 'Memuat data OPD dari server...',
-                sortField: { field: "text", direction: "asc" }
-            });
-
-            deteksiLokasi();
-            loadOpdList();
-
-            // Toggle textarea untuk opsi Lainnya
+            tampilkanViewLogin();
             document.querySelectorAll('input[name="inpKeterangan"]').forEach(radio => {
-                radio.addEventListener('change', function() {
-                    const boxLainnya = document.getElementById('boxKeteranganLainnya');
-                    if (this.value === 'Lainnya') {
-                        boxLainnya.classList.remove('hidden-view');
-                    } else {
-                        boxLainnya.classList.add('hidden-view');
-                    }
+                radio.addEventListener('change', function () {
+                    document.getElementById('boxKeteranganLainnya').classList.toggle('hidden-view', this.value !== 'Lainnya');
                 });
             });
         };
 
-        function showLoading(show, text="Memproses...") { 
-            const overlay = document.getElementById('loadingOverlay');
-            if(show) {
-                document.getElementById('loadingText').innerText = text;
-                overlay.classList.remove('hidden');
-                overlay.classList.add('flex');
-            } else {
-                overlay.classList.add('hidden');
-                overlay.classList.remove('flex');
-            }
+        // =========================================================================
+        // LOADING
+        // =========================================================================
+        function showLoading(show, text = "Memproses...") {
+            const o = document.getElementById('loadingOverlay');
+            document.getElementById('loadingText').innerText = text;
+            o.classList.toggle('hidden', !show);
+            o.classList.toggle('flex', show);
         }
 
-        async function loadOpdList() {
-            if (SCRIPT_URL.includes("MASUKKAN_URL")) return; // Cegah error jika URL belum diisi
-            
+        // =========================================================================
+        // NAVIGASI
+        // =========================================================================
+        function tampilkanViewLogin() {
+            document.getElementById('viewLogin').classList.remove('hidden-view');
+            document.getElementById('viewAbsen').classList.add('hidden-view');
+            document.getElementById('receiptView').classList.add('hidden-view');
+            window.scrollTo(0, 0);
+        }
+
+        function tampilkanViewAbsen() {
+            document.getElementById('viewLogin').classList.add('hidden-view');
+            document.getElementById('viewAbsen').classList.remove('hidden-view');
+            document.getElementById('receiptView').classList.add('hidden-view');
+            document.getElementById('displayNama').innerText = sesiPegawai.nama || '-';
+            document.getElementById('displayNip').innerText = sesiPegawai.nip || '-';
+            document.getElementById('displayJabatan').innerText = sesiPegawai.jabatan || '-';
+            document.getElementById('displayOpd').innerText = sesiPegawai.opd || '-';
+            deteksiLokasi();
+            window.scrollTo(0, 0);
+        }
+
+        function logout() {
+            sesiPegawai = null;
+            if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
+            document.getElementById('loginNip').value = '';
+            document.getElementById('loginNik').value = '';
+            tampilkanViewLogin();
+        }
+
+        // =========================================================================
+        // TOGGLE NIK VISIBILITY
+        // =========================================================================
+        function toggleNikVisibility() {
+            const inp = document.getElementById('loginNik');
+            const icon = document.getElementById('nikEyeIcon');
+            if (inp.type === 'password') { inp.type = 'text'; icon.className = 'bi bi-eye-slash'; }
+            else { inp.type = 'password'; icon.className = 'bi bi-eye'; }
+        }
+
+        // =========================================================================
+        // PROSES LOGIN
+        // =========================================================================
+        async function prosesLogin() {
+            const nip = document.getElementById('loginNip').value.trim();
+            const nik = document.getElementById('loginNik').value.trim();
+            if (nip.length !== 18) { Swal.fire('Peringatan', 'NIP harus tepat terdiri dari 18 digit angka.', 'warning'); return; }
+            if (nik.length !== 16) { Swal.fire('Peringatan', 'NIK harus tepat terdiri dari 16 digit angka.', 'warning'); return; }
+
+            showLoading(true, 'Memverifikasi data...');
             try {
-                // Memanggil endpoint GET yang sudah dibuat di Code.gs
-                const response = await fetch(SCRIPT_URL + "?action=getOpd");
+                const urlTarget = SCRIPT_URL + "?action=loginAsn&_t=" + Date.now();
+                const response = await fetch(urlTarget, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'loginAsn', nip, nik })
+                });
                 const res = await response.json();
-                
-                if (res.status && res.data.length > 0) {
-                    const options = res.data.map(opd => ({ value: opd, text: opd }));
-                    opdSelectInstance.addOptions(options);
-                    opdSelectInstance.settings.placeholder = "Ketik atau pilih perangkat daerah...";
-                    opdSelectInstance.inputState(); 
+                showLoading(false);
+
+                if (res.status && res.data) {
+                    const user = res.data.user || {};
+                    const pCache = res.data.pegawai_to_cache || {};
+                    sesiPegawai = {
+                        nip: pCache.nip || nip,
+                        nama: user.nama || '-',
+                        jabatan: user.jabatan || '-',
+                        opd: user.opd || '-',
+                        token: res.data.token
+                    };
+                    tampilkanViewAbsen();
+                } else {
+                    Swal.fire('Login Gagal', res.message || 'NIP atau NIK tidak ditemukan.', 'error');
                 }
-            } catch (error) {
-                console.error("Gagal load OPD:", error);
-                opdSelectInstance.settings.placeholder = "Gagal memuat daftar OPD (Cek Koneksi)";
-                opdSelectInstance.inputState();
+            } catch (err) {
+                showLoading(false);
+                Swal.fire('Error Koneksi', 'Gagal terhubung ke server. Periksa koneksi internet Anda.', 'error');
+                console.error('Login error:', err);
             }
         }
 
+        // =========================================================================
+        // GPS LOKASI
+        // =========================================================================
         async function getAlamatFromKoordinat(lat, lng) {
             try {
-                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
-                if (!response.ok) return `${lat}, ${lng}`;
-                const data = await response.json();
-                return data.display_name || `${lat}, ${lng}`;
-            } catch (error) {
-                return `${lat}, ${lng}`;
-            }
+                const r = await fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=" + lat + "&lon=" + lng + "&_t=" + Date.now());
+                if (!r.ok) return lat + ", " + lng;
+                const d = await r.json();
+                return d.display_name || (lat + ", " + lng);
+            } catch { return lat + ", " + lng; }
         }
 
         function deteksiLokasi() {
-            const stGeoLoading = document.getElementById('statusGeoLoading');
+            const stLoading = document.getElementById('statusGeoLoading');
             const stGeo = document.getElementById('statusGeo');
             const boxGagal = document.getElementById('boxLokasiGagal');
-            
-            stGeoLoading.classList.remove('hidden-view');
+            const formUtama = document.getElementById('formUtama');
+
+            stLoading.classList.remove('hidden-view');
             stGeo.classList.add('hidden-view');
             boxGagal.classList.add('hidden-view');
-            document.getElementById('formUtama').classList.add('hidden-view');
-            
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-            }
+            formUtama.classList.add('hidden-view');
+            if (videoStream) videoStream.getTracks().forEach(t => t.stop());
 
-            if (!navigator.geolocation) {
-                stGeoLoading.classList.add('hidden-view');
-                boxGagal.classList.remove('hidden-view');
-                return;
-            }
+            if (!navigator.geolocation) { stLoading.classList.add('hidden-view'); boxGagal.classList.remove('hidden-view'); return; }
 
             navigator.geolocation.getCurrentPosition(async (pos) => {
-                stGeoLoading.classList.add('hidden-view');
+                stLoading.classList.add('hidden-view');
                 stGeo.classList.remove('hidden-view');
-                
-                const rLat = pos.coords.latitude;
-                const rLng = pos.coords.longitude;
+                const rLat = pos.coords.latitude, rLng = pos.coords.longitude;
                 document.getElementById('lat').value = rLat;
                 document.getElementById('lng').value = rLng;
-                
-                stGeo.innerHTML = `<span class="inline-block animate-spin mr-1">↻</span> Menerjemahkan alamat...`;
-                stGeo.className = "bg-blue-50 text-blue-700 py-3 px-4 rounded-xl text-xs font-bold border border-blue-200 shadow-sm text-center mb-5";
-                
+                stGeo.innerHTML = "<span class='inline-block animate-spin mr-1'>&#8635;</span> Menerjemahkan alamat...";
+                stGeo.className = "bg-blue-50 text-blue-700 py-3 px-4 rounded-xl text-xs font-bold border border-blue-200 shadow-sm text-center mb-4";
                 const alamat = await getAlamatFromKoordinat(rLat, rLng);
                 document.getElementById('lokasi').value = alamat;
-                
-                stGeo.className = "bg-green-50 text-green-700 py-3 px-4 rounded-xl text-xs font-bold border border-green-200 shadow-sm text-center mb-5";
-                stGeo.innerHTML = `<i class="bi bi-geo-alt-fill"></i> Lokasi Terdeteksi.<br><small class="font-normal mt-1 block leading-tight">${alamat}</small>`;
-                
-                tampilkanForm();
-            }, (err) => {
-                stGeoLoading.classList.add('hidden-view');
+                stGeo.className = "bg-green-50 text-green-700 py-3 px-4 rounded-xl text-xs font-bold border border-green-200 shadow-sm text-center mb-4";
+                stGeo.innerHTML = "<i class='bi bi-geo-alt-fill'></i> Lokasi Terdeteksi.<br><small class='font-normal mt-1 block leading-tight'>" + alamat + "</small>";
+                tampilkanFormKodeAkses();
+            }, () => {
+                stLoading.classList.add('hidden-view');
                 boxGagal.classList.remove('hidden-view');
             }, { enableHighAccuracy: true, timeout: 10000 });
         }
 
         function lanjutTanpaLokasi() {
             document.getElementById('boxLokasiGagal').classList.add('hidden-view');
-            
             document.getElementById('lat').value = '0';
             document.getElementById('lng').value = '0';
             document.getElementById('lokasi').value = 'Lokasi GPS tidak terdeteksi';
-            
             const stGeo = document.getElementById('statusGeo');
             stGeo.classList.remove('hidden-view');
-            stGeo.className = "bg-yellow-50 text-yellow-700 py-3 px-4 rounded-xl text-xs font-bold border border-yellow-200 shadow-sm text-center mb-5";
-            stGeo.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> Lokasi Tidak Valid.<br><small class="font-normal mt-1 block">Melanjutkan absensi tanpa data lokasi.</small>`;
-            
-            tampilkanForm();
+            stGeo.className = "bg-yellow-50 text-yellow-700 py-3 px-4 rounded-xl text-xs font-bold border border-yellow-200 shadow-sm text-center mb-4";
+            stGeo.innerHTML = "<i class='bi bi-exclamation-triangle-fill'></i> Lokasi Tidak Valid.<br><small class='font-normal mt-1 block'>Melanjutkan absensi tanpa data lokasi.</small>";
+            tampilkanFormKodeAkses();
         }
 
-        function tampilkanForm() {
-            const formUtama = document.getElementById('formUtama');
-            formUtama.classList.remove('hidden-view');
-            formUtama.classList.add('fade-in');
+        function tampilkanFormKodeAkses() {
+            const f = document.getElementById('formKodeAkses');
+            f.classList.remove('hidden-view');
+            f.classList.add('fade-in');
+        }
+
+        function tampilkanFormUtama() {
+            const f = document.getElementById('formUtama');
+            const fKode = document.getElementById('formKodeAkses');
+            fKode.classList.add('hidden-view');
+            f.classList.remove('hidden-view');
+            f.classList.add('fade-in');
             mulaiKameraSelfie();
         }
 
-        async function mulaiKameraSelfie() {
-            const v = document.getElementById('kamera');
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
+        async function cekKodeAkses() {
+            const kode = document.getElementById('inpKode').value.trim().toUpperCase();
+            if (!kode) {
+                Swal.fire("Peringatan", "Kode akses wajib diisi.", "warning");
+                return;
             }
 
-            const constraints = { audio: false, video: { facingMode: "user" } };
+            showLoading(true, "Memvalidasi Kode...");
+            let isError500 = false;
+            let response = null;
+            const headers = { 'Authorization': `Bearer ${sesiPegawai.token}` };
+
+            // 1. Coba panggil Worker
+            try {
+                // Perhatikan: Worker menggunakan rute /api/jadwal-by-kode/:kode
+                response = await fetch(`${API_WORKER_URL}/api/jadwal-by-kode/${kode}`, { headers });
+                if (response.status >= 500) throw new Error("Worker 500");
+            } catch (errWorker) {
+                // 2. Fallback ke Server PHP
+                try {
+                    // Server PHP menggunakan rute /jadwal/:kode (di-append ke API_PHP_URL)
+                    response = await fetch(`${API_PHP_URL}/jadwal/${kode}`, { headers });
+                    if (response.status >= 500) throw new Error("PHP 500");
+                } catch (errPhp) {
+                    isError500 = true;
+                }
+            }
+            showLoading(false);
+
+            if (isError500) {
+                // Server PHP dan Worker down, biarkan user ambil absen darurat
+                document.getElementById('boxDetailKegiatan').classList.add('hidden-view');
+                tampilkanFormUtama();
+                return;
+            }
+
+            // Membaca response
+            const resData = await response.json().catch(() => null);
+
+            if (response.ok && resData && resData.status) {
+                // Berhasil
+                const jadwal = resData.data || {};
+                document.getElementById('detJudul').innerText = jadwal.judul || 'Kegiatan';
+                document.getElementById('detWaktu').innerText = (jadwal.jam_mulai ? jadwal.jam_mulai.substring(0, 5) : '-') + ' - ' + (jadwal.jam_selesai ? jadwal.jam_selesai.substring(0, 5) : '-');
+                document.getElementById('boxDetailKegiatan').classList.remove('hidden-view');
+                tampilkanFormUtama();
+            } else {
+                // Kode salah / Ditolak (404, 403, 400)
+                const msg = resData && resData.message ? resData.message : "Kode akses tidak valid atau tidak ditemukan.";
+                Swal.fire("Akses Ditolak", msg, "error");
+            }
+        }
+
+        // =========================================================================
+        // KAMERA
+        // =========================================================================
+        async function muatDaftarKamera() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                kameraDevices = devices.filter(d => d.kind === 'videoinput');
+                const sel = document.getElementById('pilihanKamera');
+                sel.innerHTML = '';
+                if (kameraDevices.length > 1) {
+                    document.getElementById('boxKameraPilihan').classList.remove('hidden-view');
+                    kameraDevices.forEach((cam, i) => {
+                        const opt = document.createElement('option');
+                        opt.value = cam.deviceId;
+                        opt.text = cam.label || ("Kamera " + (i + 1));
+                        if (cam.deviceId === currentDeviceId) opt.selected = true;
+                        sel.appendChild(opt);
+                    });
+                    if (!currentDeviceId && sel.options.length > 0) {
+                        currentDeviceId = sel.value;
+                    }
+                } else {
+                    document.getElementById('boxKameraPilihan').classList.add('hidden-view');
+                }
+            } catch (err) {
+                console.error("Gagal muat kamera", err);
+            }
+        }
+
+        async function gantiKamera() {
+            const sel = document.getElementById('pilihanKamera');
+            currentDeviceId = sel.value;
+            mulaiKameraSelfie(currentDeviceId);
+        }
+
+        async function mulaiKameraSelfie(deviceId = null) {
+            const v = document.getElementById('kamera');
+            const errBox = document.getElementById('boxErrorKamera');
+            const btnJepret = document.getElementById('btnJepret');
+
+            errBox.classList.add('hidden-view');
+            v.classList.remove('hidden-view');
+            btnJepret.classList.remove('hidden-view');
+
+            if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+
+            let constraints = { audio: false, video: { facingMode: "user" } };
+            if (deviceId && typeof deviceId === 'string') {
+                constraints.video = { deviceId: { exact: deviceId } };
+            }
 
             try {
                 videoStream = await navigator.mediaDevices.getUserMedia(constraints);
                 v.srcObject = videoStream;
+                await muatDaftarKamera();
             } catch (e) {
-                Swal.fire("Error Kamera", "Tidak dapat mengakses kamera. Pastikan Anda telah memberikan izin.", "error");
+                v.classList.add('hidden-view');
+                btnJepret.classList.add('hidden-view');
+                errBox.classList.remove('hidden-view');
+                document.getElementById('boxKameraPilihan').classList.add('hidden-view');
+
+                let errorMsg = "Tidak dapat mengakses kamera.";
+                if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+                    errorMsg = "Akses kamera ditolak oleh browser. Silakan periksa pengaturan izin kamera di icon gembok pada URL address bar browser Anda, ubah menjadi 'Allow', lalu refresh halaman.";
+                } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
+                    errorMsg = "Kamera tidak ditemukan di perangkat Anda.";
+                } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
+                    errorMsg = "Kamera sedang digunakan oleh aplikasi lain.";
+                }
+
+                const errDetail = document.getElementById('boxErrorKamera').querySelector('p:nth-of-type(2)');
+                if (errDetail) errDetail.innerText = errorMsg;
+
+                Swal.fire("Error Kamera", errorMsg, "error");
             }
         }
 
-        function ambilFoto() { 
-            const v = document.getElementById('kamera'); 
+        function ambilFoto() {
+            const v = document.getElementById('kamera');
             const canv = document.createElement('canvas');
-            
-            canv.width = 320; 
-            canv.height = (v.videoHeight / v.videoWidth) * canv.width; 
-            canv.getContext('2d').drawImage(v, 0, 0, canv.width, canv.height); 
-            
-            const b64 = canv.toDataURL('image/jpeg', 0.6); 
-            
-            document.getElementById('fotoBase64').value = b64; 
-            document.getElementById('hasilFoto').src = b64; 
-            
-            v.classList.add('hidden-view'); 
-            document.getElementById('hasilFoto').classList.remove('hidden-view'); 
-            document.getElementById('btnJepret').classList.add('hidden-view'); 
-            document.getElementById('btnUlang').classList.remove('hidden-view'); 
+            canv.width = 320; canv.height = (v.videoHeight / v.videoWidth) * canv.width;
+            canv.getContext('2d').drawImage(v, 0, 0, canv.width, canv.height);
+            const b64 = canv.toDataURL('image/jpeg', 0.65);
+            document.getElementById('fotoBase64').value = b64;
+            document.getElementById('hasilFoto').src = b64;
+            document.getElementById('kamera').classList.add('hidden-view');
+            document.getElementById('hasilFoto').classList.remove('hidden-view');
+            document.getElementById('btnJepret').classList.add('hidden-view');
+            document.getElementById('btnUlang').classList.remove('hidden-view');
         }
 
-        function ulangFoto() { 
-            document.getElementById('fotoBase64').value = ""; 
-            document.getElementById('hasilFoto').classList.add('hidden-view'); 
-            document.getElementById('kamera').classList.remove('hidden-view'); 
-            document.getElementById('btnJepret').classList.remove('hidden-view'); 
-            document.getElementById('btnUlang').classList.add('hidden-view'); 
+        function ulangFoto() {
+            document.getElementById('fotoBase64').value = '';
+            document.getElementById('hasilFoto').classList.add('hidden-view');
+            document.getElementById('kamera').classList.remove('hidden-view');
+            document.getElementById('btnJepret').classList.remove('hidden-view');
+            document.getElementById('btnUlang').classList.add('hidden-view');
         }
 
+        // =========================================================================
+        // KIRIM ABSEN — identitas dari sesiPegawai, BUKAN dari form input
+        // =========================================================================
         async function kirimData(event) {
             event.preventDefault();
 
-            if (SCRIPT_URL.includes("MASUKKAN_URL")) {
-                Swal.fire('Error Konfigurasi', 'Anda belum memasukkan SCRIPT_URL Google Apps Script di dalam kode HTML.', 'error');
-                return;
-            }
+            if (!sesiPegawai) { Swal.fire('Sesi Berakhir', 'Silakan login kembali.', 'warning'); logout(); return; }
 
-            const inputNip = document.getElementById('inpNip').value.trim();
-            if (inputNip.length !== 18) {
-                Swal.fire('Peringatan', 'NIP harus tepat terdiri dari 18 digit angka.', 'warning');
-                return;
-            }
-            
-            // Validasi Radio Button Alasan Absen
+            const kode = document.getElementById('inpKode').value.trim();
+            if (!kode) { Swal.fire('Peringatan', 'Kode akses kegiatan wajib diisi.', 'warning'); return; }
+
             const keteranganDipilih = document.querySelector('input[name="inpKeterangan"]:checked');
-            if (!keteranganDipilih) {
-                Swal.fire('Peringatan', 'Mohon pilih alasan kendala Anda terlebih dahulu.', 'warning');
-                return;
-            }
+            if (!keteranganDipilih) { Swal.fire('Peringatan', 'Mohon pilih alasan kendala Anda terlebih dahulu.', 'warning'); return; }
 
             let nilaiKeterangan = keteranganDipilih.value;
             if (nilaiKeterangan === 'Lainnya') {
                 nilaiKeterangan = document.getElementById('inpKeteranganLainnya').value.trim();
-                if (!nilaiKeterangan) {
-                    Swal.fire('Peringatan', 'Mohon isi keterangan kendala Anda pada kolom Lainnya.', 'warning');
-                    return;
-                }
+                if (!nilaiKeterangan) { Swal.fire('Peringatan', 'Mohon isi keterangan kendala pada kolom Lainnya.', 'warning'); return; }
             }
 
             const fotoData = document.getElementById('fotoBase64').value;
-            if (!fotoData) {
-                Swal.fire('Peringatan', 'Anda harus mengambil swafoto (selfie) terlebih dahulu!', 'warning');
-                return;
-            }
+            if (!fotoData) { Swal.fire('Peringatan', 'Anda harus mengambil swafoto (selfie) terlebih dahulu!', 'warning'); return; }
 
-            // --- GENERATE KEAMANAN CLIENT-SIDE ---
-            const ts = Date.now().toString(); 
-            // _token di-generate di client menggunakan kata rahasia
-            const tokenKeamanan = btoa(ts + "_BAIS_BALAD_SECRET_KEY_2026");
+            const ts = Date.now().toString();
+            const tokenKeamanan = btoa(ts + "_BAIS_PARIAMAN_SECRET_KEY_2026");
 
+            // Identitas dari sesiPegawai (hasil login), bukan input manual
             const payload = {
-                kode: document.getElementById('inpKode').value.trim(),
-                nip: inputNip,
-                nama: document.getElementById('inpNama').value.trim(),
-                jabatan: document.getElementById('inpJabatan').value.trim(),
-                opd: document.getElementById('inpOpd').value,
-                keterangan: nilaiKeterangan, // Mengambil nilai dari radio button atau input manual
+                kode: kode,
+                nip: sesiPegawai.nip,
+                nama: sesiPegawai.nama,
+                jabatan: sesiPegawai.jabatan,
+                opd: sesiPegawai.opd,
+                keterangan: nilaiKeterangan,
                 lat: document.getElementById('lat').value,
                 lng: document.getElementById('lng').value,
                 lokasi: document.getElementById('lokasi').value,
                 fotoData: fotoData,
-                _ts: ts,               // Dikirim ke backend
-                _token: tokenKeamanan  // Dikirim ke backend
+                _ts: ts,
+                _token: tokenKeamanan
             };
 
             showLoading(true, "Mengunggah Data...");
-
             try {
-                const response = await fetch(SCRIPT_URL, {
+                const urlTarget = SCRIPT_URL + "?action=submitAbsen&_t=" + Date.now();
+                const response = await fetch(urlTarget, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(payload)
                 });
-                
                 const res = await response.json();
-                
                 showLoading(false);
+
                 if (res.status) {
                     const dataRes = res.data || {};
-                    
-                    // Isi data struk
-                    document.getElementById('receiptWaktu').innerText = dataRes.waktu || new Date().toLocaleString();
-                    document.getElementById('receiptNama').innerText = dataRes.nama || document.getElementById('inpNama').value;
-                    document.getElementById('receiptNip').innerText = dataRes.nip || inputNip;
-                    
-                    // Generate QR
+                    document.getElementById('receiptWaktu').innerText = dataRes.waktu || new Date().toLocaleString('id-ID');
+                    document.getElementById('receiptNama').innerText = dataRes.nama || sesiPegawai.nama;
+                    document.getElementById('receiptNip').innerText = dataRes.nip || sesiPegawai.nip;
+
                     const qrContainer = document.getElementById('receiptQr');
                     qrContainer.innerHTML = '';
                     if (dataRes.fileUrl) {
-                        new QRCode(qrContainer, {
-                            text: dataRes.fileUrl,
-                            width: 150,
-                            height: 150,
-                            colorDark : "#000000",
-                            colorLight : "#ffffff",
-                            correctLevel : QRCode.CorrectLevel.L
-                        });
+                        new QRCode(qrContainer, { text: dataRes.fileUrl, width: 160, height: 160, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.L });
                     } else {
-                        qrContainer.innerHTML = '<span class="text-xs text-red-500">QR Gagal Dimuat</span>';
+                        qrContainer.innerHTML = '<span class="text-xs text-red-500">QR tidak tersedia</span>';
                     }
-                    
-                    // Tampilkan Struk
-                    document.getElementById('formAbsenCadangan').classList.add('hidden-view');
-                    document.getElementById('receiptView').classList.remove('hidden-view');
-                    window.scrollTo(0,0);
 
+                    document.getElementById('viewAbsen').classList.add('hidden-view');
+                    document.getElementById('receiptView').classList.remove('hidden-view');
+                    window.scrollTo(0, 0);
                 } else {
-                    Swal.fire('Gagal', res.message, 'error');
+                    Swal.fire('Gagal', res.message || 'Terjadi kesalahan. Coba lagi.', 'error');
                 }
-            } catch (error) {
+            } catch (err) {
                 showLoading(false);
-                Swal.fire('Error Koneksi', 'Gagal terhubung ke server. Pastikan URL Script benar atau coba lagi.', 'error');
-                console.error("Fetch Error:", error);
+                Swal.fire('Error Koneksi', 'Gagal terhubung ke server. Periksa koneksi internet Anda.', 'error');
+                console.error("Fetch Error:", err);
             }
         }
 
+        // =========================================================================
+        // SELESAI — kembali ke form absen, sesi TETAP aktif (tidak login ulang)
+        // =========================================================================
         function selesaiAbsensi() {
             document.getElementById('receiptView').classList.add('hidden-view');
             document.getElementById('formAbsenCadangan').reset();
             document.getElementById('boxKeteranganLainnya').classList.add('hidden-view');
-            if(document.getElementById('inpOpd').tomselect) {
-                document.getElementById('inpOpd').tomselect.clear();
-            }
             ulangFoto();
-            
-            // Sembunyikan form utama karena kondisi awal form hanya menampilkan loading/tombol Lanjut Lokasi
-            document.getElementById('formUtama').classList.add('hidden-view'); 
+            document.getElementById('viewAbsen').classList.remove('hidden-view');
+            document.getElementById('formUtama').classList.add('hidden-view');
             deteksiLokasi();
-            
-            document.getElementById('formAbsenCadangan').classList.remove('hidden-view');
-            window.scrollTo(0,0);
+            window.scrollTo(0, 0);
         }
     </script>
 </body>
+
 </html>

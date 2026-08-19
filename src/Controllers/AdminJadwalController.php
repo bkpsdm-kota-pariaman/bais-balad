@@ -99,7 +99,7 @@ class AdminJadwalController {
         
         $payload = [
             'iat' => $issuedAt, 'exp' => $expirationTime,
-            'iss' => 'bais-balad-apps-jadwal',
+            'iss' => 'bais-pariaman-apps-jadwal',
             'data' => $jadwal
         ];
         $jwtToken = JWT::encode($payload, $secretKey, 'HS256');
@@ -140,7 +140,9 @@ class AdminJadwalController {
             'jam_selesai' => $input['jam_selesai'],
             'koordinat' => $input['koordinat'],
             'radius_meter' => $input['radius_meter'],
-            'aktifkan_antrian' => $aktifkan_antrian,
+            'aktifkan_antrian' => $input['aktifkan_antrian'],
+            'is_strict_time' => $input['is_strict_time'] ?? 0,
+            'is_strict_location' => $input['is_strict_location'] ?? 0,
             'target_opd' => $input['target_opd'] ?? []
         ];
         $syncSuccess = $this->syncJadwalToKv('POST', $payloadForKv, null, true); // Blocking call
@@ -149,7 +151,7 @@ class AdminJadwalController {
         try {
             $db->beginTransaction();
 
-            $sqlJadwal = "INSERT INTO app_absensi_jadwal_kegiatan (kode_akses, judul, kategori, tanggal, jam_mulai, jam_selesai, koordinat, radius_meter, is_strict_location, is_strict_time, aktifkan_antrian, kv_sync_status) VALUES (:ka, :jd, :kat, :tgl, :jm, :js, :koord, :rad, :isl, :ist, :aa, :kv_sync_status)";
+            $sqlJadwal = "INSERT INTO app_absensi_jadwal_kegiatan (kode_akses, judul, kategori, tanggal, jam_mulai, jam_selesai, koordinat, radius_meter, aktifkan_antrian, kv_sync_status, is_strict_time, is_strict_location) VALUES (:ka, :jd, :kat, :tgl, :jm, :js, :koord, :rad, :aa, :kv_sync_status, :ist, :isl)";
             $stmtJadwal = $db->prepare($sqlJadwal);
             $stmtJadwal->execute([
                 ':ka' => $kodeAkses,
@@ -160,10 +162,10 @@ class AdminJadwalController {
                 ':js' => $input['jam_selesai'],
                 ':koord' => $input['koordinat'],
                 ':rad' => $input['radius_meter'],
-                ':isl' => isset($input['is_strict_location']) ? (int)$input['is_strict_location'] : 0,
-                ':ist' => isset($input['is_strict_time']) ? (int)$input['is_strict_time'] : 0,
                 ':aa' => isset($input['aktifkan_antrian']) ? (int)$input['aktifkan_antrian'] : 0,
-                ':kv_sync_status' => $kv_sync_status
+                ':kv_sync_status' => $kv_sync_status,
+                ':ist' => $input['is_strict_time'] ?? 0,
+                ':isl' => $input['is_strict_location'] ?? 0
             ]);
 
             // Tabel app_absensi_kegiatan_target_opd tidak lagi digunakan
@@ -209,23 +211,8 @@ class AdminJadwalController {
         $input = json_decode(file_get_contents('php://input'), true);
         $db = Database::getConnection();
 
-        // --- LOGIKA BARU: Tentukan apakah antrian perlu diaktifkan ---
         $targetOpd = $input['target_opd'] ?? [];
-        // $employeeCount = 0;
-        // if (!empty($targetOpd)) {
-        //     // Jika target spesifik, hitung pegawai di OPD tersebut.
-        //     $placeholders = implode(',', array_fill(0, count($targetOpd), '?'));
-        //     $stmtCount = $db->prepare("SELECT COUNT(nip) FROM app_absensi_data_pegawai WHERE perangkat_daerah IN ($placeholders)");
-        //     $stmtCount->execute($targetOpd);
-        //     $employeeCount = (int) $stmtCount->fetchColumn();
-        // }
-        // Atur flag: aktifkan antrian jika pegawai > 300. Jika target kosong, employeeCount = 0, jadi antrian tidak aktif.
-        // $aktifkan_antrian = ($employeeCount > 300) ? 1 : 0;
-        // untuk sementara jadikan 1 saja
-        $aktifkan_antrian = 1;
-        // --- AKHIR LOGIKA BARU ---
 
-        // --- LOGIKA BARU: Lakukan sinkronisasi SEBELUM menulis ke DB ---
         $payloadForKv = [
             'kode_akses' => $kodeAkses,
             'judul' => $input['judul'],
@@ -235,9 +222,9 @@ class AdminJadwalController {
             'jam_selesai' => $input['jam_selesai'],
             'koordinat' => $input['koordinat'],
             'radius_meter' => $input['radius_meter'],
-            'is_strict_location' => $input['is_strict_location'] ?? 0,
-            'is_strict_time' => $input['is_strict_time'] ?? 0,
             'aktifkan_antrian' => $aktifkan_antrian,
+            'is_strict_time' => $input['is_strict_time'] ?? 0,
+            'is_strict_location' => $input['is_strict_location'] ?? 0,
             'target_opd' => $input['target_opd'] ?? []
         ];
         $syncSuccess = $this->syncJadwalToKv('PUT', $payloadForKv, $kodeAkses, true); // Blocking call
@@ -247,7 +234,7 @@ class AdminJadwalController {
             $db->beginTransaction();
 
             // 1. Update tabel jadwal utama
-            $sqlJadwal = "UPDATE app_absensi_jadwal_kegiatan SET judul=:jd, kategori=:kat, tanggal=:tgl, jam_mulai=:jm, jam_selesai=:js, koordinat=:koord, radius_meter=:rad, is_strict_location=:isl, is_strict_time=:ist, aktifkan_antrian=:aa, kv_sync_status = :kv_sync_status WHERE kode_akses = :ka";
+            $sqlJadwal = "UPDATE app_absensi_jadwal_kegiatan SET judul=:jd, kategori=:kat, tanggal=:tgl, jam_mulai=:jm, jam_selesai=:js, koordinat=:koord, radius_meter=:rad, aktifkan_antrian=:aa, is_strict_time=:ist, is_strict_location=:isl, kv_sync_status = :kv_sync_status WHERE kode_akses = :ka";
             $stmtJadwal = $db->prepare($sqlJadwal);
             $stmtJadwal->execute([
                 ':jd' => $input['judul'],
@@ -257,9 +244,9 @@ class AdminJadwalController {
                 ':js' => $input['jam_selesai'],
                 ':koord' => $input['koordinat'],
                 ':rad' => $input['radius_meter'],
-                ':isl' => isset($input['is_strict_location']) ? (int)$input['is_strict_location'] : 0,
-                ':ist' => isset($input['is_strict_time']) ? (int)$input['is_strict_time'] : 0,
                 ':aa' => isset($input['aktifkan_antrian']) ? (int)$input['aktifkan_antrian'] : 0,
+                ':ist' => $input['is_strict_time'] ?? 0,
+                ':isl' => $input['is_strict_location'] ?? 0,
                 ':kv_sync_status' => $kv_sync_status,
                 ':ka' => $kodeAkses
             ]);
@@ -370,8 +357,9 @@ class AdminJadwalController {
         }
 
         // 1. Ambil data jadwal terbaru dari DB untuk memastikan data di KV adalah yang paling mutakhir.
-        $stmtJadwal = $db->prepare("SELECT kode_akses, judul, kategori, tanggal, jam_mulai, jam_selesai, koordinat, radius_meter, is_strict_location, is_strict_time, aktifkan_antrian FROM app_absensi_jadwal_kegiatan WHERE kode_akses = :kode_akses");
-        $stmtJadwal->execute([':kode_akses' => $kodeAkses]);
+        $stmtJadwal = $db->prepare("SELECT kode_akses, judul, kategori, tanggal, jam_mulai, jam_selesai, koordinat, radius_meter, aktifkan_antrian, is_strict_time, is_strict_location FROM app_absensi_jadwal_kegiatan WHERE kode_akses = :kode_akses");
+        $stmtJadwal->bindParam(':kode_akses', $kodeAkses);
+        $stmtJadwal->execute();
         $jadwal = $stmtJadwal->fetch(PDO::FETCH_ASSOC);
 
         if (!$jadwal) {

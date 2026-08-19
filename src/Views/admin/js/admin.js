@@ -20,7 +20,7 @@ let paginasiState = { page: 1, limit: 10 };
 function resetPaginasi() {
     paginasiState.page = 1;
     paginasiState.limit = 10;
-    
+
     const containers = [
         'jadwalPagination', 'jadwalPaginationTop',
         'pegawaiPagination', 'pegawaiPaginationTop',
@@ -28,7 +28,7 @@ function resetPaginasi() {
         'rekapKeseluruhanPagination', 'rekapKeseluruhanPaginationTop',
         'statistikPagination', 'statistikPaginationTop'
     ];
-    
+
     containers.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('d-none');
@@ -38,7 +38,7 @@ function resetPaginasi() {
 function gantiPage(fitur, page, limit) {
     paginasiState.page = page;
     paginasiState.limit = limit;
-    
+
     switch (fitur) {
         case 'jadwal': loadJadwalKegiatan(true); break;
         case 'pegawai': loadPegawai(true); break;
@@ -50,20 +50,20 @@ function gantiPage(fitur, page, limit) {
 
 function renderPaginationControls(containerId, paginationData, onPageChangeName) {
     if (!paginationData) return;
-    
+
     const { current_page: currentPage, limit, total_pages: totalPages, total_rows: totalRows } = paginationData;
     const containerBottom = document.getElementById(containerId);
     const containerTop = document.getElementById(containerId + "Top");
-    
+
     if (!containerBottom) return;
 
     if (totalRows === 0) {
-        if(containerTop) containerTop.classList.add('d-none');
+        if (containerTop) containerTop.classList.add('d-none');
         containerBottom.classList.add('d-none');
         return;
     }
 
-    if(containerTop) containerTop.classList.remove('d-none');
+    if (containerTop) containerTop.classList.remove('d-none');
     containerBottom.classList.remove('d-none');
 
 
@@ -111,7 +111,7 @@ function renderPaginationControls(containerId, paginationData, onPageChangeName)
 
     let startPage = Math.max(1, currentPage - 2);
     let endPage = Math.min(totalPages, currentPage + 2);
-    
+
     if (startPage > 1) {
         htmlBottom += `
                 <li class="page-item">
@@ -149,7 +149,7 @@ function renderPaginationControls(containerId, paginationData, onPageChangeName)
             </ul>
         </nav>
     `;
-    
+
     if (containerTop) containerTop.innerHTML = htmlTop;
     containerBottom.innerHTML = htmlBottom;
 }
@@ -164,7 +164,6 @@ const modalTambahPeserta = new bootstrap.Modal(document.getElementById('modalTam
 const modalOpd = new bootstrap.Modal(document.getElementById('modalOpd'));
 const modalImportAbsen = new bootstrap.Modal(document.getElementById('modalImportAbsen'));
 
-/**
 function showAdminLoading(show, title = 'Memproses...') {
     if (show) {
         Swal.fire({
@@ -220,7 +219,7 @@ async function prosesLogin() {
             // Sembunyikan overlay login dan tampilkan konten admin
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('dashboardContainer').classList.remove('d-none');
-            document.getElementById('adminNavbar').classList.remove('d-none');
+            if(document.getElementById('adminNavbar')) document.getElementById('adminNavbar').classList.remove('d-none');
 
             // Di sini Anda bisa memanggil fungsi untuk memuat data awal dashboard, contoh:
             loadJadwalKegiatan();
@@ -267,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Jika token ada, anggap sudah login. Sembunyikan overlay.
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('dashboardContainer').classList.remove('d-none');
-        document.getElementById('adminNavbar').classList.remove('d-none');
+        if(document.getElementById('adminNavbar')) document.getElementById('adminNavbar').classList.remove('d-none');
         loadJadwalKegiatan();
     }
     // Jika tidak ada token, overlay login akan tampil secara default.
@@ -363,8 +362,8 @@ async function fetchWithAuth(url, options = {}) {
  */
 async function loadJadwalKegiatan(isFromPagination = false) {
     if (isFromPagination !== true) paginasiState.page = 1;
-    const pt = document.getElementById("jadwalPaginationTop"); if(pt) pt.classList.add("d-none");
-    const pb = document.getElementById("jadwalPagination"); if(pb) pb.classList.add("d-none");
+    const pt = document.getElementById("jadwalPaginationTop"); if (pt) pt.classList.add("d-none");
+    const pb = document.getElementById("jadwalPagination"); if (pb) pb.classList.add("d-none");
     const loading = document.getElementById('loading');
     const container = document.getElementById('dashboardContainer');
     loading.classList.remove('d-none');
@@ -400,28 +399,20 @@ function renderJadwalTable(jadwalList) {
     }
 
     jadwalList.forEach((jadwal, index) => {
-        let antrianBadge = '';
-        if (jadwal.aktifkan_antrian === '1') {
-            antrianBadge = '<span class="badge bg-danger mb-1 me-1">Antrian: Aktif</span>';
-        } else if (jadwal.aktifkan_antrian === '0') {
-            antrianBadge = '<span class="badge bg-secondary mb-1 me-1">Antrian: Non-Aktif</span>';
-        }
-
-        let strictLocationBadge = '';
+        let rulesBadges = [];
         if (jadwal.is_strict_location == 1) {
-            strictLocationBadge = '<span class="badge bg-danger mb-1 me-1" title="Tolak Absen Luar Lokasi"><i class="bi bi-geo-fill"></i> Strict Lokasi</span>';
-        } else {
-            strictLocationBadge = '<span class="badge bg-success mb-1 me-1" title="Bebas Lokasi"><i class="bi bi-geo"></i> Bebas Lokasi</span>';
+            rulesBadges.push('<span class="badge bg-warning text-dark mb-1 me-1"><i class="bi bi-geo-alt-fill"></i> Wajib di Lokasi</span>');
         }
-
-        let strictTimeBadge = '';
         if (jadwal.is_strict_time == 1) {
-            strictTimeBadge = '<span class="badge bg-primary mb-1" title="Tolak Absen Terlambat"><i class="bi bi-clock-fill"></i> Strict Waktu</span>';
-        } else {
-            strictTimeBadge = '<span class="badge bg-info mb-1" title="Bebas Waktu"><i class="bi bi-clock"></i> Bebas Waktu</span>';
+            rulesBadges.push('<span class="badge bg-info text-dark mb-1 me-1"><i class="bi bi-clock-fill"></i> Wajib Tepat Waktu</span>');
         }
-
-        let syncStatusHtml = '';
+        if (jadwal.aktifkan_antrian === '1') {
+            rulesBadges.push('<span class="badge bg-danger mb-1 me-1"><i class="bi bi-people-fill"></i> Antrian: Aktif</span>');
+        } else if (jadwal.aktifkan_antrian === '0') {
+            rulesBadges.push('<span class="badge bg-secondary mb-1 me-1"><i class="bi bi-people-fill"></i> Antrian: Non-Aktif</span>');
+        }
+        
+        let rulesHtml = rulesBadges.length > 0 ? `<div class="d-flex flex-column gap-1 align-items-center">${rulesBadges.join('')}</div>` : '<span class="text-muted small">-</span>';        let syncStatusHtml = '';
         if (jadwal.kv_sync_status == 1) {
             syncStatusHtml = `
                 <div class="d-flex flex-column align-items-center gap-1">
@@ -447,7 +438,7 @@ function renderJadwalTable(jadwalList) {
                 <td class="text-center"><span class="badge bg-info">${jadwal.kategori}</span></td>
                 <td>${jadwal.jam_mulai} - ${jadwal.jam_selesai} WIB</td>
                 <td class="text-center">
-                    ${antrianBadge || strictLocationBadge || strictTimeBadge ? `<div class="d-flex flex-column gap-1 align-items-center">${antrianBadge}${strictLocationBadge}${strictTimeBadge}</div>` : '<span class="text-muted small">-</span>'}
+                    ${rulesHtml}
                 </td>
                 <td class="text-center">${syncStatusHtml}</td>
                 <td class="text-center" style="min-width: 160px;">
@@ -533,9 +524,10 @@ async function submitKegiatanBaru(event) {
         jam_selesai: document.getElementById('newJamSelesai').value,
         koordinat: document.getElementById('geoLatLang').value || '-',
         radius_meter: document.getElementById('geoRadius').value || '100',
-        is_strict_location: document.getElementById('addStrictLocation').checked ? 1 : 0,
-        is_strict_time: document.getElementById('addStrictTime').checked ? 1 : 0,
+
         target_opd: opdState.add.selected,
+        is_strict_time: document.getElementById('addStrictTime').checked ? 1 : 0,
+        is_strict_location: document.getElementById('addStrictLocation').checked ? 1 : 0,
         aktifkan_antrian: document.getElementById('newAktifkanAntrian').value
     };
 
@@ -770,8 +762,10 @@ async function bukaModalEdit(kodeAkses) {
         document.getElementById('editJamSelesai').value = jadwal.jam_selesai;
         document.getElementById('editGeoLatLang').value = (jadwal.koordinat && jadwal.koordinat !== '-') ? jadwal.koordinat : '';
         document.getElementById('editGeoRadius').value = jadwal.radius_meter || '100';
-        document.getElementById('editStrictLocation').checked = (jadwal.is_strict_location == 1);
+
         document.getElementById('editStrictTime').checked = (jadwal.is_strict_time == 1);
+        document.getElementById('editStrictLocation').checked = (jadwal.is_strict_location == 1);
+
 
         // Sembunyikan dan atur nilai untuk pengaturan lanjutan
         document.getElementById('advancedSettingsEdit').classList.add('d-none');
@@ -808,9 +802,10 @@ async function submitEditKegiatan(event) {
         jam_selesai: document.getElementById('editJamSelesai').value,
         koordinat: document.getElementById('editGeoLatLang').value || '-',
         radius_meter: document.getElementById('editGeoRadius').value || '100',
-        is_strict_location: document.getElementById('editStrictLocation').checked ? 1 : 0,
-        is_strict_time: document.getElementById('editStrictTime').checked ? 1 : 0,
+
         target_opd: opdState.edit.selected,
+        is_strict_time: document.getElementById('editStrictTime').checked ? 1 : 0,
+        is_strict_location: document.getElementById('editStrictLocation').checked ? 1 : 0,
         aktifkan_antrian: document.getElementById('editAktifkanAntrian').value
     };
 
@@ -1104,7 +1099,7 @@ async function lihatRekap(kodeAkses) {
     document.getElementById('rekapPerOpdContainerModal').innerHTML = '';
 
     // Sembunyikan tombol download excel saat rekap baru dibuka
-    
+
 
     try {
         // Panggil API untuk mendapatkan info dasar jadwal dan list OPD untuk filter
@@ -1156,11 +1151,11 @@ function renderRekapSummary(summaryData, containerId) {
             <div class="progress" style="height: 20px;"><div class="progress-bar bg-danger" role="progressbar" style="width: ${opdPercentage}%;" aria-valuenow="${opdPercentage}">${opdPercentage > 0 ? opdPercentage + '%' : ''}</div></div>
             <div class="row gx-2 gy-1 small mt-2 text-center">
                 ${Object.entries(opd.statuses).map(([statusName, count]) => {
-                    let badgeClass = 'bg-primary-subtle';
-                    let textClass = 'text-primary-emphasis';
-                    if (statusName === 'Hadir') { badgeClass = 'bg-success-subtle'; textClass = 'text-success-emphasis'; }
-                    else if (statusName === 'Belum Absen' || statusName === 'Alpa') { badgeClass = 'bg-danger-subtle'; textClass = 'text-danger-emphasis'; }
-                    return `
+            let badgeClass = 'bg-primary-subtle';
+            let textClass = 'text-primary-emphasis';
+            if (statusName === 'Hadir') { badgeClass = 'bg-success-subtle'; textClass = 'text-success-emphasis'; }
+            else if (statusName === 'Belum Absen' || statusName === 'Alpa') { badgeClass = 'bg-danger-subtle'; textClass = 'text-danger-emphasis'; }
+            return `
                     <div class="col">
                         <div class="p-2 ${badgeClass} rounded h-100">
                             <div class="fw-bold fs-6">${count}</div>
@@ -1168,25 +1163,25 @@ function renderRekapSummary(summaryData, containerId) {
                         </div>
                     </div>
                     `;
-                }).join('')}
+        }).join('')}
             </div>
         </div>
     `}).join('');
 
     const totalHadir = (overallSummary.statuses['Hadir'] || 0);
     const percentage = overallSummary.total_target > 0 ? Math.round((totalHadir / overallSummary.total_target) * 100) : 0;
-    
+
     const summaryHeader = `
         <div class="mb-4 p-3 bg-light rounded border">
             <div class="d-flex justify-content-between align-items-center mb-2"><span class="fw-bold h5">Total Keseluruhan</span><span class="fw-bold h5">${totalHadir} / ${overallSummary.total_target} Pegawai (${percentage}%)</span></div>
             <div class="progress" style="height: 25px;"><div class="progress-bar progress-bar-striped bg-danger" role="progressbar" style="width: ${percentage}%;">${percentage}% Hadir</div></div>
             <div class="row gx-2 gy-1 small mt-2 text-center">
                 ${Object.entries(overallSummary.statuses).map(([statusName, count]) => {
-                    let badgeClass = 'bg-primary-subtle';
-                    let textClass = 'text-primary-emphasis';
-                    if (statusName === 'Hadir') { badgeClass = 'bg-success-subtle'; textClass = 'text-success-emphasis'; }
-                    else if (statusName === 'Belum Absen' || statusName === 'Alpa') { badgeClass = 'bg-danger-subtle'; textClass = 'text-danger-emphasis'; }
-                    return `
+        let badgeClass = 'bg-primary-subtle';
+        let textClass = 'text-primary-emphasis';
+        if (statusName === 'Hadir') { badgeClass = 'bg-success-subtle'; textClass = 'text-success-emphasis'; }
+        else if (statusName === 'Belum Absen' || statusName === 'Alpa') { badgeClass = 'bg-danger-subtle'; textClass = 'text-danger-emphasis'; }
+        return `
                     <div class="col">
                         <div class="p-2 ${badgeClass} rounded h-100">
                             <div class="fw-bold fs-6">${count}</div>
@@ -1194,7 +1189,7 @@ function renderRekapSummary(summaryData, containerId) {
                         </div>
                     </div>
                     `;
-                }).join('')}
+    }).join('')}
             </div>
         </div>
     `;
@@ -1228,8 +1223,8 @@ function resetRekapFilters() {
 }
 async function terapkanFilterRekap(isFromPagination = false) {
     if (isFromPagination !== true) paginasiState.page = 1;
-    const pt = document.getElementById("rekapPaginationTop"); if(pt) pt.classList.add("d-none");
-    const pb = document.getElementById("rekapPagination"); if(pb) pb.classList.add("d-none");
+    const pt = document.getElementById("rekapPaginationTop"); if (pt) pt.classList.add("d-none");
+    const pb = document.getElementById("rekapPagination"); if (pb) pb.classList.add("d-none");
     const selectedOpds = getSelectedOpdFromCheckbox('rekapFilterOpdContainer');
     const statusKehadiran = document.getElementById('rekapFilterStatus').value;
     const statusVerifikasi = document.getElementById('rekapFilterVerifikasi').value;
@@ -1239,7 +1234,7 @@ async function terapkanFilterRekap(isFromPagination = false) {
     const tbody = document.getElementById('rekapTableBody');
     const tableView = document.getElementById('rekapTableView');
     const photoGridView = document.getElementById('rekapPhotoGridView');
-    
+
     const checkAllHeader = document.getElementById('rekapPilihSemua').parentElement;
 
     // Atur tampilan dan tampilkan indikator muat data
@@ -1257,7 +1252,7 @@ async function terapkanFilterRekap(isFromPagination = false) {
     }
 
     // Selalu sembunyikan tombol download saat filter baru diterapkan
-    
+
 
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/details/${currentRekapData.jadwal.kode_akses}`, {
@@ -1276,7 +1271,7 @@ async function terapkanFilterRekap(isFromPagination = false) {
 
             // Tampilkan tombol download jika ada data
             if (result.data.data.length > 0) {
-                
+
             }
         } else {
             // Tangani error dari API, ganti indikator muat dengan pesan error
@@ -1487,7 +1482,7 @@ function renderRekapTable(filteredPegawai) {
         warningContainer.id = 'rekap-warning-container';
         tableView.parentNode.insertBefore(warningContainer, tableView);
     }
-    
+
     const pendingCount = filteredPegawai.filter(p => p.status_verifikasi === 'Menunggu Verifikasi Admin').length;
     if (pendingCount > 0) {
         warningContainer.innerHTML = `<div class="alert alert-warning shadow-sm border-warning mb-3"><i class="bi bi-exclamation-triangle-fill me-2"></i>Terdapat <strong>${pendingCount}</strong> absensi yang <strong>Menunggu Verifikasi Admin</strong> pada tabel di bawah ini. Harap segera periksa.</div>`;
@@ -1659,7 +1654,7 @@ function renderFotoKehadiranGrid(filteredPegawai) {
 
         const isDrive = p.nama_file_foto.startsWith('http://') || p.nama_file_foto.startsWith('https://');
         const isPdf = p.nama_file_foto.toLowerCase().endsWith('.pdf');
-        
+
         let mediaHtml = '';
         if (isDrive) {
             mediaHtml = `<div class="d-flex flex-column align-items-center justify-content-center bg-light border-bottom" style="height: 200px;">
@@ -1781,22 +1776,15 @@ async function bukaModalVerifikasi(pegawai) {
         verifLinkFoto.innerHTML = isDrive ? '<i class="bi bi-google"></i> Buka Link Drive' : '<i class="bi bi-box-arrow-up-right"></i> Buka di Tab Baru';
         verifLinkFoto.classList.remove('d-none');
         verifTanpaFoto.classList.add('d-none');
-        
-        // Buat upload opsional karena sudah ada bukti
-        verifBuktiDukung.required = false;
-        verifBuktiLabel.innerHTML = 'Upload Bukti Dukung <span class="text-secondary fw-normal">(Opsional, untuk menimpa bukti lama)</span>';
-        verifBuktiLabel.classList.remove('text-danger');
-        verifBuktiDukung.classList.remove('border-danger');
     } else {
         verifLinkFoto.classList.add('d-none');
         verifTanpaFoto.classList.remove('d-none');
-        
-        // Buat upload wajib karena tidak ada bukti
-        verifBuktiDukung.required = true;
-        verifBuktiLabel.innerHTML = 'Upload Bukti Dukung (Wajib, Maks 1MB)';
-        verifBuktiLabel.classList.add('text-danger');
-        verifBuktiDukung.classList.add('border-danger');
     }
+
+    verifBuktiDukung.required = false;
+    verifBuktiLabel.innerHTML = 'Upload Bukti Dukung <span class="text-secondary fw-normal">(Opsional, Maks 1MB)</span>';
+    verifBuktiLabel.classList.remove('text-danger');
+    verifBuktiDukung.classList.remove('border-danger');
 
     const verifStatusSelect = document.getElementById('verifStatus');
     if (pegawai.status_verifikasi === 'Ditolak Oleh Admin') {
@@ -1820,7 +1808,7 @@ async function submitVerifikasi(event) {
     formData.append('keterangan', document.getElementById('verifKeterangan').value);
     formData.append('opd', document.getElementById('verifOpd').value);
     formData.append('jabatan', document.getElementById('verifJabatan').value);
-    
+
     const fileInput = document.getElementById('verifBuktiDukung');
     if (fileInput.files.length > 0) {
         formData.append('bukti_dukung', fileInput.files[0]);
@@ -1911,7 +1899,7 @@ async function cariEligiblePegawai() {
 
     const filterText = searchInput.value.trim();
     const selectedOpds = getSelectedOpdFromCheckbox('tambahPesertaFilterOpdContainer');
-    
+
     if (filterText.length === 0 && selectedOpds.length === 0) {
         Swal.fire('Filter Diperlukan', 'Silakan isi pencarian pegawai atau pilih minimal satu OPD terlebih dahulu.', 'warning');
         return;
@@ -2033,7 +2021,7 @@ function toggleBulkVerifikasi() {
 
 async function submitTambahPesertaBulk(event) {
     if (event) event.preventDefault();
-    
+
     const btn = document.getElementById('btnSimpanTambahPeserta');
     const kodeAkses = document.getElementById('tambahPesertaKodeAkses').value;
 
@@ -2041,18 +2029,18 @@ async function submitTambahPesertaBulk(event) {
         Swal.fire('Tidak Ada yang Dipilih', 'Silakan pilih minimal satu pegawai.', 'warning');
         return;
     }
-    
+
     const statusKehadiran = document.getElementById('bulkStatusKehadiran').value;
     const statusVerifikasi = document.getElementById('bulkStatusVerifikasi').value;
     const keterangan = document.getElementById('bulkKeterangan').value;
     const buktiInput = document.getElementById('bulkBuktiDukung');
-    
+
     if (statusKehadiran !== 'Belum Absen' && !buktiInput.files[0]) {
         // Jika wajib upload bukti, uncomment logic dibawah ini, 
         // tapi sesuai instruksi admin bukti opsional kecuali kita enforce disini.
         // Kita biarkan opsional saja.
     }
-    
+
     if (buktiInput.files.length > 0 && buktiInput.files[0].size > 1048576) {
         Swal.fire('File Terlalu Besar', 'Maksimal ukuran file bukti dukung adalah 1MB.', 'warning');
         return;
@@ -2062,14 +2050,14 @@ async function submitTambahPesertaBulk(event) {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Menyimpan...';
 
     const nipsArray = tambahPesertaState.selected.map(p => p.nip);
-    
+
     const formData = new FormData();
     formData.append('kode_akses', kodeAkses);
     formData.append('nips', JSON.stringify(nipsArray));
     formData.append('status_kehadiran', statusKehadiran);
     formData.append('status_verifikasi', statusVerifikasi);
     formData.append('keterangan', keterangan);
-    
+
     if (buktiInput.files[0]) {
         formData.append('bukti_dukung', buktiInput.files[0]);
     }
@@ -2149,15 +2137,18 @@ async function refreshRekapSummary() {
 }
 
 async function exportRekapToExcel() {
-    // 1. Dapatkan nilai filter saat ini
+    // 1. Dapatkan nilai filter saat ini sesuai struktur DOM halaman rekap.
     const selectedOpds = getSelectedOpdFromCheckbox('rekapFilterOpdContainer');
-    const statusKehadiran = Array.from(document.querySelectorAll('#rekapFilterStatusContainer input:checked')).map(cb => cb.value);
-    const statusVerifikasi = Array.from(document.querySelectorAll('#rekapFilterVerifikasiContainer input:checked')).map(cb => cb.value);
+    const statusKehadiranSelect = document.getElementById('rekapFilterStatus');
+    const statusVerifikasiSelect = document.getElementById('rekapFilterVerifikasi');
     const searchInput = document.getElementById('rekapSearchInput').value;
 
-    // 2. Validasi: Pastikan filter checkbox dipilih
-    if (statusKehadiran.length === 0 || statusVerifikasi.length === 0) {
-        Swal.fire('Filter Tidak Lengkap', 'Pastikan Anda telah memilih setidaknya satu "Status Kehadiran" dan "Status Verifikasi" sebelum mengunduh.', 'warning');
+    const statusKehadiran = statusKehadiranSelect && statusKehadiranSelect.value ? statusKehadiranSelect.value : 'semua';
+    const statusVerifikasi = statusVerifikasiSelect && statusVerifikasiSelect.value ? statusVerifikasiSelect.value : 'semua';
+
+    // 2. Validasi: Pastikan elemen filter status tersedia di DOM.
+    if (!statusKehadiranSelect || !statusVerifikasiSelect) {
+        Swal.fire('Filter Tidak Tersedia', 'Elemen filter "Status Kehadiran" atau "Status Verifikasi" tidak ditemukan.', 'warning');
         return;
     }
     // 3. Panggil API detail untuk mendapatkan data yang akan diexport
@@ -2314,8 +2305,8 @@ async function populatePegawaiFilterOpd() {
 
 async function loadPegawai(isFromPagination = false) {
     if (isFromPagination !== true) paginasiState.page = 1;
-    const pt = document.getElementById("pegawaiPaginationTop"); if(pt) pt.classList.add("d-none");
-    const pb = document.getElementById("pegawaiPagination"); if(pb) pb.classList.add("d-none");
+    const pt = document.getElementById("pegawaiPaginationTop"); if (pt) pt.classList.add("d-none");
+    const pb = document.getElementById("pegawaiPagination"); if (pb) pb.classList.add("d-none");
     const opd = document.getElementById('pegawaiFilterOpd').value;
     const installStatus = document.getElementById('pegawaiFilterInstall').value;
     const syncStatus = document.getElementById('pegawaiFilterSync').value;
@@ -2493,23 +2484,30 @@ async function loadAllOpdList() {
 function populateOpdCheckboxContainer(containerId, opdArray) {
     const select = document.getElementById(containerId);
     if (!select) return;
-    
+
     // Simpan OPD yang sedang terpilih
     const selectedOpd = select.value || 'semua';
-    
-    // Destroy existing TomSelect instance if any
+
+    // Update existing TomSelect instance if any
     if (select.tomselect) {
-        select.tomselect.destroy();
+        select.tomselect.clear();
+        select.tomselect.clearOptions();
+        select.tomselect.addOption({value: 'semua', text: '-- Semua OPD --'});
+        opdArray.forEach(opd => {
+            select.tomselect.addOption({value: opd, text: opd});
+        });
+        select.tomselect.setValue(selectedOpd, true);
+        return;
     }
-    
+
     let html = '<option value="semua">-- Semua OPD --</option>';
     html += opdArray.map(opd => {
         const isSelected = (selectedOpd === opd) ? 'selected' : '';
         return `<option value="${opd}" ${isSelected}>${opd}</option>`;
     }).join('');
-    
+
     select.innerHTML = html;
-    
+
     // Initialize TomSelect
     new TomSelect(select, {
         create: false,
@@ -2665,17 +2663,17 @@ let currentRekapKeseluruhanData = [];
 
 function initRekapKeseluruhanUI() {
     // Inisialisasi Flatpickr    
-        flatpickr("#rekapKeseluruhanStartDate", {
-            locale: "id",
-            dateFormat: "Y-m-d",
-            defaultDate: new Date()
-        });
-        
-        flatpickr("#rekapKeseluruhanEndDate", {
-            locale: "id",
-            dateFormat: "Y-m-d",
-            defaultDate: new Date()
-        });
+    flatpickr("#rekapKeseluruhanStartDate", {
+        locale: "id",
+        dateFormat: "Y-m-d",
+        defaultDate: new Date()
+    });
+
+    flatpickr("#rekapKeseluruhanEndDate", {
+        locale: "id",
+        dateFormat: "Y-m-d",
+        defaultDate: new Date()
+    });
 }
 
 async function bukaHalamanRekapKeseluruhan() {
@@ -2688,17 +2686,17 @@ async function bukaHalamanRekapKeseluruhan() {
     document.getElementById('rekapKeseluruhanContainer').classList.remove('d-none');
 
     initRekapKeseluruhanUI();
-    
+
     // Load OPD list if not already
     if (allOpdList.length === 0) {
         await loadAllOpdList();
     }
-    
+
     populateOpdCheckboxContainer('rekapKeseluruhanFilterOpdContainer', allOpdList);
-    
+
     // Reset state
     document.getElementById('rekapKeseluruhanTableBody').innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih filter di atas dan tekan "Tampilkan Data" untuk menampilkan rekap.</td></tr>';
-    
+
     resetRekapKeseluruhanFilters();
 }
 
@@ -2712,11 +2710,11 @@ function resetRekapKeseluruhanFilters() {
 
 async function terapkanFilterRekapKeseluruhan(isFromPagination = false) {
     if (isFromPagination !== true) paginasiState.page = 1;
-    const pt = document.getElementById("rekapKeseluruhanPaginationTop"); if(pt) pt.classList.add("d-none");
-    const pb = document.getElementById("rekapKeseluruhanPagination"); if(pb) pb.classList.add("d-none");
+    const pt = document.getElementById("rekapKeseluruhanPaginationTop"); if (pt) pt.classList.add("d-none");
+    const pb = document.getElementById("rekapKeseluruhanPagination"); if (pb) pb.classList.add("d-none");
     const startDate = document.getElementById('rekapKeseluruhanStartDate').value;
     const endDate = document.getElementById('rekapKeseluruhanEndDate').value;
-    
+
     if (!startDate || !endDate) {
         Swal.fire('Input Tidak Lengkap', 'Pilih Tanggal Mulai dan Tanggal Selesai terlebih dahulu.', 'warning');
         return;
@@ -2729,12 +2727,12 @@ async function terapkanFilterRekapKeseluruhan(isFromPagination = false) {
 
     const tbody = document.getElementById('rekapKeseluruhanTableBody');
     const tableView = document.getElementById('rekapKeseluruhanTableView');
-    
+
 
     tableView.classList.remove('d-none');
     tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm"></div> Memuat data keseluruhan...</td></tr>';
 
-    
+
 
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/keseluruhan`, {
@@ -2748,7 +2746,7 @@ async function terapkanFilterRekapKeseluruhan(isFromPagination = false) {
             renderRekapKeseluruhanTable(currentRekapKeseluruhanData);
 
             if (result.data.length > 0) {
-                
+
             }
         } else {
             tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Gagal memuat data: ${result.message}</td></tr>`;
@@ -2763,7 +2761,7 @@ function renderRekapKeseluruhanTable(data) {
     const tbody = document.getElementById('rekapKeseluruhanTableBody');
     const tableView = document.getElementById('rekapKeseluruhanTableView');
     tableView.classList.remove('d-none');
-    
+
     // Injeksi Banner Warning
     let warningContainer = document.getElementById('keseluruhan-warning-container');
     if (!warningContainer) {
@@ -2771,7 +2769,7 @@ function renderRekapKeseluruhanTable(data) {
         warningContainer.id = 'keseluruhan-warning-container';
         tableView.parentNode.insertBefore(warningContainer, tableView);
     }
-    
+
     const pendingCount = data.filter(p => p.status_verifikasi === 'Menunggu Verifikasi Admin').length;
     if (pendingCount > 0) {
         warningContainer.innerHTML = `<div class="alert alert-warning shadow-sm border-warning mb-3"><i class="bi bi-exclamation-triangle-fill me-2"></i>Terdapat <strong>${pendingCount}</strong> absensi yang <strong>Menunggu Verifikasi Admin</strong> pada tabel di bawah ini. Harap segera periksa.</div>`;
@@ -2787,8 +2785,8 @@ function renderRekapKeseluruhanTable(data) {
     tbody.innerHTML = data.map((p, i) => {
         const bln = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
         const parts = p.tanggal.split('-');
-        const tanggalM = `${parts[2]} ${bln[parseInt(parts[1])-1]} ${parts[0]}`;
-        
+        const tanggalM = `${parts[2]} ${bln[parseInt(parts[1]) - 1]} ${parts[0]}`;
+
         const kegiatanInfo = `
             <strong class="d-block text-danger">${p.judul_kegiatan}</strong>
             <small class="text-muted"><i class="bi bi-upc-scan"></i> ${p.kode_akses}</small>
@@ -2929,7 +2927,7 @@ function exportRekapKeseluruhanToExcel() {
             'Status Verifikasi': p.status_verifikasi || 'ALPA',
             'Keterangan': p.keterangan || '-',
             'Lokasi Absen': p.lokasi_absen || '-',
-            'Link Foto': (p.nama_file_foto && p.nama_file_foto !== 'MANUAL_INPUT.jpg') ? 
+            'Link Foto': (p.nama_file_foto && p.nama_file_foto !== 'MANUAL_INPUT.jpg') ?
                 (p.nama_file_foto.startsWith('http') ? p.nama_file_foto : `${ORIGIN_SERVER_URL}/uploads/foto_absensi/${p.nama_file_foto}`) : '-'
         };
     });
@@ -2968,17 +2966,17 @@ let currentStatistikData = [];
 
 function initStatistikUI() {
     // Inisialisasi Flatpickr    
-        flatpickr("#statistikStartDate", {
-            locale: "id",
-            dateFormat: "Y-m-d",
-            defaultDate: new Date()
-        });
-        
-        flatpickr("#statistikEndDate", {
-            locale: "id",
-            dateFormat: "Y-m-d",
-            defaultDate: new Date()
-        });
+    flatpickr("#statistikStartDate", {
+        locale: "id",
+        dateFormat: "Y-m-d",
+        defaultDate: new Date()
+    });
+
+    flatpickr("#statistikEndDate", {
+        locale: "id",
+        dateFormat: "Y-m-d",
+        defaultDate: new Date()
+    });
 }
 
 async function bukaHalamanStatistikKehadiran() {
@@ -2991,17 +2989,17 @@ async function bukaHalamanStatistikKehadiran() {
     document.getElementById('statistikKehadiranContainer').classList.remove('d-none');
 
     initStatistikUI();
-    
+
     // Load OPD list if not already
     if (allOpdList.length === 0) {
         await loadAllOpdList();
     }
-    
+
     populateOpdCheckboxContainer('statistikFilterOpdContainer', allOpdList);
 
     // Reset state
     document.getElementById('statistikTableBody').innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Pilih filter di atas dan tekan "Tampilkan Statistik" untuk menampilkan data.</td></tr>';
-    
+
     resetStatistikFilters();
 }
 
@@ -3013,11 +3011,11 @@ function resetStatistikFilters() {
 
 async function terapkanFilterStatistik(isFromPagination = false) {
     if (isFromPagination !== true) paginasiState.page = 1;
-    const pt = document.getElementById("statistikPaginationTop"); if(pt) pt.classList.add("d-none");
-    const pb = document.getElementById("statistikPagination"); if(pb) pb.classList.add("d-none");
+    const pt = document.getElementById("statistikPaginationTop"); if (pt) pt.classList.add("d-none");
+    const pb = document.getElementById("statistikPagination"); if (pb) pb.classList.add("d-none");
     const startDate = document.getElementById('statistikStartDate').value;
     const endDate = document.getElementById('statistikEndDate').value;
-    
+
     if (!startDate || !endDate) {
         Swal.fire('Input Tidak Lengkap', 'Pilih Tanggal Mulai dan Tanggal Selesai terlebih dahulu.', 'warning');
         return;
@@ -3028,12 +3026,12 @@ async function terapkanFilterStatistik(isFromPagination = false) {
 
     const tbody = document.getElementById('statistikTableBody');
     const tableView = document.getElementById('statistikTableView');
-    
+
 
     tableView.classList.remove('d-none');
     tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm"></div> Memuat data statistik...</td></tr>';
 
-    
+
 
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/statistik`, {
@@ -3047,7 +3045,7 @@ async function terapkanFilterStatistik(isFromPagination = false) {
             renderStatistikTable(currentStatistikData, statusKehadiran);
 
             if (result.data.length > 0) {
-                
+
             }
         } else {
             tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Gagal memuat data: ${result.message}</td></tr>`;
@@ -3095,7 +3093,7 @@ async function lihatDetailStatistik(nip, namaPegawai, statusKehadiranFixed) {
     document.getElementById('detailStatistikNama').innerText = namaPegawai;
     const tbody = document.getElementById('detailStatistikTableBody');
     tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="spinner-border text-danger"></div></td></tr>';
-    
+
     const modal = new bootstrap.Modal(document.getElementById('modalDetailStatistik'));
     modal.show();
 
@@ -3228,16 +3226,16 @@ function bukaModalImportAbsen() {
         Swal.fire('Error', 'Data jadwal tidak ditemukan.', 'error');
         return;
     }
-    
+
     document.getElementById('formImportAbsen').reset();
     document.getElementById('importKodeAkses').value = currentRekapData.jadwal.kode_akses;
-    
+
     // Reset preview data just in case
     parsedImportData = [];
     document.getElementById('previewImportBody').innerHTML = '';
     document.getElementById('previewImportContainer').classList.add('d-none');
     document.getElementById('btnProsesImport').classList.add('d-none');
-    
+
     modalImportAbsen.show();
 }
 
@@ -3255,17 +3253,17 @@ function downloadTemplateCSV() {
     const headers = "waktu;nip;nama_pegawai;jabatan;opd;lokasi;lat;lng;nama_file_foto\n";
     // Get the first OPD for the sample if available, else a dummy one
     const sampleOpd = (allOpdList && allOpdList.length > 0) ? allOpdList[0] : "Dinas Komunikasi dan Informatika";
-    
+
     // Sample rows
     const now = new Date();
     const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} 07:30:00`;
-    
+
     const rows = [
         `${dateStr};198001012010011001;Budi Santoso;Staf;${sampleOpd};Kantor Walikota;-0.6276;100.1209;foto_budi.jpg`,
         `${dateStr};198502022015022002;Siti Aminah;Kasubag;${sampleOpd};Kantor Walikota;-0.6276;100.1209;foto_siti.jpg`,
         `${dateStr};199003032020031003;Andi Kurniawan;Kepala Bidang;${sampleOpd};Kantor Walikota;-0.6276;100.1209;foto_andi.jpg`
     ];
-    
+
     const csvContent = "data:text/csv;charset=utf-8," + headers + rows.join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -3281,35 +3279,35 @@ function handlePreviewCSV(event) {
     const previewContainer = document.getElementById('previewImportContainer');
     const tbody = document.getElementById('previewImportBody');
     const btnProses = document.getElementById('btnProsesImport');
-    
+
     if (!file) {
         previewContainer.classList.add('d-none');
         btnProses.classList.add('d-none');
         return;
     }
-    
+
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         const text = e.target.result;
         const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-        
+
         parsedImportData = [];
         tbody.innerHTML = '';
-        
+
         if (lines.length <= 1) {
             Swal.fire('Error', 'File CSV kosong atau hanya berisi header.', 'error');
             return;
         }
-        
+
         // Ensure opd names are mapped correctly for validation
         const validOpds = allOpdList.map(opd => opd.trim().toLowerCase());
-        
+
         // Validasi waktu regex: YYYY-MM-DD HH:MM:SS
         const waktuRegex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
-        
+
         for (let i = 1; i < lines.length; i++) {
             const cols = lines[i].split(';');
-            
+
             const waktu = cols[0] ? cols[0].trim() : '';
             const nip = cols[1] ? cols[1].trim() : '';
             const nama = cols[2] ? cols[2].trim() : '';
@@ -3319,9 +3317,9 @@ function handlePreviewCSV(event) {
             const lat = cols[6] ? cols[6].trim() : '';
             const lng = cols[7] ? cols[7].trim() : '';
             const foto = cols[8] ? cols[8].trim() : '';
-            
+
             let validationMsgs = [];
-            
+
             // Validasi
             if (!waktu) {
                 validationMsgs.push('<span class="text-danger"><i class="bi bi-x-circle"></i> Waktu kosong</span>');
@@ -3354,17 +3352,17 @@ function handlePreviewCSV(event) {
             if (!foto) {
                 validationMsgs.push('<span class="text-danger"><i class="bi bi-x-circle"></i> Foto kosong</span>');
             }
-            
+
             const isValid = validationMsgs.length === 0;
             if (isValid) {
                 validationMsgs.push('<span class="text-success"><i class="bi bi-check-circle"></i> Valid</span>');
             }
-            
+
             const dataRow = { waktu, nip, nama_pegawai: nama, jabatan, opd, lokasi, lat, lng, nama_file_foto: foto };
             parsedImportData.push({ data: dataRow, valid: isValid });
-            
+
             const idx = parsedImportData.length - 1;
-            
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="text-center"><input class="form-check-input import-row-check" type="checkbox" value="${idx}" ${isValid ? 'checked' : 'disabled'}></td>
@@ -3377,11 +3375,11 @@ function handlePreviewCSV(event) {
             `;
             tbody.appendChild(tr);
         }
-        
+
         previewContainer.classList.remove('d-none');
         const countSpan = document.getElementById('previewImportCount');
         if (countSpan) countSpan.innerText = parsedImportData.length;
-        
+
         if (parsedImportData.length > 0) {
             btnProses.classList.remove('d-none');
         }
@@ -3396,26 +3394,36 @@ function toggleImportCheckAll(el) {
 
 async function submitImportAbsen(event) {
     event.preventDefault();
-    
+
     const checkboxes = document.querySelectorAll('.import-row-check:checked');
     if (checkboxes.length === 0) {
         Swal.fire('Peringatan', 'Silakan centang minimal 1 baris data untuk diimport.', 'warning');
         return;
     }
-    
+
     const selectedData = [];
+    let hasInvalidData = false;
+
     checkboxes.forEach(cb => {
         const idx = parseInt(cb.value);
         if (parsedImportData[idx]) {
+            if (!parsedImportData[idx].valid) {
+                hasInvalidData = true;
+            }
             selectedData.push(parsedImportData[idx].data);
         }
     });
-    
+
+    if (hasInvalidData) {
+        Swal.fire('Error Validasi', 'Terdapat data yang tidak valid pada baris yang Anda centang. Pastikan hanya memilih data yang sudah valid formatnya.', 'error');
+        return;
+    }
+
     const kodeAkses = document.getElementById('importKodeAkses').value;
     const statusKehadiran = document.getElementById('importStatusKehadiran').value;
     const statusVerifikasi = document.getElementById('importStatusVerifikasi').value;
     const keterangan = document.getElementById('importKeterangan').value;
-    
+
     const payload = {
         kode_akses: kodeAkses,
         status_kehadiran: statusKehadiran,
@@ -3423,17 +3431,17 @@ async function submitImportAbsen(event) {
         keterangan: keterangan,
         data: selectedData
     };
-    
+
     const btnProses = document.getElementById('btnProsesImport');
     btnProses.disabled = true;
     btnProses.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Memproses...';
-    
+
     try {
         const response = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/import-csv`, {
             method: 'POST',
             body: JSON.stringify(payload)
         });
-        
+
         if (response.status) {
             Swal.fire({
                 icon: 'success',

@@ -62,7 +62,7 @@ class ProfilController {
         $payload = [
             'iat' => $issuedAt,
             'exp' => $expirationTime,
-            'iss' => 'bais-balad-apps',
+            'iss' => 'bais-pariaman-apps',
             'data' => [
                 'nip' => $pegawai['nip'],
                 'nama' => $pegawai['nama_pegawai'],
@@ -134,7 +134,7 @@ class ProfilController {
             $payload = [
                 'iat' => $issuedAt,
                 'exp' => $expirationTime,
-                'iss' => 'bais-balad-apps',
+                'iss' => 'bais-pariaman-apps',
                 'data' => [
                     'nip' => $pegawai['nip'],
                     'nama' => $pegawai['nama_pegawai'],
@@ -271,7 +271,7 @@ class ProfilController {
         $payloadForToken = [
             'iat' => $issuedAt,
             'exp' => $expirationTime,
-            'iss' => 'bais-balad-apps',
+            'iss' => 'bais-pariaman-apps',
             'data' => [
                 'nip' => $payloadForKv['nip'],
                 'nama' => $payloadForKv['nama_pegawai'],

@@ -82,7 +82,7 @@ class AuthController {
         $payload = [
             'iat' => $issuedAt,
             'exp' => $expirationTime,
-            'iss' => 'bais-balad-apps',
+            'iss' => 'bais-pariaman-apps',
             'data' => [
                 'nip' => $pegawai['nip'],
                 'nama' => $pegawai['nama_pegawai'],
