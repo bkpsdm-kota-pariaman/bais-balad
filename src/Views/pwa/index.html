@@ -62,18 +62,6 @@
 
     <div class="max-w-[480px] mx-auto bg-white min-h-screen relative shadow-xl main-container">
 
-        <!-- Tampilan jika diakses dari Desktop -->
-        <div id="view-desktop-unsupported" class="hidden-view fade-in text-center pt-16 px-6 pb-10">
-            <i class="bi bi-phone-fill text-7xl text-red-300 mb-6"></i>
-            <h3 class="text-xl font-bold text-red-700 mb-3">Akses Ditolak</h3>
-            <p class="text-sm text-gray-600 mb-6">
-                Aplikasi <strong>BAIS Pariaman</strong> dirancang khusus untuk penggunaan di perangkat
-                <strong>smartphone (Android/iOS)</strong>.
-            </p>
-            <p class="text-sm text-gray-600">
-                Silakan buka aplikasi ini melalui browser di smartphone Anda untuk melanjutkan.
-            </p>
-        </div>
 
         <div id="view-install" class="hidden-view fade-in text-center pt-16 px-6 pb-10">
             <img src="./icons/icon-192.png" alt="Logo" class="w-24 mx-auto mb-6 rounded-2xl shadow-md">
@@ -342,17 +330,21 @@
                 </button>
                 <h5 class="ml-2 font-bold text-lg">Metode Absensi</h5>
             </div>
-            
+
             <div class="p-5 mt-4">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 text-center mb-6">
                     <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <i class="bi bi-keyboard-fill text-gray-600 text-3xl"></i>
                     </div>
                     <h3 class="font-bold text-gray-800 text-lg mb-2">Input Kode Akses</h3>
-                    <p class="text-sm text-gray-500 mb-5">Masukkan kode akses unik yang diberikan oleh panitia kegiatan.</p>
+                    <p class="text-sm text-gray-500 mb-5">Masukkan kode akses unik yang diberikan oleh panitia kegiatan.
+                    </p>
                     <form onsubmit="prosesKodeManualDariPilihMetode(event)">
-                        <input type="text" id="inputKodeManual" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-gray-400 outline-none font-bold text-center text-gray-700 mb-4 tracking-widest uppercase" placeholder="CONTOH: X7Y8Z" required>
-                        <button type="submit" class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 transition-all text-white font-bold py-3.5 rounded-xl shadow-[0_4px_14px_0_rgba(31,41,55,0.39)] mb-6">
+                        <input type="text" id="inputKodeManual"
+                            class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-gray-400 outline-none font-bold text-center text-gray-700 mb-4 tracking-widest uppercase"
+                            placeholder="CONTOH: X7Y8Z" required>
+                        <button type="submit"
+                            class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 transition-all text-white font-bold py-3.5 rounded-xl shadow-[0_4px_14px_0_rgba(31,41,55,0.39)] mb-6">
                             Lanjutkan
                         </button>
                     </form>
@@ -365,7 +357,8 @@
                     </div>
 
                     <!-- Opsi 2: Scan QR Code -->
-                    <button type="button" onclick="bukaScanner(true, 'Pindai QR Presensi', true)" class="w-full bg-red-700 hover:bg-red-800 active:scale-95 transition-all text-white font-bold py-3.5 rounded-xl shadow-[0_4px_14px_0_rgba(185,28,28,0.39)] flex items-center justify-center gap-2">
+                    <button type="button" onclick="bukaScanner(true, 'Pindai QR Presensi', true)"
+                        class="w-full bg-red-700 hover:bg-red-800 active:scale-95 transition-all text-white font-bold py-3.5 rounded-xl shadow-[0_4px_14px_0_rgba(185,28,28,0.39)] flex items-center justify-center gap-2">
                         <i class="bi bi-qr-code-scan"></i> Scan QR Code
                     </button>
                 </div>
@@ -415,9 +408,13 @@
                         <i class="bi bi-keyboard-fill text-gray-600 text-3xl"></i>
                     </div>
                     <h3 class="font-bold text-gray-800 text-lg mb-2">Masukkan Kode Akses</h3>
-                    <p class="text-sm text-gray-500 mb-5">Masukkan kode akses unik yang diberikan oleh panitia kegiatan.</p>
-                    <input type="text" id="inputKodeManualScanner" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-gray-400 outline-none font-bold text-center text-gray-700 mb-4 tracking-widest uppercase" placeholder="CONTOH: X7Y8Z">
-                    <button type="button" onclick="prosesKodeManualInput()" class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 transition-all text-white font-bold py-3.5 rounded-xl shadow-[0_4px_14px_0_rgba(31,41,55,0.39)]">
+                    <p class="text-sm text-gray-500 mb-5">Masukkan kode akses unik yang diberikan oleh panitia kegiatan.
+                    </p>
+                    <input type="text" id="inputKodeManualScanner"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-gray-400 outline-none font-bold text-center text-gray-700 mb-4 tracking-widest uppercase"
+                        placeholder="CONTOH: X7Y8Z">
+                    <button type="button" onclick="prosesKodeManualInput()"
+                        class="w-full bg-gray-800 hover:bg-gray-900 active:scale-95 transition-all text-white font-bold py-3.5 rounded-xl shadow-[0_4px_14px_0_rgba(31,41,55,0.39)]">
                         Lanjutkan
                     </button>
                 </div>
@@ -461,7 +458,7 @@
 
                     <!-- Urutan 1.5: Tipe Kehadiran -->
                     <div id="opsiKehadiranAwal" class="bg-white p-4 rounded-xl mb-5 border border-red-200 shadow-sm">
-                        <label class="block text-sm font-bold text-gray-700 mb-3">Tipe Kehadiran</label>
+                        <label class="block text-sm font-bold text-gray-700 mb-3">Apakah Anda hadir dilokasi?</label>
                         <div class="flex flex-col gap-3">
                             <label
                                 class="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
@@ -475,13 +472,15 @@
                                 <input type="radio" name="tipeKehadiran" value="izin"
                                     class="w-5 h-5 text-red-600 focus:ring-red-500 border-gray-300"
                                     onclick="pilihOpsiKehadiran('izin')" onchange="pilihOpsiKehadiran('izin')">
-                                <span class="ml-3 text-sm font-medium text-gray-700">❌ Tidak Hadir</span>
+                                <span class="ml-3 text-sm font-medium text-gray-700">❌ Tidak Hadir (Dinas Luar, Kegiatan
+                                    lain dengan SPT, Cuti atau alasan lainnya)</span>
                             </label>
                         </div>
                     </div>
 
                     <!-- Banner Mode Ketat -->
-                    <div id="bannerModeKetat" class="hidden-view mb-5 p-4 bg-orange-50 border border-orange-300 rounded-xl shadow-sm">
+                    <div id="bannerModeKetat"
+                        class="hidden-view mb-5 p-4 bg-orange-50 border border-orange-300 rounded-xl shadow-sm">
                         <div class="flex items-start gap-3">
                             <i class="bi bi-shield-lock-fill text-orange-600 text-xl mt-0.5"></i>
                             <div>
@@ -492,12 +491,15 @@
                     </div>
 
                     <!-- Warning Tidak Hadir -->
-                    <div id="warningTidakHadir" class="hidden-view mb-5 p-4 bg-red-50 border border-red-300 rounded-xl shadow-sm">
+                    <div id="warningTidakHadir"
+                        class="hidden-view mb-5 p-4 bg-red-50 border border-red-300 rounded-xl shadow-sm">
                         <div class="flex items-start gap-3">
                             <i class="bi bi-exclamation-triangle-fill text-red-600 text-xl mt-0.5"></i>
                             <div>
                                 <h6 class="font-bold text-red-700 text-sm mb-1">Perhatian</h6>
-                                <p class="text-xs text-red-600 leading-relaxed">Anda memilih <strong>Tidak Hadir</strong>. Pastikan alasan dan bukti dukung telah diisi dengan benar. Data ini akan dikirim ke atasan untuk diverifikasi.</p>
+                                <p class="text-xs text-red-600 leading-relaxed">Anda memilih <strong>Tidak
+                                        Hadir</strong>. Pastikan alasan dan bukti dukung telah diisi dengan benar. Data
+                                    ini akan dikirim ke atasan untuk diverifikasi.</p>
                             </div>
                         </div>
                     </div>
@@ -595,12 +597,16 @@
                                 <div id="warningMsg" class="hidden mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                                     <div class="flex items-start gap-2">
                                         <i class="bi bi-exclamation-triangle-fill text-red-500 mt-0.5"></i>
-                                        <p class="text-xs text-red-700 leading-relaxed">Sistem mendeteksi <strong>keterlambatan, lokasi tidak sesuai, atau kendala perangkat</strong>. Mohon lengkapi informasi tambahan di bawah.</p>
+                                        <p class="text-xs text-red-700 leading-relaxed">Sistem mendeteksi
+                                            <strong>keterlambatan, lokasi tidak sesuai, atau kendala perangkat</strong>.
+                                            Mohon lengkapi informasi tambahan di bawah.</p>
                                     </div>
                                 </div>
 
-                                <label id="keteranganLabel" for="keterangan" class="block text-sm font-bold text-yellow-700 mb-1">
-                                    <i class="bi bi-exclamation-circle-fill text-yellow-600 mr-1"></i> Keterangan (Opsional)
+                                <label id="keteranganLabel" for="keterangan"
+                                    class="block text-sm font-bold text-yellow-700 mb-1">
+                                    <i class="bi bi-exclamation-circle-fill text-yellow-600 mr-1"></i> Keterangan
+                                    (Opsional)
                                 </label>
                                 <p id="labelKeterangan" class="text-[11px] text-yellow-700 mb-3 leading-tight">Sistem
                                     mendeteksi keterlambatan / lokasi tidak sesuai. Mohon isi alasannya.</p>
@@ -616,8 +622,10 @@
                                         class="w-full p-3 rounded-lg border border-yellow-200 focus:ring-2 focus:ring-yellow-500 outline-none text-sm bg-white mb-1"
                                         onchange="validasiTombolKirim()">
                                         <option value="" disabled selected>-- Pilih Alasan --</option>
-                                        <option value="Terlambat karena kendala lalu lintas">Terlambat karena kendala lalu lintas</option>
-                                        <option value="GPS tidak akurat/tidak terbaca">GPS tidak akurat/tidak terbaca</option>
+                                        <option value="Terlambat karena kendala lalu lintas">Terlambat karena kendala
+                                            lalu lintas</option>
+                                        <option value="GPS tidak akurat/tidak terbaca">GPS tidak akurat/tidak terbaca
+                                        </option>
                                         <option value="Kamera Aplikasi Error">Kamera Aplikasi Error</option>
                                         <option value="Dinas di lokasi berbeda">Dinas di lokasi berbeda</option>
                                         <option value="Sakit">Sakit</option>
@@ -625,10 +633,13 @@
                                     </select>
 
                                     <!-- Warning Izin Atasan -->
-                                    <div id="warningIzinAtasan" class="hidden mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                                    <div id="warningIzinAtasan"
+                                        class="hidden mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                                         <div class="flex items-start gap-2">
                                             <i class="bi bi-info-circle-fill text-orange-500 mt-0.5"></i>
-                                            <p class="text-xs text-orange-700 leading-relaxed">Alasan ini memerlukan <strong>verifikasi oleh atasan</strong>. Pastikan bukti pendukung telah dilampirkan.</p>
+                                            <p class="text-xs text-orange-700 leading-relaxed">Alasan ini memerlukan
+                                                <strong>verifikasi oleh atasan</strong>. Pastikan bukti pendukung telah
+                                                dilampirkan.</p>
                                         </div>
                                     </div>
                                 </div>
@@ -636,10 +647,10 @@
                                 <!-- Input Bukti Kondisi -->
                                 <div id="inputBuktiKondisi" class="hidden mt-4">
                                     <label class="block text-sm font-bold text-yellow-700 mb-2">Bukti Pendukung</label>
-                                    <input type="file" id="buktiHadir" accept="application/pdf"
+                                    <input type="file" id="buktiHadir" accept="image/*,application/pdf"
                                         class="w-full p-2 border border-yellow-200 rounded-lg text-sm bg-white"
-                                        onchange="validasiTombolKirim()">
-                                    <p class="text-[10px] text-yellow-600 mt-1">Format: PDF. Maksimal 1 MB.</p>
+                                        onchange="handleProofFileChange('buktiHadir')">
+                                    <p class="text-[10px] text-yellow-600 mt-1">Format: JPG, PNG, atau PDF. Maksimal 1 MB.</p>
                                 </div>
                             </div>
                         </div>
@@ -672,7 +683,7 @@
                             <label class="block text-sm font-bold text-gray-700 mb-2">Bukti Dukung (Wajib)</label>
                             <input type="file" id="buktiIzin" accept="image/*,application/pdf"
                                 class="w-full p-2 border border-gray-300 rounded-lg text-sm bg-gray-50 mb-1"
-                                onchange="checkIzinForm()">
+                                onchange="handleProofFileChange('buktiIzin', checkIzinForm)">
                             <p class="text-[10px] text-gray-500 mb-2">Format: JPG, PNG, atau PDF. Maksimal 1 MB.</p>
                         </div>
                     </div>

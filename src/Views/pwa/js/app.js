@@ -2,7 +2,7 @@
 
 const ORIGIN_SERVER_URL = "https://api-esdm.pariamankota.go.id/beta-bais-pariaman";
 const API_BASE_URL = `${ORIGIN_SERVER_URL}/api`;
-const APP_VERSION = 'v6.1.103'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
+const APP_VERSION = 'v6.1.106'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
 
 /**
  * =================================================================
@@ -24,6 +24,7 @@ let isLuarRadius = false;
 let isKameraError = false;
 let isGpsError = false;
 let deferredPrompt = null;
+let lastInvalidFileAlertKey = null;
 
 /**
  * Memigrasikan data dari localStorage (sistem lama) ke localForage (sistem baru).
@@ -291,15 +292,6 @@ document.getElementById('btnInstallApp')?.addEventListener('click', async () => 
     }
 });
 
-/**
- * Memeriksa apakah perangkat adalah smartphone berdasarkan User Agent.
- * @returns {boolean} True jika terdeteksi sebagai perangkat mobile.
- */
-function isMobileDevice() {
-    // Cek sederhana untuk 'Mobi' di user agent string, yang umum untuk perangkat mobile.
-    return /Mobi/i.test(navigator.userAgent);
-}
-
 window.onload = async () => {
     try {
         // Konfigurasi localForage. Nama database sekarang dinamis berdasarkan APP_ENV.
@@ -311,14 +303,6 @@ window.onload = async () => {
         });
 
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-
-        // --- LOGIKA BARU: Cek apakah perangkat adalah mobile ---
-        if (!isMobileDevice()) {
-            // Jika bukan perangkat mobile, tampilkan view "tidak didukung" dan hentikan eksekusi.
-            switchView('view-desktop-unsupported');
-            showLoading(false); // Sembunyikan overlay loading untuk menampilkan pesan
-            return; // Berhenti di sini
-        }
 
         if (!isStandalone) {
             // Paksa halaman instalasi jika diakses lewat browser biasa
@@ -383,7 +367,9 @@ function switchView(viewId) {
     // Matikan scanner QR jika bukan di view-scanner atau view-admin-cepat
     if (viewId !== 'view-scanner' && viewId !== 'view-admin-cepat') {
         if (typeof html5QrCode !== 'undefined' && html5QrCode && html5QrCode.isScanning) {
-            html5QrCode.stop().catch(e => console.warn("Scanner stop error", e));
+            html5QrCode.stop().then(() => {
+                if (html5QrCode.clear) html5QrCode.clear();
+            }).catch(e => console.warn("Scanner stop error", e));
         }
     }
 
@@ -392,6 +378,11 @@ function switchView(viewId) {
         if (typeof videoStream !== 'undefined' && videoStream) {
             videoStream.getTracks().forEach(track => track.stop());
             videoStream = null;
+        }
+        const v = document.getElementById('kamera');
+        if (v && v.srcObject) {
+            v.srcObject.getTracks().forEach(track => track.stop());
+            v.srcObject = null;
         }
         window._isHadirStarted = false;
     }
@@ -1645,7 +1636,7 @@ function cleanupAbsenForm() {
 
     // Reset nilai input form
     document.getElementById('keterangan').value = '';
-    
+
     // Reset radio button
     const radioInputs = document.querySelectorAll('input[name="tipeKehadiran"]');
     radioInputs.forEach(radio => radio.checked = false);
@@ -1669,7 +1660,10 @@ async function kirimAbsensi() {
 
     if (window._isTidakHadir) {
         statusVerifikasi = "Menunggu Verifikasi Admin";
-        if (alasanKondisi) statusKehadiran = alasanKondisi;
+        const alasanIzinEl = document.getElementById('alasanIzin');
+        if (alasanIzinEl && alasanIzinEl.value) statusKehadiran = alasanIzinEl.value;
+        const ketIzinEl = document.getElementById('keteranganIzin');
+        if (ketIzinEl && ketIzinEl.value.trim()) keterangan = ketIzinEl.value.trim();
     } else if (isTerlambat || isLuarRadius || window.isGpsError || window.isKameraError) {
         statusVerifikasi = "Menunggu Verifikasi Admin";
         if (alasanKondisi) {
@@ -1706,14 +1700,21 @@ async function kirimAbsensi() {
             formData.append('status_kehadiran', statusKehadiran);
             formData.append('status_verifikasi', statusVerifikasi);
 
-            const buktiHadirInput = document.getElementById('buktiHadir');
-            if (buktiHadirInput && buktiHadirInput.files.length > 0) {
-                formData.append('foto', buktiHadirInput.files[0]);
-            } else if (b64) {
-                const isPdf = b64.includes('application/pdf');
-                const fileExt = isPdf ? 'pdf' : 'jpg';
-                const mimeType = isPdf ? 'application/pdf' : 'image/jpeg';
-                formData.append('foto', new File([dataURItoBlob(b64)], `absen_selfie.${fileExt}`, { type: mimeType }));
+            if (window._isTidakHadir) {
+                const buktiIzinInput = document.getElementById('buktiIzin');
+                if (buktiIzinInput && buktiIzinInput.files.length > 0) {
+                    formData.append('foto', buktiIzinInput.files[0]);
+                }
+            } else {
+                const buktiHadirInput = document.getElementById('buktiHadir');
+                if (buktiHadirInput && buktiHadirInput.files.length > 0) {
+                    formData.append('foto', buktiHadirInput.files[0]);
+                } else if (b64) {
+                    const isPdf = b64.includes('application/pdf');
+                    const fileExt = isPdf ? 'pdf' : 'jpg';
+                    const mimeType = isPdf ? 'application/pdf' : 'image/jpeg';
+                    formData.append('foto', new File([dataURItoBlob(b64)], `absen_selfie.${fileExt}`, { type: mimeType }));
+                }
             }
 
             const originResponse = await fetchWithAuth(`${API_BASE_URL}/absen/submit`, { method: "POST", body: formData, token: token });
@@ -1857,7 +1858,65 @@ function tampilkanFormLanjutan() {
     // FIX: Memastikan event listener untuk kolom keterangan selalu aktif
     // saat form ditampilkan untuk mengatasi bug tombol kirim yang tidak aktif.
     document.getElementById('keterangan').oninput = validasiTombolKirim;
+
+    const buktiHadirInput = document.getElementById('buktiHadir');
+    if (buktiHadirInput) {
+        buktiHadirInput.onchange = () => handleProofFileChange('buktiHadir');
+    }
+
+    const buktiIzinInput = document.getElementById('buktiIzin');
+    if (buktiIzinInput) {
+        buktiIzinInput.onchange = () => handleProofFileChange('buktiIzin', checkIzinForm);
+    }
+
     validasiTombolKirim();
+}
+
+function validateProofFile(file) {
+    if (!file) {
+        return { isValid: false, reason: 'missing' };
+    }
+
+    const allowedTypes = ['application/pdf'];
+    const isImage = typeof file.type === 'string' && file.type.startsWith('image/');
+    const isAllowedType = isImage || allowedTypes.includes(file.type);
+
+    if (!isAllowedType) {
+        return { isValid: false, reason: 'type' };
+    }
+
+    if (file.size > 1048576) {
+        return { isValid: false, reason: 'size' };
+    }
+
+    return { isValid: true, reason: null };
+}
+
+function showInvalidProofFileAlert() {
+    Swal.fire('File tidak valid', 'File maksimal 1 MB dan hanya boleh gambar atau PDF.', 'warning');
+}
+
+function handleProofFileChange(inputId, callback = validasiTombolKirim) {
+    const input = document.getElementById(inputId);
+    if (!input) {
+        callback();
+        return;
+    }
+
+    const file = input.files && input.files[0] ? input.files[0] : null;
+    const validation = validateProofFile(file);
+
+    if (!validation.isValid && validation.reason !== 'missing') {
+        const alertKey = `${inputId}:${validation.reason}:${file ? `${file.name}:${file.size}:${file.type}` : 'empty'}`;
+        if (lastInvalidFileAlertKey !== alertKey) {
+            lastInvalidFileAlertKey = alertKey;
+            showInvalidProofFileAlert();
+        }
+    } else {
+        lastInvalidFileAlertKey = null;
+    }
+
+    callback();
 }
 
 /**
@@ -2063,13 +2122,8 @@ function validasiTombolKirim() {
         }
 
         const buktiHadirInput = document.getElementById('buktiHadir');
-        let isBuktiOk = false;
-        if (buktiHadirInput && buktiHadirInput.files.length > 0) {
-            const file = buktiHadirInput.files[0];
-            if (file.type === 'application/pdf' && file.size <= 1048576) {
-                isBuktiOk = true;
-            }
-        }
+        const file = buktiHadirInput && buktiHadirInput.files.length > 0 ? buktiHadirInput.files[0] : null;
+        const isBuktiOk = validateProofFile(file).isValid;
 
         isFormValid = isAlasanOk && isKeteranganOk && isBuktiOk;
     } else {
@@ -2085,7 +2139,8 @@ function validasiTombolKirim() {
             if (alasanKondisiEl && alasanKondisiEl.value === "") isAlasanOk = false;
 
             const buktiHadirInput = document.getElementById('buktiHadir');
-            if (!buktiHadirInput || buktiHadirInput.files.length === 0) isBuktiOk = false;
+            const file = buktiHadirInput && buktiHadirInput.files.length > 0 ? buktiHadirInput.files[0] : null;
+            isBuktiOk = validateProofFile(file).isValid;
         }
 
         isFormValid = b64 && isKoordinatOk && isKeteranganOk && isBuktiOk && isAlasanOk;
@@ -2171,7 +2226,7 @@ async function setupAbsenForm(jadwalData) {
     document.getElementById('opsiKehadiranAwal').classList.remove('hidden-view');
     document.getElementById('warningTidakHadir').classList.add('hidden');
     document.getElementById('btnKirim').disabled = true;
-    
+
     // Pastikan radio buttons tidak tercentang saat dibuka baru
     const radioInputs = document.querySelectorAll('input[name="tipeKehadiran"]');
     radioInputs.forEach(radio => radio.checked = false);
@@ -2206,12 +2261,12 @@ async function setupAbsenForm(jadwalData) {
     switchView('view-form');
 }
 
-window.bukaPilihMetode = function() {
+window.bukaPilihMetode = function () {
     switchView('view-pilih-metode');
     history.pushState({ view: 'pilih-metode' }, "Pilih Metode Absensi", '#metode');
 }
 
-window.batalPilihMetode = function() {
+window.batalPilihMetode = function () {
     if (location.hash === '#metode') {
         history.back();
     } else {
@@ -2219,7 +2274,7 @@ window.batalPilihMetode = function() {
     }
 }
 
-window.prosesKodeManualDariPilihMetode = function(event) {
+window.prosesKodeManualDariPilihMetode = function (event) {
     event.preventDefault();
     const kode = document.getElementById('inputKodeManual').value.trim();
     if (kode === "") return;
@@ -2228,7 +2283,7 @@ window.prosesKodeManualDariPilihMetode = function(event) {
     prosesQrCode(kode);
 }
 
-window.pilihOpsiKehadiran = function(opsi) {
+window.pilihOpsiKehadiran = function (opsi) {
     document.getElementById('opsiKehadiranAwal').classList.add('hidden-view');
     if (opsi === 'hadir') {
         if (currentJadwal.is_strict_time == 1 && isTerlambat) {
@@ -2247,13 +2302,13 @@ window.pilihOpsiKehadiran = function(opsi) {
         document.getElementById('flowHadir').classList.add('hidden-view');
         document.getElementById('form-absen-lanjutan').classList.add('hidden-view');
         document.getElementById('flowIzin').classList.remove('hidden-view');
-        
+
         window._isTidakHadir = true;
         checkIzinForm(); // Lakukan pengecekan validasi form izin
     }
 }
 
-window.checkIzinForm = function() {
+window.checkIzinForm = function () {
     const alasan = document.getElementById('alasanIzin').value;
     const ket = document.getElementById('keteranganIzin').value.trim();
     const file = document.getElementById('buktiIzin').files[0];
@@ -2270,7 +2325,7 @@ window.checkIzinForm = function() {
     let isValid = true;
     if (!alasan) isValid = false;
     if (!ket) isValid = false;
-    if (!file || file.type !== 'application/pdf' || file.size > 1048576) isValid = false; // Harus PDF max 1MB
+    if (!validateProofFile(file).isValid) isValid = false;
 
     if (isValid) {
         btnKirim.disabled = false;
@@ -2371,8 +2426,8 @@ function updateConditionalFormElements() {
             }
         }
     } else {
-        boxKeterangan.classList.remove('hidden-view');
-        if (keteranganLabel) keteranganLabel.innerText = "Keterangan (Opsional)";
+        boxKeterangan.classList.add('hidden-view');
+        if (keteranganLabel) keteranganLabel.innerText = "Keterangan (Wajib Diisi)";
         if (warningMsg) warningMsg.classList.add('hidden');
         if (inputAlasan) inputAlasan.classList.add('hidden');
         if (inputBukti) inputBukti.classList.add('hidden');

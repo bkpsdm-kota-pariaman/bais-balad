@@ -58,9 +58,9 @@ class AbsenController {
 
         // 2. Ambil data dari request (tipe multipart/form-data)
         $kodeAkses = $_POST['kode_akses'] ?? null;
-        $lat = $_POST['lat'] ?? null;
-        $lng = $_POST['lng'] ?? null;
-        $lokasi = $_POST['lokasi'] ?? null;
+        $lat = (isset($_POST['lat']) && $_POST['lat'] !== '') ? $_POST['lat'] : null;
+        $lng = (isset($_POST['lng']) && $_POST['lng'] !== '') ? $_POST['lng'] : null;
+        $lokasi = (isset($_POST['lokasi']) && $_POST['lokasi'] !== '') ? $_POST['lokasi'] : null;
         $keterangan = $_POST['keterangan'] ?? null;
         $foto = $_FILES['foto'] ?? null;
         $statusKehadiran = $_POST['status_kehadiran'] ?? 'Hadir';
@@ -71,7 +71,10 @@ class AbsenController {
         $is_admin_cepat_fallback = ($statusVerifikasi === 'Terverifikasi Oleh Admin');
 
         // 3. Validasi input dasar
-        if (empty($kodeAkses) || $lat === null || $lng === null || empty($lokasi) || 
+        $is_izin = (strtolower($statusKehadiran) !== 'hadir');
+        $is_lokasi_valid = $is_izin ? true : ($lat !== null && $lng !== null && !empty($lokasi));
+
+        if (empty($kodeAkses) || !$is_lokasi_valid || 
             // Foto hanya wajib jika ini BUKAN fallback dari absensi cepat admin
             (!$is_admin_cepat_fallback && (empty($foto) || $foto['error'] === UPLOAD_ERR_NO_FILE))
         ) {
@@ -229,9 +232,9 @@ class AbsenController {
             ':jabatan' => $jabatan,
             ':kategori' => $jadwal['kategori'],
             ':waktu' => $waktu, // Waktu dari server
-            ':lokasi' => $lokasi, // Lokasi sudah diformat oleh PWA
-            ':lat' => $lat,
-            ':lng' => $lng,
+            ':lokasi' => $lokasi ?? '-', // Lokasi sudah diformat oleh PWA, default '-' jika null
+            ':lat' => $lat ?? 0,
+            ':lng' => $lng ?? 0,
             ':nama_file_foto' => $newFileName,
             ':keterangan' => $keterangan,
             ':status_verifikasi' => $statusVerifikasi,
@@ -240,7 +243,10 @@ class AbsenController {
 
         // PERBAIKAN: Cek return value dari execute() untuk memastikan query berhasil.
         if ($isSuccess) {
-            Response::json(true, 200, "Absensi berhasil direkam.", ['waktu' => $waktu]);
+            $pesanSukses = ($statusVerifikasi === 'Menunggu Verifikasi Admin') 
+                ? "Absen sudah terkirim. BKPSDM Kota Pariaman akan melakukan verifikasi bukti absen Anda." 
+                : "Absen sudah terkirim.";
+            Response::json(true, 200, $pesanSukses, ['waktu' => $waktu]);
         } else {
             if ($uploadPath && file_exists($uploadPath)) {
                 unlink($uploadPath); // Hapus foto yang sudah terunggah jika DB gagal

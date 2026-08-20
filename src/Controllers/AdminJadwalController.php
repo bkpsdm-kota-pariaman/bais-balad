@@ -111,21 +111,7 @@ class AdminJadwalController {
         $input = json_decode(file_get_contents('php://input'), true);
         $db = Database::getConnection();
 
-        // --- LOGIKA BARU: Tentukan apakah antrian perlu diaktifkan ---
         $targetOpd = $input['target_opd'] ?? [];
-        // $employeeCount = 0;
-        // if (!empty($targetOpd)) {
-        //     // Jika target spesifik, hitung pegawai di OPD tersebut.
-        //     $placeholders = implode(',', array_fill(0, count($targetOpd), '?'));
-        //     $stmtCount = $db->prepare("SELECT COUNT(nip) FROM app_absensi_data_pegawai WHERE perangkat_daerah IN ($placeholders)");
-        //     $stmtCount->execute($targetOpd);
-        //     $employeeCount = (int) $stmtCount->fetchColumn();
-        // }
-        // Atur flag: aktifkan antrian jika pegawai > 300. Jika target kosong, employeeCount = 0, jadi antrian tidak aktif.
-        // $aktifkan_antrian = ($employeeCount > 300) ? 1 : 0;
-        // untuk sementara, antrian dijadikan permanen dulu
-        $aktifkan_antrian = 1;
-        // --- AKHIR LOGIKA BARU ---
         
         // Generate kode akses unik
         $kodeAkses = strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
@@ -167,8 +153,6 @@ class AdminJadwalController {
                 ':ist' => $input['is_strict_time'] ?? 0,
                 ':isl' => $input['is_strict_location'] ?? 0
             ]);
-
-            // Tabel app_absensi_kegiatan_target_opd tidak lagi digunakan
 
             // --- LOGIKA BARU: Pre-seed data absensi dengan status ALPA ---
             $pegawaiToSeed = [];
@@ -222,7 +206,7 @@ class AdminJadwalController {
             'jam_selesai' => $input['jam_selesai'],
             'koordinat' => $input['koordinat'],
             'radius_meter' => $input['radius_meter'],
-            'aktifkan_antrian' => $aktifkan_antrian,
+            'aktifkan_antrian' => $input['aktifkan_antrian'],
             'is_strict_time' => $input['is_strict_time'] ?? 0,
             'is_strict_location' => $input['is_strict_location'] ?? 0,
             'target_opd' => $input['target_opd'] ?? []
