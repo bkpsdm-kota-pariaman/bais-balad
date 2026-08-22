@@ -1,7 +1,7 @@
 // sw.js (sesuai struktur folder: api, css, icons, js, index.html, manifest.json)
 // NAIKKAN VERSI INI SETIAP KALI ADA PERUBAHAN ASET (CSS, JS, dll)
 // Pastikan formatnya sama dengan APP_VERSION di app.js untuk konsistensi.
-const CACHE_NAME = 'eabsen-v6.1.106';
+const CACHE_NAME = 'eabsen-v6.1.124';
 
 // Semua path relatif ke lokasi sw.js (pakai ./ karena PWA di subfolder)
 const ASSETS_TO_CACHE = [

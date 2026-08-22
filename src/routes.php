@@ -57,6 +57,9 @@ return function(RouteCollector $r) {
     $r->addRoute('POST', '/admin/statistik', ['App\Controllers\AdminRekapController', 'getStatistikKehadiran']);
     $r->addRoute('POST', '/admin/statistik/detail', ['App\Controllers\AdminRekapController', 'getStatistikDetail']);
     $r->addRoute('GET', '/admin/rekap/opd-list/{kode_akses}', ['App\Controllers\AdminRekapController', 'getRekapOpdList']);
+    
+    // Rute untuk Log Absensi Audit (Super Admin Only)
+    $r->addRoute('GET', '/admin/log-absensi', ['App\Controllers\LogAbsensiController', 'listLog']);
 
     // Rute untuk CRUD data pegawai
     $r->addRoute('GET', '/admin/pegawai', ['App\Controllers\AdminPegawaiController', 'listPegawai']);

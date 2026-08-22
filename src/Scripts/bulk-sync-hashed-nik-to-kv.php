@@ -1,48 +1,37 @@
 <?php
-// scripts/bulk-sync-to-kv.php
+// src/Scripts/bulk-sync-hashed-nik-to-kv.php
 
 /**
- * Skrip CLI untuk sinkronisasi massal data pegawai dari database ke Cloudflare Workers KV.
+ * Skrip CLI untuk sinkronisasi massal data pegawai ke Cloudflare Workers KV.
+ * Mengirim nilai kolom `password` (hash NIK) ke properti `nik` di KV.
+ * Kolom `password` sendiri tidak dimasukkan ke payload.
  *
  * CARA PENGGUNAAN:
- * 1. Pastikan Anda berada di direktori root proyek (`v3/app_php/`).
- * 2. Jalankan skrip dari terminal dengan perintah: `php src/Scripts/bulk-sync-to-kv.php`
- *
- * Skrip ini akan:
- * - Mengambil data pegawai dari `app_absensi_data_pegawai` yang statusnya `kv_sync_status = 0` (atau NULL).
- * - Mengambil maksimal 950 data per eksekusi untuk menghindari limitasi rate dari Cloudflare.
- * - Mengirim data satu per satu ke endpoint `PUT /api/pegawai/:nip` di Worker.
- * - Memperbarui `kv_sync_status` menjadi 1 di database untuk setiap pegawai yang berhasil disinkronkan.
- * - Berhenti jika terjadi error saat mengirim ke Worker, sehingga bisa dilanjutkan lagi nanti.
+ * Jalankan dari terminal: `php src/Scripts/bulk-sync-hashed-nik-to-kv.php`
  */
 
 if (php_sapi_name() !== 'cli') {
     die("Skrip ini hanya dapat dijalankan dari command line (CLI).\n");
 }
 
-
-// Definisikan path root aplikasi dengan benar.
-// __DIR__ adalah .../src/Scripts
-// dirname(__DIR__) adalah .../src
-// dirname(dirname(__DIR__)) adalah .../ (root aplikasi)
-define('APP_PATH', '/home/apiesdmpariamank/beta_bais_pariaman/');
+if (!defined('APP_PATH')) {
+    define('APP_PATH', dirname(__DIR__, 2) . '/');
+}
 
 // --- PENGATURAN LOGGING ---
-$logDir = APP_PATH . '/logs';
+$logDir = APP_PATH . 'logs';
 if (!is_dir($logDir)) {
     mkdir($logDir, 0775, true);
 }
-$logFile = $logDir . '/sync-pegawai-' . date('Y-m-d') . '.log';
+$logFile = $logDir . '/sync-hashed-pegawai-' . date('Y-m-d') . '.log';
 
 function log_message($message, $is_error = false) {
     global $logFile;
     $timestamp = date('Y-m-d H:i:s');
     $logEntry = "[$timestamp] " . $message . "\n";
     
-    // Tulis ke file log
     file_put_contents($logFile, $logEntry, FILE_APPEND);
     
-    // Tampilkan ke konsol
     if ($is_error) {
         fwrite(STDERR, $message . "\n");
     } else {
@@ -52,35 +41,40 @@ function log_message($message, $is_error = false) {
 // --- AKHIR PENGATURAN LOGGING ---
 
 // Bootstrap aplikasi
-require APP_PATH . '/vendor/autoload.php';
+if (file_exists(APP_PATH . 'vendor/autoload.php')) {
+    require_once APP_PATH . 'vendor/autoload.php';
+}
+require_once APP_PATH . 'config/config.php';
+require_once APP_PATH . 'src/Helpers/Response.php';
+require_once APP_PATH . 'src/Helpers/Database.php';
 
 use App\Helpers\Database;
 use PDO;
 
-log_message("===== Memulai Proses Sinkronisasi Massal ke Cloudflare KV =====");
+log_message("===== Memulai Proses Sinkronisasi Massal Hashed NIK ke Cloudflare KV =====");
 
 try {
     $db = Database::getConnection();
 
     // 1. Ambil data pegawai yang belum sinkron (kv_sync_status = 0 atau NULL)
     log_message("1. Mengambil data pegawai yang belum sinkron dari database...");
-    $sql = "SELECT p.nip, p.nik, p.nama_pegawai, p.perangkat_daerah, p.jabatan, p.jenis_asn, p.role 
+    $sql = "SELECT p.nip, p.nik, p.password, p.nama_pegawai, p.perangkat_daerah, p.jabatan, p.jenis_asn, p.role 
             FROM app_absensi_data_pegawai p
             WHERE p.kv_sync_status = 0 OR p.kv_sync_status IS NULL
             ORDER BY p.last_login DESC
-            LIMIT 800"; // Batasi 800 untuk sekali jalan, di bawah batas 1000 write/day
+            LIMIT 950";
     $stmt = $db->query($sql);
     $allPegawai = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     if (empty($allPegawai)) {
-        log_message("Tidak ada data pegawai baru untuk disinkronkan. Selesai.");
+        log_message("Tidak ada data pegawai yang perlu disinkronkan. Selesai.");
         exit;
     }
     $totalPegawai = count($allPegawai);
     log_message("   Ditemukan " . $totalPegawai . " data pegawai untuk disinkronkan.");
 
     // 2. Konfigurasi Worker
-    $config = require APP_PATH . '/config/config.php';
+    $config = require APP_PATH . 'config/config.php';
     $workerUrl = $config['worker_url'] ?? null;
     $workerSecret = $config['worker_secret'] ?? null;
 
@@ -97,14 +91,18 @@ try {
     foreach ($allPegawai as $index => $pegawai) {
         $nip = $pegawai['nip'];
         $progress = "[" . ($index + 1) . "/" . $totalPegawai . "]";
-        echo "   $progress Mengirim data NIP: $nip... "; // Tampilkan di konsol tanpa newline
+        echo "   $progress Mengirim data NIP: $nip... ";
+
+        // Gunakan hash dari kolom password sebagai NIK di KV, fallback ke NIK asli jika kolom password kosong
+        $nikValue = !empty($pegawai['password']) ? $pegawai['password'] : $pegawai['nik'];
 
         // Siapkan payload untuk satu pegawai
         $rolesStr = isset($pegawai['role']) ? trim($pegawai['role']) : '';
         $roles = $rolesStr !== '' ? array_map('trim', explode(',', $rolesStr)) : ['asn'];
+
         $payload = [
             'nip' => $pegawai['nip'],
-            'nik' => $pegawai['nik'],
+            'nik' => $nikValue, // Hash NIK dimasukkan ke field 'nik'
             'nama_pegawai' => $pegawai['nama_pegawai'],
             'perangkat_daerah' => $pegawai['perangkat_daerah'],
             'jabatan' => $pegawai['jabatan'],
@@ -132,19 +130,18 @@ try {
         if ($httpCode === 200) {
             $updateStmt = $db->prepare("UPDATE app_absensi_data_pegawai SET kv_sync_status = 1 WHERE nip = ?");
             $updateStmt->execute([$nip]);
-            echo "OK (HTTP 200)\n"; // Lanjutkan baris di konsol
-            log_message("   -> SUKSES: NIP $nip berhasil disinkronkan.");
+            echo "OK (HTTP 200)\n";
+            log_message("   -> SUKSES: NIP $nip berhasil disinkronkan ke KV.");
             $successCount++;
         } else {
             $failCount++;
-            echo "GAGAL (HTTP $httpCode)\n"; // Lanjutkan baris di konsol
+            echo "GAGAL (HTTP $httpCode)\n";
             
             $errorMessage = "GAGAL mengirim data NIP: $nip. HTTP Code: $httpCode. Response: $responseBody. cURL Error: $curlError";
             log_message("   -> ERROR: " . $errorMessage, true);
 
-            // Hentikan proses jika ada error dari worker (misal: rate limit)
             throw new \Exception(
-                "Proses dihentikan karena terjadi kegagalan. Silakan periksa file log untuk detail."
+                "Proses dihentikan karena terjadi kegagalan pada NIP $nip. Silakan periksa file log untuk detail."
             );
         }
     }

@@ -42,7 +42,7 @@ class AuthHelper {
         
         // 3. Decode & Verifikasi Token
         try {
-            $decoded = JWT::decode($jwtToken, $secretKey, ['HS256']);
+            $decoded = JWT::decode($jwtToken, new \Firebase\JWT\Key($secretKey, 'HS256'));
             return (array) $decoded->data;
         } catch (Exception $e) {
             Response::json(false, 401, "Token tidak valid atau sudah kedaluwarsa. Silakan login ulang.", null);

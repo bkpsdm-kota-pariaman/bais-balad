@@ -2,7 +2,7 @@
 
 const ORIGIN_SERVER_URL = "https://api-esdm.pariamankota.go.id/beta-bais-pariaman";
 const API_BASE_URL = `${ORIGIN_SERVER_URL}/api`;
-const APP_VERSION = 'v6.1.106'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
+const APP_VERSION = 'v6.1.124'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
 
 /**
  * =================================================================
@@ -1089,7 +1089,7 @@ async function refreshProfil() {
 
     const user = parseJwt(token, true); // Validasi token sebelum digunakan
     if (!user) {
-        Swal.fire('Error', 'Profil lokal tidak valid. Silakan logout dan login kembali.', 'error');
+        Swal.fire('Kesalahan', 'Profil lokal tidak valid. Silakan logout dan login kembali.', 'error');
         return;
     }
 
@@ -1272,9 +1272,15 @@ async function bukaScanner(isNormalFlow = false, title = 'Pindai Kode QR', showM
 }
 
 async function _startScanner(deviceId) {
-    // Hentikan dulu jika sedang berjalan, untuk handle pergantian kamera.
-    if (html5QrCode && html5QrCode.isScanning) {
-        await html5QrCode.stop().catch(err => console.warn("Gagal menghentikan scanner saat memulai ulang.", err));
+    // Full cleanup sebelum inisialisasi ulang scanner
+    if (html5QrCode) {
+        if (html5QrCode.isScanning) {
+            try { await html5QrCode.stop(); } catch(e) {}
+        }
+        if (html5QrCode.clear) {
+            try { await html5QrCode.clear(); } catch(e) {}
+        }
+        html5QrCode = null;
     }
 
     // Inisialisasi ulang setelah yang lama dihentikan
@@ -1293,7 +1299,7 @@ async function _startScanner(deviceId) {
         () => { } // onScanFailure, sengaja dibiarkan kosong untuk mendukung continuous scan.
     ).catch(err => {
         console.error("Gagal memulai pemindai QR:", err);
-        Swal.fire("Error Kamera", "Gagal memulai kamera. Pastikan izin telah diberikan.", "error");
+        Swal.fire("Kesalahan Kamera", "Gagal memulai kamera. Pastikan izin telah diberikan.", "error");
         if (location.hash === '#scanner') history.back(); // Kembali jika gagal start.
     });
 }
@@ -1332,10 +1338,15 @@ async function tutupScanner(fromPopState = false) {
     }
 
     // Logika inti untuk membersihkan dan beralih view.
-    if (html5QrCode && html5QrCode.isScanning) {
-        await html5QrCode.stop().catch(err => console.warn("Gagal menghentikan scanner.", err));
+    if (html5QrCode) {
+        if (html5QrCode.isScanning) {
+            await html5QrCode.stop().catch(err => console.warn("Gagal menghentikan scanner.", err));
+        }
+        if (html5QrCode.clear) {
+            try { await html5QrCode.clear(); } catch(e) {}
+        }
+        html5QrCode = null;
     }
-    html5QrCode = null;
 
     if (isAbsenCepatMode) {
         isAbsenCepatMode = false; // Nonaktifkan mode pindai cepat.
@@ -2011,7 +2022,7 @@ async function mulaiKameraSelfie() {
             console.error("Gagal memulai kamera selfie:", e);
             isKameraError = true;
             updateConditionalFormElements();
-            Swal.fire("Error Kamera", "Kamera aplikasi gagal dimuat atau akses ditolak. Anda dialihkan untuk menggunakan bukti dukung.", "warning");
+            Swal.fire("Kesalahan Kamera", "Kamera aplikasi gagal dimuat atau akses ditolak. Anda dialihkan untuk menggunakan bukti dukung.", "warning");
         }
     };
 
@@ -2359,7 +2370,7 @@ async function handleScanSuccess(decodedText) {
             } catch (e) {
                 // Menangkap error tak terduga dari fungsi pengiriman.
                 console.error("Terjadi kesalahan tidak terduga saat mengirim absensi cepat:", e);
-                Swal.fire("Error", "Terjadi kesalahan tidak terduga.", "error");
+                Swal.fire("Kesalahan", "Terjadi kesalahan tidak terduga.", "error");
             } finally {
                 // 3. Setelah selesai (baik sukses atau gagal), sembunyikan loading.
                 showLoading(false);
@@ -2391,6 +2402,10 @@ async function handleScanSuccess(decodedText) {
     } else { // Alur Absensi Normal (tidak berubah)
         if (html5QrCode && html5QrCode.isScanning) {
             await html5QrCode.stop().catch(err => console.warn("Gagal menghentikan scanner setelah sukses.", err));
+            if (html5QrCode.clear) {
+                try { await html5QrCode.clear(); } catch(e) {}
+            }
+            html5QrCode = null;
         }
         handleDecodedQrText(decodedText);
     }

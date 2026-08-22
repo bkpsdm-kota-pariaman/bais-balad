@@ -45,6 +45,7 @@ function gantiPage(fitur, page, limit) {
         case 'rekap': terapkanFilterRekap(true); break;
         case 'rekapKeseluruhan': terapkanFilterRekapKeseluruhan(true); break;
         case 'statistik': terapkanFilterStatistik(true); break;
+        case 'logAbsensi': terapkanFilterLogAbsensi(true); break;
     }
 }
 
@@ -78,6 +79,8 @@ function renderPaginationControls(containerId, paginationData, onPageChangeName)
         exportBtnHtml = '<button class="btn btn-outline-success btn-sm fw-bold ms-3" onclick="exportRekapKeseluruhanToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>';
     } else if (onPageChangeName === 'statistik') {
         exportBtnHtml = '<button class="btn btn-outline-success btn-sm fw-bold ms-3" onclick="exportStatistikToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>';
+    } else if (onPageChangeName === 'logAbsensi') {
+        exportBtnHtml = '<button class="btn btn-outline-success btn-sm fw-bold ms-3" onclick="exportLogAbsensiToExcel()"><i class="bi bi-file-earmark-excel-fill"></i> Download Excel</button>';
     }
 
     let htmlTop = `
@@ -195,7 +198,7 @@ async function prosesLogin() {
     const password = passwordInput.value.trim();
 
     if (!username || !password) {
-        alert('Username dan Password harus diisi.');
+        Swal.fire('Peringatan', 'Username dan Password harus diisi.', 'warning');
         return;
     }
 
@@ -204,33 +207,33 @@ async function prosesLogin() {
     loginButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Memproses...';
 
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/login`, {
+        const result = await fetchAdmin(`${API_BASE_URL}/admin/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
         });
 
-        const result = await response.json();
-
         if (result.status && result.data.token) {
             // Jika login berhasil, simpan token ke localStorage
             localStorage.setItem('admin_jwt_token', result.data.token);
 
+            // Periksa role untuk menu navigasi super admin
+            checkSuperAdminUI();
+
             // Sembunyikan overlay login dan tampilkan konten admin
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('dashboardContainer').classList.remove('d-none');
-            if(document.getElementById('adminNavbar')) document.getElementById('adminNavbar').classList.remove('d-none');
+            if (document.getElementById('adminNavbar')) document.getElementById('adminNavbar').classList.remove('d-none');
 
             // Di sini Anda bisa memanggil fungsi untuk memuat data awal dashboard, contoh:
             loadJadwalKegiatan();
         } else {
             // Jika login gagal, tampilkan pesan error
-            alert(`Login Gagal: ${result.message}`);
+            Swal.fire('Gagal', `Login Gagal: ${result.message}`, 'error');
         }
 
     } catch (error) {
-        console.error('Login error:', error);
-        alert('Koneksi Gagal: Tidak dapat terhubung ke server. Periksa koneksi internet Anda.');
+        Swal.fire('Gagal', `Login Gagal: ${error.message}`, 'error');
     } finally {
         // Aktifkan kembali tombol login
         loginButton.disabled = false;
@@ -263,10 +266,13 @@ function forceLogout() {
 document.addEventListener('DOMContentLoaded', () => {
     const token = localStorage.getItem('admin_jwt_token');
     if (token) {
+        // Periksa role untuk menu navigasi super admin
+        checkSuperAdminUI();
+
         // Jika token ada, anggap sudah login. Sembunyikan overlay.
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('dashboardContainer').classList.remove('d-none');
-        if(document.getElementById('adminNavbar')) document.getElementById('adminNavbar').classList.remove('d-none');
+        if (document.getElementById('adminNavbar')) document.getElementById('adminNavbar').classList.remove('d-none');
         loadJadwalKegiatan();
     }
     // Jika tidak ada token, overlay login akan tampil secara default.
@@ -341,22 +347,81 @@ async function fetchWithAuth(url, options = {}) {
         headers['Content-Type'] = 'application/json';
     }
 
+    const overlay = document.getElementById('adminLoadingOverlay');
+    const controller = new AbortController();
     const fetchOptions = {
         cache: 'no-store', // Prevent aggressive caching of JSON responses
         ...options,
-        headers
+        headers,
+        signal: controller.signal
     };
 
-    const response = await fetch(url, fetchOptions);
+    if (overlay) overlay.style.display = 'flex';
+    let timedOut = false;
+    const abortTimeout = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+    }, 10000);
 
-    if (response.status === 401) { // Token expired or invalid
-        alert('Sesi Anda telah berakhir. Silakan login kembali.');
-        forceLogout();
-        throw new Error('Unauthorized');
+    try {
+        const response = await fetch(url, fetchOptions);
+        clearTimeout(abortTimeout);
+
+        let result = null;
+        try {
+            result = await response.json();
+        } catch (jsonErr) {
+            throw new Error('Respons dari server tidak valid (Bukan JSON).');
+        }
+
+        if (result.code === 401) { // Token expired or invalid
+            Swal.fire('Sesi Berakhir', 'Sesi Anda telah berakhir. Silakan login kembali.', 'warning');
+            forceLogout();
+            throw new Error('Unauthorized');
+        }
+        return result;
+    } catch (e) {
+        throw e;
+    } finally {
+        if (overlay) overlay.style.display = 'none';
     }
-    return response.json();
 }
 
+// Helper fetch dengan timeout + loading + SweetAlert error
+async function fetchAdmin(url, options = {}) {
+    const overlay = document.getElementById('adminLoadingOverlay');
+    let abortTimeout;
+    const controller = new AbortController();
+    options.signal = controller.signal;
+    if (overlay) overlay.style.display = 'flex';
+    let timedOut = false;
+    abortTimeout = setTimeout(() => { timedOut = true; controller.abort(); }, 10000);
+    try {
+        const resp = await fetch(url, options);
+        clearTimeout(abortTimeout);
+
+        let result = null;
+        try {
+            result = await resp.json();
+        } catch (jsonErr) {
+            // Bukan respon JSON
+        }
+
+        if (!result) {
+            throw new Error('Respons dari server tidak valid (Bukan JSON).');
+        }
+
+        if (!resp.ok) {
+            const errMsg = result.message ? result.message : ('HTTP ' + resp.status);
+            throw new Error(errMsg);
+        }
+        return result;
+    } catch (e) {
+        throw e;
+    } finally {
+        if (overlay) overlay.style.display = 'none';
+    }
+}
 /**
  * Memuat daftar jadwal kegiatan dari server.
  */
@@ -377,7 +442,7 @@ async function loadJadwalKegiatan(isFromPagination = false) {
             renderJadwalTable(currentJadwalData);
             renderPaginationControls('jadwalPagination', result.data.pagination, 'jadwal');
         } else {
-            alert('Gagal memuat jadwal: ' + result.message);
+            Swal.fire('Gagal', 'Gagal memuat jadwal: ' + result.message, 'error');
         }
     } catch (error) {
         console.error('Error loading jadwal:', error);
@@ -411,8 +476,8 @@ function renderJadwalTable(jadwalList) {
         } else if (jadwal.aktifkan_antrian === '0') {
             rulesBadges.push('<span class="badge bg-secondary mb-1 me-1"><i class="bi bi-people-fill"></i> Antrian: Non-Aktif</span>');
         }
-        
-        let rulesHtml = rulesBadges.length > 0 ? `<div class="d-flex flex-column gap-1 align-items-center">${rulesBadges.join('')}</div>` : '<span class="text-muted small">-</span>';        let syncStatusHtml = '';
+
+        let rulesHtml = rulesBadges.length > 0 ? `<div class="d-flex flex-column gap-1 align-items-center">${rulesBadges.join('')}</div>` : '<span class="text-muted small">-</span>'; let syncStatusHtml = '';
         if (jadwal.kv_sync_status == 1) {
             syncStatusHtml = `
                 <div class="d-flex flex-column align-items-center gap-1">
@@ -546,7 +611,6 @@ async function submitKegiatanBaru(event) {
         }
     } catch (error) {
         console.error('Error creating schedule:', error);
-        Swal.fire('Koneksi Gagal', 'Gagal menyimpan jadwal. Periksa koneksi internet Anda.', 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = 'Simpan Jadwal';
@@ -567,10 +631,10 @@ async function hapusKegiatan(kodeAkses) {
         });
 
         if (result.status) {
-            alert('Jadwal berhasil dihapus.');
+            Swal.fire('Sukses', 'Jadwal berhasil dihapus.', 'success');
             loadJadwalKegiatan();
         } else {
-            alert('Gagal menghapus: ' + result.message);
+            Swal.fire('Gagal', 'Gagal menghapus: ' + result.message, 'error');
         }
     } catch (error) {
         console.error('Error deleting schedule:', error);
@@ -747,7 +811,7 @@ async function bukaModalEdit(kodeAkses) {
     try {
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/jadwal/${kodeAkses}`);
         if (!result.status) {
-            alert('Gagal memuat data jadwal: ' + result.message);
+            Swal.fire('Gagal', 'Gagal memuat data jadwal: ' + result.message, 'error');
             return;
         }
 
@@ -780,7 +844,6 @@ async function bukaModalEdit(kodeAkses) {
 
     } catch (error) {
         console.error('Error opening edit modal:', error);
-        alert('Gagal Memuat: Terjadi kesalahan koneksi saat memuat data jadwal.');
     }
 }
 
@@ -824,7 +887,6 @@ async function submitEditKegiatan(event) {
         }
     } catch (error) {
         console.error('Error updating schedule:', error);
-        Swal.fire('Koneksi Gagal', 'Gagal memperbarui jadwal. Periksa koneksi internet Anda.', 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = 'Perbarui Jadwal';
@@ -847,7 +909,7 @@ function lokasiSayaSaatIni(mode) {
     const marker = (mode === 'add') ? markerAdd : markerEdit;
 
     if (!map || !navigator.geolocation) {
-        alert('Peta atau Geolocation tidak tersedia di browser Anda.');
+        Swal.fire('Kesalahan', 'Peta atau Geolocation tidak tersedia di browser Anda.', 'error');
         return;
     }
 
@@ -856,7 +918,7 @@ function lokasiSayaSaatIni(mode) {
         marker.setLatLng(e.latlng).fire('dragend');
     });
     map.once('locationerror', function (e) {
-        alert("Gagal mendapatkan lokasi Anda. Pastikan izin lokasi telah diberikan untuk situs ini.");
+        Swal.fire('Gagal', 'Gagal mendapatkan lokasi Anda. Pastikan izin lokasi telah diberikan untuk situs ini.', 'error');
     });
 }
 
@@ -1039,6 +1101,7 @@ function kembaliKeDaftar() {
     document.getElementById('rekapContainer').classList.add('d-none');
     document.getElementById('rekapKeseluruhanContainer').classList.add('d-none');
     document.getElementById('statistikKehadiranContainer').classList.add('d-none');
+    document.getElementById('logAbsensiContainer').classList.add('d-none');
     document.getElementById('dashboardContainer').classList.remove('d-none');
     loadJadwalKegiatan();
 }
@@ -1050,6 +1113,7 @@ function bukaHalamanPegawai() {
     document.getElementById('rekapKeseluruhanContainer').classList.add('d-none');
     document.getElementById('statistikKehadiranContainer').classList.add('d-none');
     document.getElementById('opdContainer').classList.add('d-none');
+    document.getElementById('logAbsensiContainer').classList.add('d-none');
     document.getElementById('pegawaiContainer').classList.remove('d-none');
 
     // Reset tampilan dan isi filter, jangan load data dulu
@@ -1059,7 +1123,6 @@ function bukaHalamanPegawai() {
     document.getElementById('pegawaiFilterInstall').value = 'semua';
     document.getElementById('pegawaiSearchInput').value = '';
     populatePegawaiFilterOpd();
-    loadPegawaiStats();
 }
 
 function bukaHalamanOpd() {
@@ -1069,6 +1132,7 @@ function bukaHalamanOpd() {
     document.getElementById('rekapKeseluruhanContainer').classList.add('d-none');
     document.getElementById('statistikKehadiranContainer').classList.add('d-none');
     document.getElementById('pegawaiContainer').classList.add('d-none');
+    document.getElementById('logAbsensiContainer').classList.add('d-none');
     document.getElementById('opdContainer').classList.remove('d-none');
     loadOpdData();
 }
@@ -1078,6 +1142,7 @@ async function lihatRekap(kodeAkses) {
     document.getElementById('dashboardContainer').classList.add('d-none');
     document.getElementById('rekapKeseluruhanContainer').classList.add('d-none');
     document.getElementById('statistikKehadiranContainer').classList.add('d-none');
+    document.getElementById('logAbsensiContainer').classList.add('d-none');
     document.getElementById('rekapContainer').classList.remove('d-none');
     currentRekapData = { jadwal: null, filtered_pegawai: [] }; // Reset data cache
     resetRekapFilters();
@@ -1105,7 +1170,7 @@ async function lihatRekap(kodeAkses) {
         // Panggil API untuk mendapatkan info dasar jadwal dan list OPD untuk filter
         const result = await fetchWithAuth(`${API_BASE_URL}/admin/rekap/${kodeAkses}`);
         if (!result.status) {
-            alert('Gagal memuat rekap: ' + result.message);
+            Swal.fire('Gagal', 'Gagal memuat rekap: ' + result.message, 'error');
             kembaliKeDaftar();
             return;
         }
@@ -1405,9 +1470,7 @@ async function submitOpd(event) {
         } else {
             Swal.fire('Gagal', result.message, 'error');
         }
-    } catch (error) {
-        Swal.fire('Koneksi Gagal', 'Gagal menyimpan data OPD. Periksa koneksi internet Anda.', 'error');
-    } finally {
+    } catch (error) { } finally {
         btn.disabled = false;
         btn.innerHTML = (currentOpdMode === 'add') ? '<i class="bi bi-plus-circle"></i> Tambah OPD' : '<i class="bi bi-floppy"></i> Simpan Perubahan';
     }
@@ -1434,9 +1497,7 @@ async function hapusOpd(id, nama) {
             } else {
                 Swal.fire('Gagal', result.message, 'error');
             }
-        } catch (error) {
-            Swal.fire('Koneksi Gagal', 'Gagal menghapus OPD. Periksa koneksi internet Anda.', 'error');
-        }
+        } catch (error) { }
     }
 }
 
@@ -1464,7 +1525,6 @@ async function syncOpdList() {
             }
         } catch (error) {
             showAdminLoading(false);
-            Swal.fire('Koneksi Gagal', 'Gagal memicu sinkronisasi. Periksa koneksi internet Anda.', 'error');
         }
     }
 }
@@ -1733,9 +1793,7 @@ async function hapusDataAbsensi(nip, nama, kodeAkses) {
             } else {
                 Swal.fire('Gagal', result.message, 'error');
             }
-        } catch (error) {
-            Swal.fire('Koneksi Gagal', 'Gagal menghapus data. Periksa koneksi internet Anda.', 'error');
-        }
+        } catch (error) { }
     }
 }
 
@@ -1813,7 +1871,7 @@ async function submitVerifikasi(event) {
     if (fileInput.files.length > 0) {
         formData.append('bukti_dukung', fileInput.files[0]);
     } else if (fileInput.required) {
-        Swal.fire('Error', 'Bukti dukung (Foto/PDF) wajib diunggah!', 'error');
+        Swal.fire('Kesalahan', 'Bukti dukung (Foto/PDF) wajib diunggah!', 'error');
         return;
     }
 
@@ -1847,11 +1905,10 @@ async function submitVerifikasi(event) {
                 refreshRekapSummary(); // Refresh juga modal ringkasan
             }
         } else {
-            alert('Gagal memperbarui: ' + result.message);
+            Swal.fire('Gagal', 'Gagal memperbarui: ' + result.message, 'error');
         }
     } catch (error) {
         console.error('Error submitting verification:', error);
-        alert('Koneksi Gagal: Gagal menyimpan verifikasi. Periksa koneksi internet Anda.');
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-floppy"></i> Simpan Status';
@@ -2089,7 +2146,6 @@ async function submitTambahPesertaBulk(event) {
         }
     } catch (error) {
         console.error('Error adding participant:', error);
-        Swal.fire('Koneksi Gagal', 'Gagal menambahkan peserta. Periksa koneksi internet Anda.', 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-floppy"></i> Simpan Pilihan & Kehadiran';
@@ -2126,12 +2182,11 @@ async function refreshRekapSummary() {
             renderRekapSummary(result.data, 'rekapPerOpdContainerModal');
             // Tidak perlu panggil terapkanFilterRekap() lagi, ini memperbaiki bug
         } else {
-            alert('Gagal refresh: ' + result.message);
+            Swal.fire('Gagal', 'Gagal refresh: ' + result.message, 'error');
             modalBody.innerHTML = originalHtml;
         }
     } catch (error) {
         console.error('Error refreshing summary:', error);
-        alert('Koneksi Gagal: Gagal memuat ulang ringkasan. Periksa koneksi internet Anda.');
         modalBody.innerHTML = originalHtml;
     }
 }
@@ -2164,7 +2219,7 @@ async function exportRekapToExcel() {
         });
 
         if (!result.status || result.data.length === 0) {
-            alert('Tidak ada data untuk diunduh berdasarkan filter yang dipilih.');
+            Swal.fire('Informasi', 'Tidak ada data untuk diunduh berdasarkan filter yang dipilih.', 'info');
             return;
         }
 
@@ -2193,7 +2248,7 @@ async function exportRekapToExcel() {
         XLSX.writeFile(wb, fileName);
 
     } catch (error) {
-        alert('Terjadi kesalahan saat menyiapkan data untuk diunduh.');
+        Swal.fire('Kesalahan', 'Terjadi kesalahan saat menyiapkan data untuk diunduh.', 'error');
     }
 }
 
@@ -2254,9 +2309,7 @@ async function hapusDataAbsensiMassal() {
             } else {
                 Swal.fire('Gagal', result.message, 'error');
             }
-        } catch (error) {
-            Swal.fire('Koneksi Gagal', 'Gagal menghapus data. Periksa koneksi internet Anda.', 'error');
-        }
+        } catch (error) { }
     }
 }
 
@@ -2266,26 +2319,6 @@ async function hapusDataAbsensiMassal() {
  * =================================================
  */
 
-async function loadPegawaiStats() {
-    // Reset stats
-    document.getElementById('totalPegawaiStat').innerText = '...';
-    document.getElementById('installedPegawaiStat').innerText = '...';
-    document.getElementById('notInstalledPegawaiStat').innerText = '...';
-
-    try {
-        const result = await fetchWithAuth(`${API_BASE_URL}/admin/pegawai/stats`);
-        if (result.status) {
-            document.getElementById('totalPegawaiStat').innerText = result.data.total.toLocaleString('id-ID');
-            document.getElementById('installedPegawaiStat').innerText = result.data.installed.toLocaleString('id-ID');
-            document.getElementById('notInstalledPegawaiStat').innerText = result.data.not_installed.toLocaleString('id-ID');
-        }
-    } catch (error) {
-        console.error('Error loading pegawai stats:', error);
-        document.getElementById('totalPegawaiStat').innerText = 'Error';
-        document.getElementById('installedPegawaiStat').innerText = 'Error';
-        document.getElementById('notInstalledPegawaiStat').innerText = 'Error';
-    }
-}
 
 async function populatePegawaiFilterOpd() {
     await loadAllOpdList(); // Memastikan daftar OPD sudah dimuat
@@ -2387,10 +2420,8 @@ function renderPegawaiTable(pegawaiList) {
                 <td>${p.nip}</td>
                 <td>${p.perangkat_daerah}</td>
                 <td>${p.jabatan || '-'}</td>
-                <td>${p.nik}</td>
                 <td><span class="badge ${p.jenis_asn === 'PNS' ? 'bg-danger' : 'bg-danger'}">${p.jenis_asn}</span></td>
                 <td>${roleBadge}</td>
-                <td>${formatIndonesianDateTime(p.last_login)}</td>
                 <td class="text-center">${syncStatusHtml}</td>
                 <td class="text-center">
                     <div class="btn-group btn-group-sm">
@@ -2428,7 +2459,6 @@ async function syncPegawaiKv(nip, nama) {
             }
         } catch (error) {
             showAdminLoading(false);
-            Swal.fire('Koneksi Gagal', 'Gagal memicu sinkronisasi. Periksa koneksi internet Anda.', 'error');
         }
     }
 }
@@ -2458,7 +2488,6 @@ async function syncJadwalKv(kodeAkses, judul) {
             }
         } catch (error) {
             showAdminLoading(false);
-            Swal.fire('Koneksi Gagal', 'Gagal memicu sinkronisasi. Periksa koneksi internet Anda.', 'error');
         }
     }
 }
@@ -2492,9 +2521,9 @@ function populateOpdCheckboxContainer(containerId, opdArray) {
     if (select.tomselect) {
         select.tomselect.clear();
         select.tomselect.clearOptions();
-        select.tomselect.addOption({value: 'semua', text: '-- Semua OPD --'});
+        select.tomselect.addOption({ value: 'semua', text: '-- Semua OPD --' });
         opdArray.forEach(opd => {
-            select.tomselect.addOption({value: opd, text: opd});
+            select.tomselect.addOption({ value: opd, text: opd });
         });
         select.tomselect.setValue(selectedOpd, true);
         return;
@@ -2543,6 +2572,15 @@ async function bukaModalTambahPegawai() {
     currentPegawaiMode = 'add';
     document.getElementById('formPegawai').reset();
     document.getElementById('pegawaiNip').readOnly = false;
+    document.getElementById('pegawaiNikLabel').innerText = 'NIK';
+
+    // Role management
+    const superAdmin = isSuperAdmin();
+    document.getElementById('roleAsn').checked = true;
+    document.getElementById('roleAdmin').checked = false;
+    document.getElementById('roleSuperAdmin').checked = false;
+    document.getElementById('roleAdmin').disabled = !superAdmin;
+    document.getElementById('roleSuperAdmin').disabled = !superAdmin;
 
     const header = document.getElementById('modalPegawaiHeader');
     const title = document.getElementById('modalPegawaiTitle');
@@ -2575,10 +2613,25 @@ async function bukaModalEditPegawai(pegawai) {
     document.getElementById('pegawaiNipLama').value = pegawai.nip;
     document.getElementById('pegawaiNip').value = pegawai.nip;
     document.getElementById('pegawaiNama').value = pegawai.nama_pegawai;
-    document.getElementById('pegawaiNik').value = pegawai.nik;
+    document.getElementById('pegawaiNik').value = '';
+    document.getElementById('pegawaiNikLabel').innerText = 'NIK (kosongkan jika data tetap)';
     document.getElementById('pegawaiJabatan').value = pegawai.jabatan || '';
     document.getElementById('pegawaiJenisAsn').value = pegawai.jenis_asn;
-    document.getElementById('pegawaiRole').value = pegawai.role;
+
+    // Role management
+    const superAdmin = isSuperAdmin();
+    document.getElementById('roleAdmin').disabled = !superAdmin;
+    document.getElementById('roleSuperAdmin').disabled = !superAdmin;
+
+    document.getElementById('roleAsn').checked = true; // Always checked
+    document.getElementById('roleAdmin').checked = false;
+    document.getElementById('roleSuperAdmin').checked = false;
+
+    if (pegawai.role) {
+        const roles = pegawai.role.split(',').map(r => r.trim().toLowerCase());
+        if (roles.includes('admin')) document.getElementById('roleAdmin').checked = true;
+        if (roles.includes('super admin')) document.getElementById('roleSuperAdmin').checked = true;
+    }
 
     await loadAllOpdList();
     populateOpdDropdown('pegawaiOpd', pegawai.perangkat_daerah);
@@ -2599,7 +2652,7 @@ async function submitPegawai(event) {
         perangkat_daerah: document.getElementById('pegawaiOpd').value,
         jabatan: document.getElementById('pegawaiJabatan').value,
         jenis_asn: document.getElementById('pegawaiJenisAsn').value,
-        role: document.getElementById('pegawaiRole').value
+        role: Array.from(document.querySelectorAll('.role-checkbox:checked')).map(cb => cb.value)
     };
 
     let url = `${API_BASE_URL}/admin/pegawai`;
@@ -2620,9 +2673,7 @@ async function submitPegawai(event) {
         } else {
             Swal.fire('Gagal', result.message, 'error');
         }
-    } catch (error) {
-        Swal.fire('Koneksi Gagal', 'Gagal menyimpan data pegawai. Periksa koneksi internet Anda.', 'error');
-    } finally {
+    } catch (error) { } finally {
         btn.disabled = false;
         btn.innerHTML = (currentPegawaiMode === 'add') ? '<i class="bi bi-plus-circle"></i> Tambah Pegawai' : '<i class="bi bi-floppy"></i> Simpan Perubahan';
     }
@@ -2649,9 +2700,7 @@ async function hapusPegawai(nip, nama) {
             } else {
                 Swal.fire('Gagal', result.message, 'error');
             }
-        } catch (error) {
-            Swal.fire('Koneksi Gagal', 'Gagal menghapus pegawai. Periksa koneksi internet Anda.', 'error');
-        }
+        } catch (error) { }
     }
 }
 
@@ -2683,6 +2732,7 @@ async function bukaHalamanRekapKeseluruhan() {
     document.getElementById('pegawaiContainer').classList.add('d-none');
     document.getElementById('opdContainer').classList.add('d-none');
     document.getElementById('statistikKehadiranContainer').classList.add('d-none');
+    document.getElementById('logAbsensiContainer').classList.add('d-none');
     document.getElementById('rekapKeseluruhanContainer').classList.remove('d-none');
 
     initRekapKeseluruhanUI();
@@ -2889,9 +2939,7 @@ async function hapusDataAbsensiKeseluruhan(nip, nama, kodeAkses) {
             } else {
                 Swal.fire('Gagal', result.message, 'error');
             }
-        } catch (error) {
-            Swal.fire('Koneksi Gagal', 'Gagal menghapus data. Periksa koneksi internet Anda.', 'error');
-        }
+        } catch (error) { }
     }
 }
 
@@ -2986,6 +3034,7 @@ async function bukaHalamanStatistikKehadiran() {
     document.getElementById('pegawaiContainer').classList.add('d-none');
     document.getElementById('opdContainer').classList.add('d-none');
     document.getElementById('rekapKeseluruhanContainer').classList.add('d-none');
+    document.getElementById('logAbsensiContainer').classList.add('d-none');
     document.getElementById('statistikKehadiranContainer').classList.remove('d-none');
 
     initStatistikUI();
@@ -3223,7 +3272,7 @@ function exportStatistikToExcel() {
  */
 function bukaModalImportAbsen() {
     if (!currentRekapData || !currentRekapData.jadwal) {
-        Swal.fire('Error', 'Data jadwal tidak ditemukan.', 'error');
+        Swal.fire('Kesalahan', 'Data jadwal tidak ditemukan.', 'error');
         return;
     }
 
@@ -3295,7 +3344,7 @@ function handlePreviewCSV(event) {
         tbody.innerHTML = '';
 
         if (lines.length <= 1) {
-            Swal.fire('Error', 'File CSV kosong atau hanya berisi header.', 'error');
+            Swal.fire('Kesalahan', 'File CSV kosong atau hanya berisi header.', 'error');
             return;
         }
 
@@ -3415,7 +3464,7 @@ async function submitImportAbsen(event) {
     });
 
     if (hasInvalidData) {
-        Swal.fire('Error Validasi', 'Terdapat data yang tidak valid pada baris yang Anda centang. Pastikan hanya memilih data yang sudah valid formatnya.', 'error');
+        Swal.fire('Kesalahan Validasi', 'Terdapat data yang tidak valid pada baris yang Anda centang. Pastikan hanya memilih data yang sudah valid formatnya.', 'error');
         return;
     }
 
@@ -3455,9 +3504,217 @@ async function submitImportAbsen(event) {
         }
     } catch (error) {
         console.error('Import Error:', error);
-        Swal.fire('Error', 'Terjadi kesalahan jaringan atau server.', 'error');
+        Swal.fire('Kesalahan', 'Terjadi kesalahan jaringan atau server.', 'error');
     } finally {
         btnProses.disabled = false;
         btnProses.innerHTML = '<i class="bi bi-cloud-upload"></i> Proses Import Data Terpilih';
     }
+}
+
+// === FUNGSI LOG ABSENSI (SUPER ADMIN ONLY) ===
+function isSuperAdmin() {
+    try {
+        const token = localStorage.getItem('admin_jwt_token');
+        if (!token) return false;
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const roles = Array.isArray(payload.data?.role)
+            ? payload.data.role.map(r => String(r).trim().toLowerCase())
+            : (payload.data?.role ? String(payload.data.role).split(',').map(r => r.trim().toLowerCase()) : []);
+        return roles.includes('super admin');
+    } catch (e) {
+        return false;
+    }
+}
+
+function checkSuperAdminUI() {
+    const isSuper = isSuperAdmin();
+    const divider = document.getElementById('menuDividerLogAbsensi');
+    const item = document.getElementById('menuItemLogAbsensi');
+    if (isSuper) {
+        if (divider) divider.classList.remove('d-none');
+        if (item) item.classList.remove('d-none');
+    } else {
+        if (divider) divider.classList.add('d-none');
+        if (item) item.classList.add('d-none');
+    }
+}
+
+let currentLogAbsensiData = [];
+
+async function bukaHalamanLogAbsensi() {
+    if (!isSuperAdmin()) {
+        Swal.fire('Akses Ditolak', 'Hanya super admin yang dapat mengakses log absensi.', 'error');
+        return;
+    }
+    resetPaginasi();
+
+    // Sembunyikan semua container lain
+    document.getElementById('dashboardContainer').classList.add('d-none');
+    document.getElementById('rekapContainer').classList.add('d-none');
+    document.getElementById('pegawaiContainer').classList.add('d-none');
+    document.getElementById('opdContainer').classList.add('d-none');
+    document.getElementById('rekapKeseluruhanContainer').classList.add('d-none');
+    document.getElementById('statistikKehadiranContainer').classList.add('d-none');
+    document.getElementById('logAbsensiContainer').classList.remove('d-none');
+
+    // Reset input filter
+    document.getElementById('logFilterKegiatan').value = '';
+    document.getElementById('logFilterPegawai').value = '';
+    document.getElementById('logFilterAksi').value = '';
+    document.getElementById('logFilterPelaku').value = '';
+    document.getElementById('logFilterTanggal').value = '';
+
+    // Sembunyikan detail box kegiatan
+    document.getElementById('logKegiatanDetailBox').classList.add('d-none');
+
+    // Reset tampilan tabel
+    document.getElementById('logAbsensiTableBody').innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Silakan masukkan kode akses kegiatan pada filter di atas dan klik "Cari".</td></tr>';
+    const pt = document.getElementById("logAbsensiPaginationTop"); if (pt) pt.classList.add("d-none");
+    const pb = document.getElementById("logAbsensiPagination"); if (pb) pb.classList.add("d-none");
+}
+
+async function terapkanFilterLogAbsensi(isFromPagination = false) {
+    if (isFromPagination !== true) paginasiState.page = 1;
+    const kodeAkses = document.getElementById('logFilterKegiatan').value.trim();
+    if (!kodeAkses) {
+        Swal.fire('Filter Wajib', 'Silakan masukkan kode akses kegiatan terlebih dahulu.', 'warning');
+        return;
+    }
+
+    const searchPegawai = document.getElementById('logFilterPegawai').value.trim();
+    const jenisAksi = document.getElementById('logFilterAksi').value;
+    const searchPelaku = document.getElementById('logFilterPelaku').value.trim();
+    const tanggal = document.getElementById('logFilterTanggal').value;
+
+    const tbody = document.getElementById('logAbsensiTableBody');
+    const detailBox = document.getElementById('logKegiatanDetailBox');
+
+    // Tampilkan loading di tabel
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm text-danger"></div> Memuat data kegiatan dan log absensi...</td></tr>';
+    const pt = document.getElementById("logAbsensiPaginationTop"); if (pt) pt.classList.add("d-none");
+    const pb = document.getElementById("logAbsensiPagination"); if (pb) pb.classList.add("d-none");
+
+    // 1. Ambil detail kegiatan dari database untuk validasi & display
+    try {
+        const resJadwal = await fetchWithAuth(`${API_BASE_URL}/admin/jadwal/${kodeAkses}`);
+        if (!resJadwal.status || !resJadwal.data) {
+            detailBox.classList.add('d-none');
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">Kode akses kegiatan "${kodeAkses}" tidak ditemukan.</td></tr>`;
+            Swal.fire('Gagal', `Jadwal kegiatan dengan kode akses "${kodeAkses}" tidak ditemukan.`, 'error');
+            return;
+        }
+
+        // Tampilkan detail kegiatan
+        const j = resJadwal.data;
+        document.getElementById('logDetailKodeAkses').textContent = j.kode_akses;
+        document.getElementById('logDetailJudul').textContent = j.judul;
+        document.getElementById('logDetailKategori').textContent = j.kategori;
+        document.getElementById('logDetailTanggal').textContent = j.tanggal ? formatIndonesianDateTime(j.tanggal).split(',')[0] : '-';
+        document.getElementById('logDetailJam').textContent = `${j.jam_mulai} - ${j.jam_selesai} WIB`;
+        document.getElementById('logDetailRadius').textContent = `${j.radius_meter} meter`;
+        detailBox.classList.remove('d-none');
+
+    } catch (e) {
+        console.error('Error fetching jadwal detail:', e);
+        detailBox.classList.add('d-none');
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Gagal memverifikasi kode akses kegiatan.</td></tr>';
+        return;
+    }
+
+    // 2. Jika jadwal ditemukan, ambil log absensi dari server
+    const query = new URLSearchParams({
+        kode_akses: kodeAkses,
+        search_pegawai: searchPegawai,
+        jenis_aksi: jenisAksi,
+        search_pelaku: searchPelaku,
+        tanggal: tanggal,
+        page: paginasiState.page,
+        limit: paginasiState.limit
+    });
+
+    try {
+        const result = await fetchWithAuth(`${API_BASE_URL}/admin/log-absensi?${query.toString()}`);
+        if (result.status) {
+            currentLogAbsensiData = result.data.data;
+            renderLogAbsensiTable(currentLogAbsensiData);
+            renderPaginationControls('logAbsensiPagination', result.data.pagination, 'logAbsensi');
+        } else {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">Gagal memuat log: ${result.message}</td></tr>`;
+        }
+    } catch (error) {
+        console.error('Error fetching log absensi:', error);
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Terjadi kesalahan koneksi atau hak akses saat mengambil log.</td></tr>';
+    }
+}
+
+function renderLogAbsensiTable(rows) {
+    const tbody = document.getElementById('logAbsensiTableBody');
+    if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Tidak ada data log absensi untuk filter ini.</td></tr>';
+        return;
+    }
+
+    const pageStartNo = (paginasiState.page - 1) * paginasiState.limit;
+
+    tbody.innerHTML = rows.map((r, index) => {
+        let badgeColor = r.jenis_aksi === 'tambah' ? 'success' : (r.jenis_aksi === 'edit' ? 'warning text-dark' : 'danger');
+        let formattedData = '-';
+        try {
+            const parsed = JSON.parse(r.data);
+            formattedData = JSON.stringify(parsed, null, 2);
+        } catch (e) {
+            formattedData = r.data || '-';
+        }
+
+        return `
+            <tr>
+                <td class="text-center fw-bold">${pageStartNo + index + 1}</td>
+                <td><small class="fw-semibold">${formatIndonesianDateTime(r.waktu_aksi)}</small></td>
+                <td class="text-center"><span class="badge bg-${badgeColor}">${r.jenis_aksi.toUpperCase()}</span></td>
+                <td>
+                    <div class="fw-bold">${r.nama && r.nama !== '-' ? r.nama : '-'}</div>
+                    <small class="text-muted">NIP: ${r.nip}</small>
+                </td>
+                <td>
+                    <div class="fw-bold">${r.nama_pelaku || '-'}</div>
+                    <small class="text-muted">NIP: ${r.nip_pelaku}</small>
+                </td>
+                <td>
+                    <div class="font-monospace small text-primary">${r.ip_address || '-'}</div>
+                    <small class="text-muted text-break d-block" style="font-size: 0.7rem; max-width: 140px; line-height: 1.1;" title="${(r.user_agent || '').replace(/"/g, '&quot;')}">${r.user_agent || '-'}</small>
+                </td>
+                <td>
+                    <textarea class="form-control form-control-sm text-start font-monospace bg-light" rows="3" readonly style="font-size: 0.75rem; resize: vertical;">${formattedData}</textarea>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function exportLogAbsensiToExcel() {
+    if (!currentLogAbsensiData || currentLogAbsensiData.length === 0) {
+        Swal.fire('Data Kosong', 'Tidak ada data log absensi untuk diekspor.', 'warning');
+        return;
+    }
+    const dataForExport = currentLogAbsensiData.map(item => ({
+        'ID Log': item.id_log_absensi,
+        'Waktu Aksi': item.waktu_aksi,
+        'Jenis Aksi': item.jenis_aksi,
+        'Kode Akses': item.kode_akses,
+        'NIP Pegawai': item.nip,
+        'Nama Pegawai': item.nama,
+        'NIP Pelaku': item.nip_pelaku,
+        'Nama Pelaku': item.nama_pelaku,
+        'IP Address': item.ip_address,
+        'User Agent': item.user_agent || '-',
+        'Data JSON': item.data
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataForExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Log Absensi");
+
+    const tgl = new Date().toISOString().slice(0, 10);
+    const kode = document.getElementById('logFilterKegiatan').value.trim() || 'Semua';
+    XLSX.writeFile(wb, `Log_Absensi_${kode}_${tgl}.xlsx`);
 }

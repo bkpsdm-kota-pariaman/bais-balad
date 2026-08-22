@@ -102,6 +102,10 @@
       border-color: #b91c1c;
       color: white;
     }
+
+    .swal2-container {
+      z-index: 100000 !important;
+    }
   </style>
 </head>
 
@@ -136,26 +140,31 @@
       </button>
       <div class="collapse navbar-collapse d-none" id="adminNavbar">
         <ul class="navbar-nav ms-auto mb-2 mb-lg-0 gap-2">
-          <li class="nav-item">
-            <a class="nav-link text-white fw-bold" href="#" onclick="kembaliKeDaftar(); return false;"><i
-                class="bi bi-calendar-event"></i> Data Kegiatan</a>
+          <!-- Dropdown Data -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle text-white fw-bold" href="#" id="navbarDropdownData" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-database me-1"></i> Data
+            </a>
+            <ul class="dropdown-menu shadow" aria-labelledby="navbarDropdownData">
+              <li><a class="dropdown-item fw-semibold" href="#" onclick="kembaliKeDaftar(); return false;"><i class="bi bi-calendar-event me-2"></i> Kegiatan</a></li>
+              <li><a class="dropdown-item fw-semibold" href="#" onclick="bukaHalamanPegawai(); return false;"><i class="bi bi-people me-2"></i> Pegawai</a></li>
+              <li><a class="dropdown-item fw-semibold" href="#" onclick="bukaHalamanOpd(); return false;"><i class="bi bi-building me-2"></i> Perangkat Daerah (OPD)</a></li>
+            </ul>
           </li>
-          <li class="nav-item">
-            <a class="nav-link text-white fw-bold" href="#" onclick="bukaHalamanRekapKeseluruhan(); return false;"><i
-                class="bi bi-calendar2-week"></i> Rekap Kehadiran</a>
+          
+          <!-- Dropdown Rekap -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle text-white fw-bold" href="#" id="navbarDropdownRekap" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-clipboard-data me-1"></i> Rekap
+            </a>
+            <ul class="dropdown-menu shadow" aria-labelledby="navbarDropdownRekap">
+              <li><a class="dropdown-item fw-semibold" href="#" onclick="bukaHalamanRekapKeseluruhan(); return false;"><i class="bi bi-calendar2-week me-2"></i> Kehadiran</a></li>
+              <li><a class="dropdown-item fw-semibold" href="#" onclick="bukaHalamanStatistikKehadiran(); return false;"><i class="bi bi-bar-chart-fill me-2"></i> Statistik</a></li>
+              <li id="menuDividerLogAbsensi" class="dropdown-divider d-none"></li>
+              <li id="menuItemLogAbsensi" class="d-none"><a class="dropdown-item fw-semibold text-danger" href="#" onclick="bukaHalamanLogAbsensi(); return false;"><i class="bi bi-journal-text me-2"></i> Log Absensi</a></li>
+            </ul>
           </li>
-          <li class="nav-item">
-            <a class="nav-link text-white fw-bold" href="#" onclick="bukaHalamanStatistikKehadiran(); return false;"><i
-                class="bi bi-bar-chart-fill"></i> Statistik Kehadiran</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-white fw-bold" href="#" onclick="bukaHalamanPegawai(); return false;"><i
-                class="bi bi-people"></i> Data Pegawai</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-white fw-bold" href="#" onclick="bukaHalamanOpd(); return false;"><i
-                class="bi bi-building"></i> Data OPD</a>
-          </li>
+
           <li class="nav-item">
             <button class="btn btn-outline-light btn-sm fw-bold px-3 ms-lg-3 mt-2 mt-lg-0 w-100 w-lg-auto"
               onclick="logout()">Keluar</button>
@@ -533,40 +542,11 @@
           class="bi bi-arrow-left"></i> Kembali ke Daftar Jadwal</button>
 
       <div class="box-container">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-4">
           <h4 class="fw-bold mb-0"><i class="bi bi-people-fill"></i> Manajemen Data Pegawai</h4>
           <button class="btn btn-danger fw-bold px-4 shadow-sm" onclick="bukaModalTambahPegawai()"><i
               class="bi bi-plus-circle"></i> Tambah Pegawai</button>
         </div>
-
-        <!-- Ringkasan Statistik -->
-        <div class="row g-3 mb-4">
-          <div class="col-md-4">
-            <div class="card card-stat bg-light border">
-              <div class="card-body text-center">
-                <h4 class="fw-bold mb-1" id="totalPegawaiStat">-</h4>
-                <p class="card-text text-muted mb-0">Total Pegawai</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card card-stat bg-success-subtle border-danger">
-              <div class="card-body text-center">
-                <h4 class="fw-bold mb-1" id="installedPegawaiStat">-</h4>
-                <p class="card-text text-success-emphasis mb-0">Sudah Install Aplikasi Absensi Kegiatan</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card card-stat bg-warning-subtle border-warning">
-              <div class="card-body text-center">
-                <h4 class="fw-bold mb-1" id="notInstalledPegawaiStat">-</h4>
-                <p class="card-text text-warning-emphasis mb-0">Belum Install Aplikasi Absensi Kegiatan</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Filter -->
         <div class="row g-3 p-3 mb-3 bg-light border rounded">
           <div class="col-md-3">
@@ -610,10 +590,8 @@
                 <th style="width: 12%;">NIP</th>
                 <th style="width: 15%;">Perangkat Daerah</th>
                 <th style="width: 10%;">Jabatan</th>
-                <th style="width: 10%;">NIK</th>
                 <th style="width: 5%;">Jenis</th>
-                <th style="width: 5%;">Role</th>
-                <th style="width: 10%;">Login Terakhir</th>
+                <th style="width: 5%;">Hak Akses</th>
                 <th class="text-center" style="width: 12%;">Sinkron Cache</th>
                 <th class="text-center" style="width: 5%;">Aksi</th>
               </tr>
@@ -661,6 +639,110 @@
             <tbody id="opdTableBody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- LOG ABSENSI AUDIT (SUPER ADMIN ONLY) -->
+    <div id="logAbsensiContainer" class="d-none">
+      <button class="btn btn-secondary btn-sm fw-bold mb-3 shadow-sm" onclick="kembaliKeDaftar()"><i
+          class="bi bi-arrow-left"></i> Kembali ke Daftar Jadwal</button>
+
+      <div class="box-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h4 class="fw-bold mb-1"><i class="bi bi-journal-text"></i> Log Absensi</h4>
+            <div class="alert alert-warning py-1 px-3 mb-0 d-inline-flex align-items-center">
+              <i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i>
+              <span class="small fw-semibold">Disini Anda bisa melihat perubahan data absensi yang dilakukan oleh admin</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- FILTERS -->
+        <div class="row g-2 mb-4 bg-light p-3 border rounded shadow-sm align-items-end">
+          <div class="col-md-3">
+            <label class="form-label fw-bold small text-danger">Kode Akses Kegiatan (Wajib) *</label>
+            <input type="text" id="logFilterKegiatan" class="form-control form-control-sm font-monospace fw-bold" placeholder="Masukkan Kode Akses" required onkeypress="if(event.key==='Enter') terapkanFilterLogAbsensi()">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-bold small">NIP/Nama Pegawai</label>
+            <input type="text" id="logFilterPegawai" class="form-control form-control-sm" placeholder="Cari NIP / Nama" onkeypress="if(event.key==='Enter') terapkanFilterLogAbsensi()">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-bold small">Jenis Aksi</label>
+            <select id="logFilterAksi" class="form-select form-select-sm">
+              <option value="">Semua Aksi</option>
+              <option value="tambah">Tambah</option>
+              <option value="edit">Edit</option>
+              <option value="hapus">Hapus</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-bold small">NIP/Nama Pelaku</label>
+            <input type="text" id="logFilterPelaku" class="form-control form-control-sm" placeholder="Cari Pelaku" onkeypress="if(event.key==='Enter') terapkanFilterLogAbsensi()">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-bold small">Waktu Aksi</label>
+            <input type="date" id="logFilterTanggal" class="form-control form-control-sm">
+          </div>
+          <div class="col-md-1">
+            <button class="btn btn-danger btn-sm w-100 fw-bold" onclick="terapkanFilterLogAbsensi()"><i class="bi bi-search"></i> Cari</button>
+          </div>
+        </div>
+
+        <!-- DETAIL KEGIATAN LOG (MUNCUL SETELAH CARI) -->
+        <div id="logKegiatanDetailBox" class="d-none mb-4 p-3 bg-white border border-danger rounded shadow-sm">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold text-danger mb-0"><i class="bi bi-info-circle-fill me-1"></i> Detail Kegiatan</h6>
+            <span id="logDetailKodeAkses" class="badge bg-danger font-monospace fs-6"></span>
+          </div>
+          <div class="row g-2 small">
+            <div class="col-md-4">
+              <span class="text-muted d-block">Judul Kegiatan:</span>
+              <strong id="logDetailJudul" class="text-dark fs-6">-</strong>
+            </div>
+            <div class="col-md-3">
+              <span class="text-muted d-block">Kategori & Tanggal:</span>
+              <span id="logDetailKategori" class="badge bg-info text-dark me-1"></span>
+              <strong id="logDetailTanggal" class="text-dark">-</strong>
+            </div>
+            <div class="col-md-3">
+              <span class="text-muted d-block">Jam Pelaksanaan:</span>
+              <strong id="logDetailJam" class="text-dark">-</strong>
+            </div>
+            <div class="col-md-2">
+              <span class="text-muted d-block">Radius:</span>
+              <strong id="logDetailRadius" class="text-dark">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- TOP PAGINATION LOG -->
+        <div id="logAbsensiPaginationTop" class="d-none"></div>
+
+        <div class="table-responsive">
+          <table class="table table-hover table-bordered align-middle">
+            <thead>
+              <tr>
+                <th class="text-center" style="width: 5%;">No</th>
+                <th style="width: 12%;">Waktu Aksi</th>
+                <th class="text-center" style="width: 8%;">Aksi</th>
+                <th style="width: 17%;">Pegawai Target</th>
+                <th style="width: 16%;">Admin Pelaku</th>
+                <th style="width: 12%;">IP & Device</th>
+                <th style="width: 30%;">Detail Data (JSON)</th>
+              </tr>
+            </thead>
+            <tbody id="logAbsensiTableBody">
+              <tr>
+                <td colspan="7" class="text-center text-muted py-4"><i class="bi bi-funnel h3"></i><br>Silakan pilih kegiatan pada filter di atas dan klik "Cari".</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- BOTTOM PAGINATION LOG -->
+        <div id="logAbsensiPagination" class="d-none"></div>
       </div>
     </div>
   </div>
@@ -1136,6 +1218,45 @@
     </div>
   </div>
 
+  <!-- MODAL LOG ABSENSI -->
+  <div class="modal fade" id="modalLogAbsensi" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-dark text-white">
+          <h5 class="modal-title fw-bold"><i class="bi bi-journal-text"></i> Log Sistem Absensi</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body bg-light">
+          <div class="table-responsive bg-white rounded shadow-sm border p-2">
+            <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+              <thead class="table-light">
+                <tr>
+                  <th>Waktu</th>
+                  <th>Aksi</th>
+                  <th>NIP Pelaku</th>
+                  <th>Nama Pelaku</th>
+                  <th>IP Address</th>
+                  <th>Data</th>
+                </tr>
+              </thead>
+              <tbody id="logAbsensiBody">
+                <tr><td colspan="6" class="text-center text-muted">Memuat data log...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- Pagination Log Absensi -->
+          <div id="logAbsensiPagination" class="d-flex justify-content-between align-items-center mt-3 d-none">
+            <span id="logAbsensiInfo" class="small text-muted"></span>
+            <div class="btn-group">
+              <button class="btn btn-outline-secondary btn-sm" id="btnPrevLog" onclick="gantiPageLogAbsensi(-1)">Sebelumnya</button>
+              <button class="btn btn-outline-secondary btn-sm" id="btnNextLog" onclick="gantiPageLogAbsensi(1)">Selanjutnya</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL QR CODE -->
   <div class="modal fade" id="modalQrCode" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -1213,8 +1334,8 @@
               <input type="text" id="pegawaiNama" class="form-control" required>
             </div>
             <div class="mb-3">
-              <label class="form-label fw-bold small">NIK</label>
-              <input type="text" id="pegawaiNik" class="form-control" required maxlength="16" pattern="\d{16}">
+              <label id="pegawaiNikLabel" class="form-label fw-bold small">NIK (sebagai password login aplikasi)</label>
+              <input type="password" id="pegawaiNik" class="form-control" maxlength="16">
             </div>
             <div class="mb-3">
               <label class="form-label fw-bold small">Perangkat Daerah</label>
@@ -1233,10 +1354,20 @@
             </div>
             <div class="mb-3">
               <label class="form-label fw-bold small">Role</label>
-              <select id="pegawaiRole" class="form-select" required>
-                <option value="ASN">ASN</option>
-                <option value="Admin">Admin</option>
-              </select>
+              <div id="pegawaiRoleCheckboxes">
+                <div class="form-check">
+                  <input class="form-check-input role-checkbox" type="checkbox" value="asn" id="roleAsn" checked disabled>
+                  <label class="form-check-label" for="roleAsn">ASN (Default)</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input role-checkbox" type="checkbox" value="admin" id="roleAdmin">
+                  <label class="form-check-label" for="roleAdmin">Admin</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input role-checkbox" type="checkbox" value="super admin" id="roleSuperAdmin">
+                  <label class="form-check-label" for="roleSuperAdmin">Super Admin</label>
+                </div>
+              </div>
             </div>
             <div class="d-flex gap-2 mt-4"><button type="button" class="btn btn-secondary w-50 fw-bold py-2"
                 data-bs-dismiss="modal">Tutup</button><button type="submit" id="btnSimpanPegawai"
@@ -1337,7 +1468,8 @@
                 <strong>Isi Kolom CSV yang Wajib Disiapkan:</strong>
                 <ul class="mb-0 mt-2 ps-3">
                   <li><code>waktu</code>: tanggal dan jam absensi, format <code>YYYY-MM-DD HH:MM:SS</code>. Contoh:
-                    <code>2026-08-17 07:30:00</code></li>
+                    <code>2026-08-17 07:30:00</code>
+                  </li>
                   <li><code>nip</code>: NIP pegawai. Contoh: <code>198001012010011001</code></li>
                   <li><code>nama_pegawai</code>: nama lengkap pegawai. Contoh: <code>Budi Santoso</code></li>
                   <li><code>jabatan</code>: nama jabatan pegawai. Contoh: <code>Staf Analis</code></li>
@@ -1345,9 +1477,11 @@
                   </li>
                   <li><code>lokasi</code>: nama lokasi absensi. Contoh: <code>Kantor Walikota</code></li>
                   <li><code>lat</code> dan <code>lng</code>: koordinat lokasi absensi. Contoh: <code>-0.6276</code> dan
-                    <code>100.1209</code></li>
+                    <code>100.1209</code>
+                  </li>
                   <li><code>nama_file_foto</code>: nama file foto atau link Google Drive bukti absensi. Contoh:
-                    <code>foto_budi.jpg</code> atau <code>https://drive.google.com/file/d/xxxx/view</code></li>
+                    <code>foto_budi.jpg</code> atau <code>https://drive.google.com/file/d/xxxx/view</code>
+                  </li>
                 </ul>
               </div>
             </div>

@@ -4,14 +4,15 @@ namespace App\Helpers;
 class Response {
     /**
      * Mencetak response JSON kaku dan menghentikan eksekusi script.
-     * * @param bool $status Status keberhasilan (true/false)
-     * @param int $code HTTP Status Code (200, 401, 404, 500, dll)
+     * @param bool $status Status keberhasilan (true/false)
+     * @param int $code Kode untuk payload JSON (200, 401, 404, 500, dll)
      * @param string $message Pesan respons
      * @param mixed $data Data payload (array/object), default: null
+     * @param int $httpStatus HTTP Status Code asli (default: 200)
      */
-    public static function json(bool $status, int $code, string $message, $data = null) {
+    public static function json(bool $status, int $code, string $message, $data = null, int $httpStatus = 200) {
         // Set HTTP Response Code
-        http_response_code($code);
+        http_response_code($httpStatus);
         
         // Set Header
         header('Content-Type: application/json; charset=utf-8');

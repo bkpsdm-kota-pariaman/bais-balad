@@ -23,8 +23,9 @@ class AdminAuthHelper {
             $secretKey = $config['jwt_secret'];
             $decoded = JWT::decode($jwt, new Key($secretKey, 'HS256'));
 
-            // Verifikasi role admin
-            if (!isset($decoded->data) || !isset($decoded->data->role) || $decoded->data->role !== 'admin') {
+            // Verifikasi role admin (role adalah array sekarang)
+            $roles = isset($decoded->data->role) ? (array) $decoded->data->role : [];
+            if (!in_array('admin', $roles) && !in_array('super admin', $roles)) {
                 Response::json(false, 403, "Akses ditolak. Peran tidak valid.");
             }
 

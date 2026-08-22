@@ -19,10 +19,8 @@ class AdminPegawaiController {
         $syncStatus = $_GET['sync'] ?? 'semua'; // Filter baru untuk status sinkronisasi KV
         $search = $_GET['search'] ?? '';
 
-        $sql = "SELECT p.nama_pegawai, p.nip, p.perangkat_daerah, p.jabatan, p.nik, p.jenis_asn, p.last_login, p.kv_sync_status,
-                       CASE WHEN a.username IS NOT NULL THEN 'Admin' ELSE 'ASN' END AS role
-                FROM app_absensi_data_pegawai p
-                LEFT JOIN app_absensi_data_admin a ON p.nip = a.username";
+        $sql = "SELECT p.nama_pegawai, p.nip, p.perangkat_daerah, p.jabatan, p.nik, p.jenis_asn, p.last_login, p.kv_sync_status, p.role
+                FROM app_absensi_data_pegawai p";
         
         $conditions = [];
         $params = [];
@@ -59,7 +57,7 @@ class AdminPegawaiController {
         $sql .= " ORDER BY p.nama_pegawai ASC";
 
         // Query hitung total (sebelum LIMIT/OFFSET)
-        $countSql = "SELECT COUNT(*) FROM app_absensi_data_pegawai p LEFT JOIN app_absensi_data_admin a ON p.nip = a.username";
+        $countSql = "SELECT COUNT(*) FROM app_absensi_data_pegawai p";
         if (count($conditions) > 0) {
             $countSql .= " WHERE " . implode(' AND ', $conditions);
         }
@@ -114,7 +112,9 @@ class AdminPegawaiController {
     }
 
     public function createPegawai() {
-        AdminAuthHelper::validate();
+        $currentUser = AdminAuthHelper::validate();
+        $isSuperAdmin = in_array('super admin', $currentUser['role'] ?? []);
+        
         $db = Database::getConnection();
         $input = json_decode(file_get_contents('php://input'), true);
 
@@ -130,42 +130,50 @@ class AdminPegawaiController {
             Response::json(false, 409, "NIP sudah terdaftar.");
         }
 
-        $newRole = $input['role'];
+        $newRoles = is_array($input['role']) ? $input['role'] : explode(',', $input['role']);
+        $newRoles = array_map('trim', $newRoles);
+        
+        // RBAC Check
+        if (!$isSuperAdmin) {
+            if (in_array('admin', $newRoles) || in_array('super admin', $newRoles)) {
+                Response::json(false, 403, "Hanya Super Admin yang dapat memberikan hak akses Admin atau Super Admin.");
+            }
+            $newRoles = ['asn'];
+        }
+        
+        // Ensure asn is always present
+        if (!in_array('asn', $newRoles)) $newRoles[] = 'asn';
 
-        // --- LOGIKA BARU: Lakukan sinkronisasi SEBELUM menulis ke DB ---
-        // Tentukan role berdasarkan input dari form
-        $roles = ($newRole === 'Admin') ? ['asn', 'admin'] : ['asn'];
+        $rolesStr = implode(',', $newRoles);
+        $hashedNik = password_hash($input['nik'], PASSWORD_DEFAULT);
 
         $payloadForKv = [
             'nip' => $input['nip'],
-            'nik' => $input['nik'],
+            'nik' => $hashedNik,
             'nama_pegawai' => $input['nama_pegawai'],
             'perangkat_daerah' => $input['perangkat_daerah'],
             'jabatan' => $input['jabatan'] ?? null,
             'jenis_asn' => $input['jenis_asn'],
-            'role' => $roles // Menggunakan role dari form
+            'role' => $newRoles
         ];
-        $syncSuccess = $this->syncPegawaiToKv('PUT', $input['nip'], $payloadForKv, true); // Blocking call
+        $syncSuccess = $this->syncPegawaiToKv('PUT', $input['nip'], $payloadForKv, true);
         $kv_sync_status = $syncSuccess ? 1 : 0;
 
-        $sql = "INSERT INTO app_absensi_data_pegawai (nip, nama_pegawai, nik, perangkat_daerah, jabatan, jenis_asn, kv_sync_status) 
-                VALUES (:nip, :nama_pegawai, :nik, :perangkat_daerah, :jabatan, :jenis_asn, :kv_sync_status)";
+        $sql = "INSERT INTO app_absensi_data_pegawai (nip, nama_pegawai, nik, perangkat_daerah, jabatan, jenis_asn, role, kv_sync_status) 
+                VALUES (:nip, :nama_pegawai, :nik, :perangkat_daerah, :jabatan, :jenis_asn, :role, :kv_sync_status)";
         $stmt = $db->prepare($sql);
         $isSuccess = $stmt->execute([
             ':nip'              => $input['nip'],
             ':nama_pegawai'     => $input['nama_pegawai'],
-            ':nik'              => $input['nik'],
+            ':nik'              => $hashedNik,
             ':perangkat_daerah' => $input['perangkat_daerah'],
             ':jabatan'          => $input['jabatan'] ?? null,
             ':jenis_asn'        => $input['jenis_asn'],
+            ':role'             => $rolesStr,
             ':kv_sync_status'   => $kv_sync_status,
         ]);
 
         if ($isSuccess) {
-            // Setelah pegawai berhasil dibuat, atur rolenya di tabel admin jika perlu.
-            // oldRole adalah null karena ini adalah data baru.
-            $this->manageAdminRole($db, $input['nip'], $input['nik'], $newRole, null);
-
             $message = "Pegawai berhasil ditambahkan.";
             if (!$syncSuccess) { $message .= " Gagal sinkronisasi ke cache."; }
             Response::json(true, 201, $message);
@@ -175,75 +183,92 @@ class AdminPegawaiController {
     }
 
     public function updatePegawai($vars) {
-        AdminAuthHelper::validate();
+        $currentUser = AdminAuthHelper::validate();
+        $isSuperAdmin = in_array('super admin', $currentUser['role'] ?? []);
+        
         $db = Database::getConnection();
         $nip = $vars['nip'];
         $input = json_decode(file_get_contents('php://input'), true);
 
-        // Validasi
-        if (empty($input['nama_pegawai']) || empty($input['nik']) || empty($input['perangkat_daerah']) || empty($input['jenis_asn']) || empty($input['role'])) {
-            Response::json(false, 400, "Semua field wajib diisi.");
+        // Validasi (NIK boleh kosong saat update)
+        if (empty($input['nama_pegawai']) || empty($input['perangkat_daerah']) || empty($input['jenis_asn']) || empty($input['role'])) {
+            Response::json(false, 400, "Semua field selain NIK wajib diisi.");
         }
 
-        $newRole = $input['role'];
+        // Ambil data lama
+        $stmtCurrent = $db->prepare("SELECT nik, role FROM app_absensi_data_pegawai WHERE nip = :nip");
+        $stmtCurrent->execute([':nip' => $nip]);
+        $currentPegawai = $stmtCurrent->fetch();
+        $nikToSave = !empty($input['nik']) ? password_hash($input['nik'], PASSWORD_DEFAULT) : $currentPegawai['nik'];
 
-        // Ambil role lama sebelum melakukan perubahan
-        $stmtOldRole = $db->prepare("SELECT COUNT(*) FROM app_absensi_data_admin WHERE username = :nip");
-        $stmtOldRole->execute([':nip' => $nip]);
-        $oldRole = $stmtOldRole->fetchColumn() > 0 ? 'Admin' : 'ASN';
-
-        // Jalankan logika perubahan role di tabel admin
-        $roleChanged = $this->manageAdminRole($db, $nip, $input['nik'], $newRole, $oldRole);
-
-        // --- LOGIKA BARU: Lakukan sinkronisasi SEBELUM menulis ke DB ---
-        $roles = ($newRole === 'Admin') ? ['asn', 'admin'] : ['asn'];
+        $newRoles = is_array($input['role']) ? $input['role'] : explode(',', $input['role']);
+        $newRoles = array_map('trim', $newRoles);
+        
+        // RBAC Check
+        if (!$isSuperAdmin) {
+            // Check if they are trying to add admin/super admin
+            if (in_array('admin', $newRoles) || in_array('super admin', $newRoles)) {
+                // If they didn't have it before, reject
+                $oldRoles = explode(',', $currentPegawai['role'] ?? '');
+                $oldRoles = array_map('trim', $oldRoles);
+                if (!in_array('admin', $oldRoles) && !in_array('super admin', $oldRoles)) {
+                     Response::json(false, 403, "Hanya Super Admin yang dapat memberikan hak akses Admin atau Super Admin.");
+                } else {
+                     // Keep their old admin privileges since this user can't modify them
+                     $newRoles = array_unique(array_merge(['asn'], array_intersect($oldRoles, ['admin', 'super admin'])));
+                }
+            } else {
+                // If trying to remove admin roles while not super admin
+                $oldRoles = explode(',', $currentPegawai['role'] ?? '');
+                $oldRoles = array_map('trim', $oldRoles);
+                if (in_array('admin', $oldRoles) || in_array('super admin', $oldRoles)) {
+                     $newRoles = array_unique(array_merge(['asn'], array_intersect($oldRoles, ['admin', 'super admin'])));
+                } else {
+                     $newRoles = ['asn'];
+                }
+            }
+        }
+        
+        if (!in_array('asn', $newRoles)) $newRoles[] = 'asn';
+        $rolesStr = implode(',', $newRoles);
 
         $payloadForKv = [
-            'nip' => $nip, // NIP tidak bisa diubah, jadi aman.
-            'nik' => $input['nik'],
+            'nip' => $nip, 
+            'nik' => $nikToSave,
             'nama_pegawai' => $input['nama_pegawai'],
             'perangkat_daerah' => $input['perangkat_daerah'],
             'jabatan' => $input['jabatan'] ?? null,
             'jenis_asn' => $input['jenis_asn'],
-            'role' => $roles // Menggunakan role dari form
+            'role' => $newRoles
         ];
-        $syncSuccess = $this->syncPegawaiToKv('PUT', $nip, $payloadForKv, true); // Blocking call
+        $syncSuccess = $this->syncPegawaiToKv('PUT', $nip, $payloadForKv, true);
         $kv_sync_status = $syncSuccess ? 1 : 0;
 
         $sql = "UPDATE app_absensi_data_pegawai 
-                SET nama_pegawai = :nama_pegawai, nik = :nik, perangkat_daerah = :perangkat_daerah, jabatan = :jabatan, jenis_asn = :jenis_asn, kv_sync_status = :kv_sync_status
+                SET nama_pegawai = :nama_pegawai, nik = :nik, perangkat_daerah = :perangkat_daerah, jabatan = :jabatan, jenis_asn = :jenis_asn, role = :role, kv_sync_status = :kv_sync_status
                 WHERE nip = :nip";
         
         $stmt = $db->prepare($sql);
         $isSuccess = $stmt->execute([
             ':nama_pegawai'     => $input['nama_pegawai'],
-            ':nik'              => $input['nik'],
+            ':nik'              => $nikToSave,
             ':perangkat_daerah' => $input['perangkat_daerah'],
             ':jabatan'          => $input['jabatan'] ?? null,
             ':jenis_asn'        => $input['jenis_asn'],
-            ':kv_sync_status' => $kv_sync_status,
+            ':role'             => $rolesStr,
+            ':kv_sync_status'   => $kv_sync_status,
             ':nip'              => $nip
         ]);
-        $pegawaiDataChanged = $stmt->rowCount() > 0;
 
-        // Jika ada perubahan di data pegawai atau di role, kirim response sukses.
-        if ($pegawaiDataChanged || $roleChanged) {
-            $message = "Data pegawai berhasil diperbarui.";
-            if (!$syncSuccess) { $message .= " Gagal sinkronisasi ulang ke cache."; }
-            Response::json(true, 200, $message);
-        } else {
-            Response::json(true, 200, "Tidak ada perubahan data yang disimpan.");
-        }
+        $message = "Data pegawai berhasil diperbarui.";
+        if (!$syncSuccess) { $message .= " Gagal sinkronisasi ulang ke cache."; }
+        Response::json(true, 200, $message);
     }
 
     public function deletePegawai($vars) {
         AdminAuthHelper::validate();
         $db = Database::getConnection();
         $nip = $vars['nip'];
-
-        // Hapus juga dari tabel admin jika ada, sebelum menghapus data utama
-        $stmtAdmin = $db->prepare("DELETE FROM app_absensi_data_admin WHERE username = :nip");
-        $stmtAdmin->execute([':nip' => $nip]);
 
         $stmt = $db->prepare("DELETE FROM app_absensi_data_pegawai WHERE nip = :nip");
         $stmt->execute([':nip' => $nip]);
@@ -278,12 +303,8 @@ class AdminPegawaiController {
             return;
         }
 
-        // 2. Siapkan payload untuk dikirim ke worker.
-        // Cek role admin
-        $stmtAdmin = $db->prepare("SELECT COUNT(*) FROM app_absensi_data_admin WHERE username = :nip");
-        $stmtAdmin->execute([':nip' => $nip]);
-        $isAdmin = $stmtAdmin->fetchColumn() > 0;
-        $roles = $isAdmin ? ['asn', 'admin'] : ['asn'];
+        $rolesStr = isset($pegawai['role']) ? trim($pegawai['role']) : '';
+        $roles = $rolesStr !== '' ? array_map('trim', explode(',', $rolesStr)) : ['asn'];
 
         $payloadForKv = [
             'nip' => $pegawai['nip'],
@@ -312,45 +333,6 @@ class AdminPegawaiController {
         }
     }
 
-    /**
-     * Mengelola role admin di tabel `app_absensi_data_admin`.
-     *
-     * @param PDO $db Koneksi database.
-     * @param string $nip NIP pegawai.
-     * @param string $nik NIK pegawai (digunakan sebagai password default).
-     * @param string $newRole Role baru ('Admin' atau 'ASN').
-     * @param string|null $oldRole Role lama ('Admin' atau 'ASN').
-     * @return bool True jika ada perubahan pada tabel admin, false jika tidak.
-     */
-    private function manageAdminRole($db, $nip, $nik, $newRole, $oldRole) {
-        if ($newRole === $oldRole) {
-            // Jika role tetap 'Admin', update password (nik) untuk jaga-jaga jika ada perubahan NIK.
-            if ($newRole === 'Admin') {
-                $stmt = $db->prepare("UPDATE app_absensi_data_admin SET password = :nik WHERE username = :nip");
-                $stmt->execute([':nik' => $nik, ':nip' => $nip]);
-            }
-            return false; // Tidak ada perubahan role.
-        }
-
-        // Kasus: Role diubah menjadi 'Admin'
-        if ($newRole === 'Admin') {
-            // Gunakan INSERT ... ON DUPLICATE KEY UPDATE untuk menangani pembuatan admin baru atau update password admin lama.
-            // Perbaikan: Gunakan VALUES(password) untuk menghindari masalah reuse parameter ':nik' di beberapa driver PDO.
-            $sql = "INSERT INTO app_absensi_data_admin (username, password) VALUES (:nip, :nik) ON DUPLICATE KEY UPDATE password = VALUES(password)";
-            $stmt = $db->prepare($sql);
-            $stmt->execute([':nip' => $nip, ':nik' => $nik]);
-            return true; // Ada perubahan.
-        }
-
-        // Kasus: Role diubah dari 'Admin' menjadi 'ASN'
-        if ($newRole === 'ASN' && $oldRole === 'Admin') {
-            $stmt = $db->prepare("DELETE FROM app_absensi_data_admin WHERE username = :nip");
-            $stmt->execute([':nip' => $nip]);
-            return true; // Ada perubahan.
-        }
-
-        return false; // Tidak ada perubahan yang relevan.
-    }
 
     /**
      * Menjalankan permintaan ke Cloudflare Worker untuk menyinkronkan (PUT/DELETE) cache KV.

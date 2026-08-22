@@ -6,6 +6,7 @@ namespace App\Controllers;
 use App\Helpers\Response;
 use App\Helpers\Database;
 use App\Helpers\AdminAuthHelper;
+use App\Helpers\LogAbsensi;
 use PDO;
 
 class AdminRekapController {
@@ -451,7 +452,7 @@ class AdminRekapController {
     }
 
     public function verifikasiAbsen() {
-        AdminAuthHelper::validate();
+        $adminData = AdminAuthHelper::validate();
         $db = Database::getConnection();
         $now = new \DateTime('now', new \DateTimeZone('Asia/Jakarta'));
         
@@ -544,6 +545,26 @@ class AdminRekapController {
                 ':sv' => $statusVerifikasi,
                 ':sk' => $statusKehadiranBaru ?? 'Hadir Terlambat Diluar Lokasi'
             ]);
+
+            // Log Absensi
+            LogAbsensi::log(
+                $db,
+                $kodeAkses,
+                $nip,
+                $peg['nama_pegawai'],
+                'tambah',
+                $adminData['username'] ?? '',
+                $adminData['nama'] ?? '',
+                $_SERVER['REMOTE_ADDR'] ?? '',
+                [
+                    'kode_akses' => $kodeAkses,
+                    'nip' => $nip,
+                    'status_verifikasi' => $statusVerifikasi,
+                    'status_kehadiran' => $statusKehadiranBaru ?? 'Hadir Terlambat Diluar Lokasi',
+                    'keterangan' => $keteranganAdmin
+                ]
+            );
+
             Response::json(true, 200, "Status absensi berhasil ditambahkan.");
             return;
         }
@@ -581,11 +602,35 @@ class AdminRekapController {
             ':nip' => $nip
         ]);
 
+        // Ambil nama target untuk log
+        $stmtTarget = $db->prepare("SELECT nama_pegawai FROM app_absensi_data_absensi WHERE kode_akses = :ka AND nip = :nip");
+        $stmtTarget->execute([':ka' => $kodeAkses, ':nip' => $nip]);
+        $namaTarget = $stmtTarget->fetchColumn() ?: '-';
+
+        // Log Absensi
+        LogAbsensi::log(
+            $db,
+            $kodeAkses,
+            $nip,
+            $namaTarget,
+            'edit',
+            $adminData['username'] ?? '',
+            $adminData['nama'] ?? '',
+            $_SERVER['REMOTE_ADDR'] ?? '',
+            [
+                'kode_akses' => $kodeAkses,
+                'nip' => $nip,
+                'status_verifikasi' => $statusVerifikasi,
+                'status_kehadiran' => $updateStatusKehadiran,
+                'keterangan' => $keteranganAdmin
+            ]
+        );
+
         Response::json(true, 200, "Status absensi berhasil diperbarui.");
     }
 
     public function verifikasiAbsenMasal() {
-        AdminAuthHelper::validate();
+        $adminData = AdminAuthHelper::validate();
         $db = Database::getConnection();
         $now = new \DateTime('now', new \DateTimeZone('Asia/Jakarta'));
         
@@ -664,6 +709,23 @@ class AdminRekapController {
                 ':sv' => $statusVerifikasi,
                 ':sk' => $statusKehadiran
             ]);
+            LogAbsensi::log(
+                $db,
+                $kodeAkses,
+                $nip,
+                $peg['nama_pegawai'],
+                'edit',
+                $adminData['username'] ?? '',
+                $adminData['nama'] ?? '',
+                $_SERVER['REMOTE_ADDR'] ?? '',
+                [
+                    'kode_akses' => $kodeAkses,
+                    'nip' => $nip,
+                    'status_verifikasi' => $statusVerifikasi,
+                    'status_kehadiran' => $statusKehadiran,
+                    'keterangan' => $keteranganAdmin
+                ]
+            );
             $successCount++;
         }
 
@@ -671,7 +733,7 @@ class AdminRekapController {
     }
 
     public function deleteAbsensiEntry($vars) {
-        AdminAuthHelper::validate();
+        $adminData = AdminAuthHelper::validate();
         $db = Database::getConnection();
         
         $kodeAkses = $vars['kode_akses'] ?? null;
@@ -682,6 +744,11 @@ class AdminRekapController {
             return;
         }
 
+        // Ambil nama pegawai sebelum delete untuk log
+        $stmtTarget = $db->prepare("SELECT nama_pegawai FROM app_absensi_data_absensi WHERE kode_akses = :ka AND nip = :nip");
+        $stmtTarget->execute([':ka' => $kodeAkses, ':nip' => $nip]);
+        $namaTarget = $stmtTarget->fetchColumn() ?: '-';
+
         $sql = "DELETE FROM app_absensi_data_absensi WHERE kode_akses = :ka AND nip = :nip";
         $stmt = $db->prepare($sql);
         $stmt->execute([
@@ -690,6 +757,17 @@ class AdminRekapController {
         ]);
 
         if ($stmt->rowCount() > 0) {
+            LogAbsensi::log(
+                $db,
+                $kodeAkses,
+                $nip,
+                $namaTarget,
+                'hapus',
+                $adminData['username'] ?? '',
+                $adminData['nama'] ?? '',
+                $_SERVER['REMOTE_ADDR'] ?? '',
+                ['kode_akses' => $kodeAkses, 'nip' => $nip]
+            );
             Response::json(true, 200, "Data absensi pegawai berhasil dihapus dari rekap.");
         } else {
             Response::json(false, 404, "Data absensi tidak ditemukan untuk dihapus.");
@@ -749,7 +827,7 @@ class AdminRekapController {
     }
 
     public function addAbsensiEntry($vars) {
-        AdminAuthHelper::validate();
+        $adminData = AdminAuthHelper::validate();
         $kodeAkses = $vars['kode_akses'] ?? null;
         $db = Database::getConnection();
 
@@ -816,6 +894,23 @@ class AdminRekapController {
         ]);
 
         if ($stmtInsert->rowCount() > 0) {
+            LogAbsensi::log(
+                $db,
+                $kodeAkses,
+                $nip,
+                $pegawai['nama_pegawai'],
+                'tambah',
+                $adminData['username'] ?? '',
+                $adminData['nama'] ?? '',
+                $_SERVER['REMOTE_ADDR'] ?? '',
+                [
+                    'kode_akses' => $kodeAkses,
+                    'nip' => $nip,
+                    'status_verifikasi' => $statusVerifikasi,
+                    'status_kehadiran' => $statusKehadiran,
+                    'keterangan' => $keterangan
+                ]
+            );
             Response::json(true, 201, "Peserta berhasil ditambahkan ke dalam rekap.");
         } else {
             Response::json(false, 500, "Gagal menambahkan peserta ke dalam rekap.");
@@ -823,7 +918,7 @@ class AdminRekapController {
     }
 
     public function addAbsensiEntryBulk($vars) {
-        AdminAuthHelper::validate();
+        $adminData = AdminAuthHelper::validate();
         $kodeAkses = $vars['kode_akses'] ?? null;
         $db = Database::getConnection();
 
@@ -950,8 +1045,26 @@ class AdminRekapController {
                     ':waktu2' => $wkt // for IF check in ON DUPLICATE KEY
                 ]);
 
-                if ($stmtInsertUpdate->rowCount() > 0) $berhasil++;
-                else $gagal++;
+                if ($stmtInsertUpdate->rowCount() > 0) {
+                    $berhasil++;
+                    LogAbsensi::log(
+                        $db,
+                        $kodeAkses,
+                        $nip,
+                        $pegawai['nama_pegawai'],
+                        'tambah',
+                        $adminData['username'] ?? '',
+                        $adminData['nama'] ?? '',
+                        $_SERVER['REMOTE_ADDR'] ?? '',
+                        [
+                            'kode_akses' => $kodeAkses,
+                            'nip' => $nip,
+                            'status_verifikasi' => $sv,
+                            'status_kehadiran' => $sk,
+                            'keterangan' => $ket
+                        ]
+                    );
+                } else $gagal++;
             }
 
             $db->commit();
@@ -969,7 +1082,7 @@ class AdminRekapController {
     }
 
     public function deleteAbsensiEntryBulk() {
-        AdminAuthHelper::validate();
+        $adminData = AdminAuthHelper::validate();
         $db = Database::getConnection();
         
         $inputJSON = file_get_contents('php://input');
@@ -994,16 +1107,33 @@ class AdminRekapController {
         }
 
         $placeholders = implode(',', array_fill(0, count($sanitizedNips), '?'));
-        $sql = "DELETE FROM app_absensi_data_absensi WHERE kode_akses = ? AND nip IN ($placeholders)";
-        
         $params = array_merge([$kodeAkses], $sanitizedNips);
-        
+
+        // Ambil nama pegawai yang akan dihapus untuk audit log
+        $stmtTargets = $db->prepare("SELECT nip, nama_pegawai FROM app_absensi_data_absensi WHERE kode_akses = ? AND nip IN ($placeholders)");
+        $stmtTargets->execute($params);
+        $targets = $stmtTargets->fetchAll(PDO::FETCH_KEY_PAIR);
+
+        $sql = "DELETE FROM app_absensi_data_absensi WHERE kode_akses = ? AND nip IN ($placeholders)";
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
 
         $deletedCount = $stmt->rowCount();
 
         if ($deletedCount > 0) {
+            foreach ($sanitizedNips as $nipDel) {
+                LogAbsensi::log(
+                    $db,
+                    $kodeAkses,
+                    $nipDel,
+                    $targets[$nipDel] ?? '-',
+                    'hapus',
+                    $adminData['username'] ?? '',
+                    $adminData['nama'] ?? '',
+                    $_SERVER['REMOTE_ADDR'] ?? '',
+                    ['kode_akses' => $kodeAkses, 'nip' => $nipDel]
+                );
+            }
             Response::json(true, 200, "$deletedCount data absensi berhasil dihapus dari rekap.");
         } else {
             Response::json(false, 404, "Tidak ada data absensi yang cocok untuk dihapus.");
@@ -1011,7 +1141,7 @@ class AdminRekapController {
     }
 
     public function importCsv() {
-        AdminAuthHelper::validate();
+        $adminData = AdminAuthHelper::validate();
         $db = Database::getConnection();
         
         $inputJSON = file_get_contents('php://input');
@@ -1070,6 +1200,25 @@ class AdminRekapController {
                     ':sv' => $statusVerifikasiDef,
                     ':sk' => $statusKehadiranDef
                 ]);
+
+                LogAbsensi::log(
+                    $db,
+                    $kodeAkses,
+                    $nip,
+                    $nama,
+                    'tambah',
+                    $adminData['username'] ?? '',
+                    $adminData['nama'] ?? '',
+                    $_SERVER['REMOTE_ADDR'] ?? '',
+                    [
+                        'kode_akses' => $kodeAkses,
+                        'nip' => $nip,
+                        'status_verifikasi' => $statusVerifikasiDef,
+                        'status_kehadiran' => $statusKehadiranDef,
+                        'keterangan' => $keteranganDef,
+                        'sumber' => 'Import CSV'
+                    ]
+                );
 
                 $berhasil++;
             }

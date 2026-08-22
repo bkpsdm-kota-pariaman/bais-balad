@@ -27,25 +27,20 @@ class AuthController {
         // 2. Hubungkan ke Database dan Cari Pegawai
         $db = Database::getConnection();
         
-        // Query disesuaikan dengan struktur kolom flat hasil import Google Sheets
         $sql = "SELECT 
-                    p.nama_pegawai, p.nip, p.nik, p.perangkat_daerah, p.jabatan, p.jenis_asn,
-                    a.username AS admin_username
+                    p.nama_pegawai, p.nip, p.nik, p.perangkat_daerah, p.jabatan, p.jenis_asn, p.role
                 FROM 
                     app_absensi_data_pegawai p
-                LEFT JOIN 
-                    app_absensi_data_admin a ON p.nip = a.username
-                WHERE p.nip = :nip AND p.nik = :nik LIMIT 1";
+                WHERE p.nip = :nip LIMIT 1";
         $stmt = $db->prepare($sql);
         $stmt->bindParam(':nip', $nip);
-        $stmt->bindParam(':nik', $nik);
         $stmt->execute();
         
         $pegawai = $stmt->fetch();
 
-        // 3. Jika data tidak ditemukan / tidak cocok
-        if (!$pegawai) {
-            Response::json(false, 401, "NIP atau NIK tidak ditemukan atau tidak cocok", null);
+        // 3. Jika data tidak ditemukan atau password tidak cocok
+        if (!$pegawai || !password_verify($nik, $pegawai['nik'])) {
+            Response::json(false, 401, "NIP tidak ditemukan atau Password salah", null);
         }
 
         // Jika login berhasil, perbarui waktu login terakhir
@@ -72,11 +67,9 @@ class AuthController {
         // Token berlaku selama 1 bulan (3600 detik * 24 jam * 30 hari)
         $expirationTime = $issuedAt + (3600 * 24 * 30); 
         
-        // Tentukan role berdasarkan hasil join
-        $roles = ['asn'];
-        if (!empty($pegawai['admin_username'])) {
-            $roles[] = 'admin';
-        }
+        // Tentukan role berdasarkan kolom comma-separated
+        $rolesStr = isset($pegawai['role']) ? trim($pegawai['role']) : '';
+        $roles = $rolesStr !== '' ? array_map('trim', explode(',', $rolesStr)) : ['asn'];
 
         // Payload tanpa ID UUID, murni menggunakan data flat hasil import
         $payload = [

@@ -6,6 +6,7 @@ namespace App\Controllers;
 use App\Helpers\Response;
 use App\Helpers\Database;
 use App\Helpers\AuthHelper;
+use App\Helpers\LogAbsensi; // Patch log absensi
 use App\Helpers\LogHelper; // Tambahkan LogHelper
 use PDO;
 use DateTime;
@@ -243,6 +244,35 @@ class AbsenController {
 
         // PERBAIKAN: Cek return value dari execute() untuk memastikan query berhasil.
         if ($isSuccess) {
+            // PATCH: logging absensi
+            $jenisAksi = $stmt->rowCount() > 1 ? 'edit' : 'tambah';
+            LogAbsensi::log(
+                $db,
+                $kodeAkses,
+                $nip,
+                $nama,
+                $jenisAksi,
+                $pegawaiData['nip'] ?? '',
+                $pegawaiData['nama'] ?? '',
+                $_SERVER['REMOTE_ADDR'] ?? '',
+                [
+                    'kode_akses' => $kodeAkses,
+                    'nip' => $nip,
+                    'nama_pegawai' => $nama,
+                    'opd' => $opd,
+                    'jabatan' => $jabatan,
+                    'kategori' => $jadwal['kategori'],
+                    'waktu' => $waktu,
+                    'lokasi' => $lokasi ?? '-',
+                    'lat' => $lat ?? 0,
+                    'lng' => $lng ?? 0,
+                    'nama_file_foto' => $newFileName,
+                    'keterangan' => $keterangan,
+                    'status_verifikasi' => $statusVerifikasi,
+                    'status_kehadiran' => $statusKehadiran,
+                    'mode' => 'submit-absen',
+                ]
+            );
             $pesanSukses = ($statusVerifikasi === 'Menunggu Verifikasi Admin') 
                 ? "Absen sudah terkirim. BKPSDM Kota Pariaman akan melakukan verifikasi bukti absen Anda." 
                 : "Absen sudah terkirim.";
@@ -263,9 +293,11 @@ class AbsenController {
         // 1. Validasi token Admin dari header untuk otorisasi
         $adminData = AuthHelper::validateToken();
 
-        // Otorisasi: Pastikan pengguna yang melakukan request memiliki peran 'admin'
-        if (!isset($adminData['role']) || !in_array('admin', $adminData['role'])) {
-            Response::json(false, 403, "Akses ditolak. Hanya admin yang dapat menggunakan fitur ini.");
+        // Otorisasi: Pastikan pengguna yang melakukan request memiliki peran 'admin' atau 'super admin'
+        $roles = isset($adminData['role']) ? (array) $adminData['role'] : [];
+        $roles = array_map('strtolower', array_map('trim', $roles));
+        if (!in_array('admin', $roles) && !in_array('super admin', $roles)) {
+            Response::json(false, 403, "Akses ditolak. Hanya admin atau super admin yang dapat menggunakan fitur ini.");
             return;
         }
 
@@ -359,6 +391,30 @@ class AbsenController {
         ]);
 
         if ($isSuccess) {
+            $jenisAksi = $stmt->rowCount() > 1 ? 'edit' : 'tambah';
+            LogAbsensi::log(
+                $db,
+                $kodeAkses,
+                $nip,
+                $nama,
+                $jenisAksi,
+                $adminData['nip'] ?? '',
+                $adminData['nama'] ?? '',
+                $_SERVER['REMOTE_ADDR'] ?? '',
+                [
+                    'kode_akses' => $kodeAkses,
+                    'nip' => $nip,
+                    'nama_pegawai' => $nama,
+                    'opd' => $opd,
+                    'jabatan' => $jabatan,
+                    'kategori' => $jadwal['kategori'],
+                    'waktu' => $waktu,
+                    'lokasi' => $lokasi,
+                    'status_verifikasi' => $statusVerifikasi,
+                    'status_kehadiran' => $statusKehadiran,
+                    'mode' => 'absen_cepat'
+                ]
+            );
             Response::json(true, 200, "Absensi Cepat berhasil direkam.", ['waktu' => $waktu]);
         } else {
             Response::json(false, 500, "Gagal menyimpan Absensi Cepat ke database.", ['db_error' => $stmt->errorInfo()]);

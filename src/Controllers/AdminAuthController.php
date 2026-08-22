@@ -23,19 +23,26 @@ class AdminAuthController {
         $username = trim($input['username']);
         $password = trim($input['password']);
 
-        // 2. Hubungkan ke Database dan Cari Admin di tabel app_absensi_data_admin
+        // 2. Hubungkan ke Database dan Cari Pegawai
         $db = Database::getConnection();
         
-        $stmt = $db->prepare("SELECT username FROM app_absensi_data_admin WHERE username = :username AND password = :password LIMIT 1");
+        $stmt = $db->prepare("SELECT nip, nama_pegawai, nik, role FROM app_absensi_data_pegawai WHERE nip = :username LIMIT 1");
         $stmt->bindParam(':username', $username);
-        $stmt->bindParam(':password', $password);
         $stmt->execute();
         
         $admin = $stmt->fetch();
 
         // 3. Jika data tidak ditemukan / tidak cocok
-        if (!$admin) {
+        if (!$admin || !password_verify($password, $admin['nik'])) {
             Response::json(false, 401, "Username atau Password salah.", null);
+        }
+
+        // Cek Role
+        $rolesStr = isset($admin['role']) ? trim($admin['role']) : '';
+        $roles = $rolesStr !== '' ? array_map('trim', explode(',', $rolesStr)) : ['asn'];
+
+        if (!in_array('admin', $roles) && !in_array('super admin', $roles)) {
+            Response::json(false, 403, "Akses ditolak. Anda bukan admin.", null);
         }
 
         // 4. Jika Valid, Terbitkan Token JWT untuk Admin
@@ -50,8 +57,9 @@ class AdminAuthController {
             'exp' => $expirationTime,
             'iss' => 'bais-pariaman-apps-admin',
             'data' => [
-                'username' => $admin['username'],
-                'role' => 'admin' // Penanda bahwa ini adalah token admin
+                'username' => $admin['nip'], // di admin JS token decode mengharapkan 'username' (atau nip)
+                'nama' => $admin['nama_pegawai'],
+                'role' => $roles // Array role yang sudah diverifikasi
             ]
         ];
 

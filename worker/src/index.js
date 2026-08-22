@@ -15,6 +15,7 @@
  */
 
 import { jwtVerify, SignJWT } from 'jose';
+import bcrypt from 'bcryptjs';
 
 // Definisikan header CORS di satu tempat agar mudah dikelola.
 // Ini mengizinkan semua origin ('*'), yang cukup untuk pengembangan.
@@ -166,7 +167,8 @@ export default {
 
 				// --- CACHE HIT ---
 				if (cachedPegawai) {
-					if (cachedPegawai.nik === nik) {
+					// Pengecekan bcrypt NIK secara sinkron (karena bcryptjs mendukung di edge)
+					if (bcrypt.compareSync(nik, cachedPegawai.nik)) {
 						console.log(`[Login Cache] Cache HIT for NIP: ${nip}`);
 						const secret = new TextEncoder().encode(env.JWT_SECRET);
 						const issuedAt = Math.floor(Date.now() / 1000);
@@ -777,9 +779,11 @@ export default {
 				return new Response(JSON.stringify({ status: false, code: 401, message: "Token admin tidak valid atau telah kedaluwarsa." }), { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
 			}
 
-			// Otorisasi: Pastikan pengguna yang melakukan request memiliki peran 'admin'
-			if (!decodedPayload || !decodedPayload.data || !decodedPayload.data.role || !decodedPayload.data.role.includes('admin')) {
-				return new Response(JSON.stringify({ status: false, code: 403, message: "Akses ditolak. Hanya admin yang dapat menggunakan fitur ini." }), { status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+			// Otorisasi: Pastikan pengguna yang melakukan request memiliki peran 'admin' atau 'super admin'
+			const userRoles = Array.isArray(decodedPayload?.data?.role) ? decodedPayload.data.role : (decodedPayload?.data?.role ? [decodedPayload.data.role] : []);
+			const hasAdminRole = userRoles.some(r => ['admin', 'super admin'].includes(String(r).trim().toLowerCase()));
+			if (!hasAdminRole) {
+				return new Response(JSON.stringify({ status: false, code: 403, message: "Akses ditolak. Hanya admin atau super admin yang dapat menggunakan fitur ini." }), { status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
 			}
 
 			try {

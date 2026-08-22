@@ -68,7 +68,9 @@ CREATE TABLE `app_absensi_data_pegawai` (
   `perangkat_daerah` varchar(255) NOT NULL,
   `jabatan` varchar(255) DEFAULT NULL,
   `nik` char(16) DEFAULT NULL,
+  `password` varchar(255) DEFAULT NULL,
   `jenis_asn` varchar(4) DEFAULT NULL,
+  `role` varchar(255) NOT NULL DEFAULT 'asn' COMMENT 'Comma-separated roles: asn,admin,super admin',
   `last_login` datetime DEFAULT NULL,
   `kv_sync_status` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1=Synced, 0=Stale/Needs Sync',
   `updated_at` datetime DEFAULT NULL
@@ -127,13 +129,6 @@ ALTER TABLE `app_absensi_data_absensi`
   ADD KEY `idx_kode_akses_nip` (`kode_akses`,`nip`);
 
 --
--- Indeks untuk tabel `app_absensi_data_admin`
---
-ALTER TABLE `app_absensi_data_admin`
-  ADD PRIMARY KEY (`username`),
-  ADD KEY `idx_login_admin` (`username`,`password`);
-
---
 -- Indeks untuk tabel `app_absensi_data_pegawai`
 --
 ALTER TABLE `app_absensi_data_pegawai`
@@ -169,6 +164,23 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+CREATE TABLE `app_absensi_log_absensi` (
+  `id_log_absensi` INT NOT NULL AUTO_INCREMENT,
+  `kode_akses` VARCHAR(255) NOT NULL,
+  `nip` VARCHAR(50) NOT NULL,
+  `nama` VARCHAR(255) NOT NULL DEFAULT '-',
+  `jenis_aksi` ENUM('tambah','edit','hapus') NOT NULL,
+  `nip_pelaku` VARCHAR(50) NOT NULL,
+  `nama_pelaku` VARCHAR(255) NOT NULL,
+  `ip_address` VARCHAR(45) DEFAULT NULL,
+  `user_agent` VARCHAR(255) DEFAULT NULL,
+  `waktu_aksi` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `data` TEXT NOT NULL,
+  PRIMARY KEY (`id_log_absensi`),
+  KEY `idx_nama_pelaku` (`nama_pelaku`),
+  KEY `idx_nama` (`nama`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 ALTER TABLE app_absensi_jadwal_kegiatan ADD COLUMN is_strict_location TINYINT(1) DEFAULT 0;
 ALTER TABLE app_absensi_jadwal_kegiatan ADD COLUMN is_strict_time TINYINT(1) DEFAULT 0;
