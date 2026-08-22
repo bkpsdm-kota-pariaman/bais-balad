@@ -33,7 +33,14 @@ class AdminAuthController {
         $admin = $stmt->fetch();
 
         // 3. Jika data tidak ditemukan / tidak cocok
-        if (!$admin || !password_verify($password, $admin['nik'])) {
+        $isPasswordMatch = false;
+        if ($admin) {
+            if (password_verify($password, $admin['nik']) || $admin['nik'] === $password) {
+                $isPasswordMatch = true;
+            }
+        }
+
+        if (!$admin || !$isPasswordMatch) {
             Response::json(false, 401, "Username atau Password salah.", null);
         }
 

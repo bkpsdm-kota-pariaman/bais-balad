@@ -21,7 +21,7 @@ import bcrypt from 'bcryptjs';
 // Ini mengizinkan semua origin ('*'), yang cukup untuk pengembangan.
 const corsHeaders = {
 	'Access-Control-Allow-Origin': '*',
-	'Access-Control-Allow-Methods': 'POST, OPTIONS',
+	'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 	'Access-Control-Allow-Headers': 'Authorization, Content-Type',
 };
 
@@ -635,6 +635,13 @@ export default {
 			if (request.method === 'PUT') {
 				try {
 					const pegawaiData = await request.json();
+					// Jika NIK kosong/tidak diubah, pertahankan NIK hash lama yang ada di KV
+					if (!pegawaiData.nik) {
+						const existing = await env.PEGAWAI_KV.get(kvKey, 'json');
+						if (existing && existing.nik) {
+							pegawaiData.nik = existing.nik;
+						}
+					}
 					// Lakukan operasi put secara blocking (await) untuk memastikan data benar-benar tersimpan.
 					// Jangan gunakan ctx.waitUntil() karena kita butuh konfirmasi sukses/gagal. Hapus TTL agar data permanen.
 					await env.PEGAWAI_KV.put(kvKey, JSON.stringify(pegawaiData));

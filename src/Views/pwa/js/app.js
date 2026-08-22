@@ -2,7 +2,7 @@
 
 const ORIGIN_SERVER_URL = "https://api-esdm.pariamankota.go.id/beta-bais-pariaman";
 const API_BASE_URL = `${ORIGIN_SERVER_URL}/api`;
-const APP_VERSION = 'v6.1.124'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
+const APP_VERSION = 'v6.1.129'; // <-- EDIT VERSI APLIKASI SECARA MANUAL DI SINI
 
 /**
  * =================================================================
@@ -260,6 +260,10 @@ window.addEventListener('popstate', function (event) {
         batalAbsen(true); // true menandakan dipanggil dari popstate
     } else if (!document.getElementById('view-admin-cepat').classList.contains('hidden-view')) {
         batalAdminCepat(true); // true menandakan dipanggil dari popstate
+    } else if (!document.getElementById('view-pilih-metode').classList.contains('hidden-view')) {
+        switchView('view-dashboard');
+    } else if (!document.getElementById('view-input-kode').classList.contains('hidden-view')) {
+        switchView('view-dashboard');
     }
 });
 
@@ -818,6 +822,7 @@ async function generateUserQrToken() {
 
             let timeLeft = 60;
             countdownEl.innerText = timeLeft;
+            if (qrCountdownInterval) clearInterval(qrCountdownInterval);
             qrCountdownInterval = setInterval(() => {
                 timeLeft--;
                 countdownEl.innerText = timeLeft;
@@ -1272,6 +1277,7 @@ async function bukaScanner(isNormalFlow = false, title = 'Pindai Kode QR', showM
 }
 
 async function _startScanner(deviceId) {
+    isProcessingScan = false; // Reset flag race condition saat scanner mulai baru
     // Full cleanup sebelum inisialisasi ulang scanner
     if (html5QrCode) {
         if (html5QrCode.isScanning) {
@@ -1574,6 +1580,8 @@ async function cekLokasiOtomatis() {
         stGeo.className = "bg-blue-50 text-blue-700 py-2 px-4 rounded-lg text-xs font-bold border border-blue-200";
         const alamat = await getAlamatFromKoordinat(rLat, rLng);
 
+        // Cegah race condition jika user telah membatalkan form saat geocoding berjalan
+        if (!currentJadwal) return;
 
         document.getElementById('alamat').value = alamat;
 
@@ -1653,13 +1661,20 @@ function cleanupAbsenForm() {
     radioInputs.forEach(radio => radio.checked = false);
 }
 async function kirimAbsensi() {
+    if (window._isSubmittingAbsen) return;
+    window._isSubmittingAbsen = true;
+
     // Ambil semua data yang dibutuhkan dari elemen form
     const b64 = document.getElementById('fotoBase64').value;
     const lat = document.getElementById('lat').value;
     const lng = document.getElementById('lng').value;
     const alamat = document.getElementById('alamat').value;
     const token = await localforage.getItem("asn_jwt_token");
-    const kode = currentJadwal.kode_akses;
+    const kode = currentJadwal ? currentJadwal.kode_akses : null;
+    if (!kode) {
+        window._isSubmittingAbsen = false;
+        return;
+    }
 
     // Tentukan status kehadiran & verifikasi berdasarkan kondisi
     let statusKehadiran = "Hadir";
@@ -1772,10 +1787,11 @@ async function kirimAbsensi() {
             // Error ini akan ditangkap oleh blok catch di bawah
             throw new Error(res.message || "Terjadi kesalahan dari server.");
         }
-    } catch (e) {
-        console.error("Error saat kirim absensi:", e);
+    } catch (finalError) {
+        console.error("Error saat kirim absensi:", finalError);
         Swal.fire("Gagal Mengirim", "Tidak dapat mengirim data absensi. Periksa koneksi internet Anda dan coba lagi.", "error");
     } finally {
+        window._isSubmittingAbsen = false;
         showLoading(false);
     }
 }
@@ -2015,7 +2031,13 @@ async function mulaiKameraSelfie() {
             video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: "user" }
         };
         try {
-            videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            // Cegah race condition/leak jika form dibatalkan saat kamera sedang diinisialisasi
+            if (!currentJadwal) {
+                stream.getTracks().forEach(track => track.stop());
+                return;
+            }
+            videoStream = stream;
             v.srcObject = videoStream;
             isKameraError = false;
         } catch (e) {
@@ -2352,6 +2374,9 @@ window.checkIzinForm = function () {
  * @param {string} decodedText - Teks dari hasil pindaian QR.
  */
 async function handleScanSuccess(decodedText) {
+    if (isProcessingScan) return;
+    isProcessingScan = true;
+
     // Alur Absensi Cepat Admin (Continuous Scan)
     if (isAbsenCepatMode) {
         // 1. Langsung hentikan scanner untuk mencegah pindaian ganda saat proses berlangsung.

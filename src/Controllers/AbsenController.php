@@ -518,12 +518,11 @@ class AbsenController {
                     // Proses foto base64
                     $fotoBase64 = $payload['foto_base64'] ?? null;
                     $newFileName = 'NO_PHOTO_ADMIN_FAST_INPUT.jpg'; // Default filename
-                    $uploadPath = null; // Tidak ada file yang di-upload secara default
-
                     if (empty($fotoBase64)) {
                         // Jika foto kosong (seperti dari alur admin cepat), gunakan nama file default dan lanjutkan
                     } else {
                         // Jika ada foto, proses seperti biasa
+                        $data = explode(',', $fotoBase64);
                         $timestamp = time();
                         $ext = 'jpg';
                         if (strpos($data[0] ?? '', 'application/pdf') !== false) {
@@ -532,7 +531,6 @@ class AbsenController {
                         $randomStr = bin2hex(random_bytes(4));
                         $newFileName = $nip . '_' . $kodeAkses . '_' . $timestamp . '_' . $randomStr . '.' . $ext;
                         $uploadPath = $uploadDir . $newFileName;
-                        $data = explode(',', $fotoBase64);
                         $fotoData = base64_decode($data[1] ?? '');
                         if ($fotoData === false || !file_put_contents($uploadPath, $fotoData)) {
                             throw new \Exception("Gagal menyimpan file foto untuk NIP: " . $nip);

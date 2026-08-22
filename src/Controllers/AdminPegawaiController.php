@@ -199,6 +199,7 @@ class AdminPegawaiController {
         $stmtCurrent = $db->prepare("SELECT nik, role FROM app_absensi_data_pegawai WHERE nip = :nip");
         $stmtCurrent->execute([':nip' => $nip]);
         $currentPegawai = $stmtCurrent->fetch();
+
         $nikToSave = !empty($input['nik']) ? password_hash($input['nik'], PASSWORD_DEFAULT) : $currentPegawai['nik'];
 
         $newRoles = is_array($input['role']) ? $input['role'] : explode(',', $input['role']);
@@ -294,7 +295,7 @@ class AdminPegawaiController {
         }
 
         // 1. Ambil data pegawai terbaru dari DB untuk memastikan data di KV adalah yang paling mutakhir.
-        $stmtPegawai = $db->prepare("SELECT nip, nik, nama_pegawai, perangkat_daerah, jabatan, jenis_asn FROM app_absensi_data_pegawai WHERE nip = :nip");
+        $stmtPegawai = $db->prepare("SELECT nip, nik, nama_pegawai, perangkat_daerah, jabatan, jenis_asn, role FROM app_absensi_data_pegawai WHERE nip = :nip");
         $stmtPegawai->execute([':nip' => $nip]);
         $pegawai = $stmtPegawai->fetch(PDO::FETCH_ASSOC);
 

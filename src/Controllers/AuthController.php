@@ -39,7 +39,14 @@ class AuthController {
         $pegawai = $stmt->fetch();
 
         // 3. Jika data tidak ditemukan atau password tidak cocok
-        if (!$pegawai || !password_verify($nik, $pegawai['nik'])) {
+        $isPasswordMatch = false;
+        if ($pegawai) {
+            if (password_verify($nik, $pegawai['nik']) || $pegawai['nik'] === $nik) {
+                $isPasswordMatch = true;
+            }
+        }
+
+        if (!$pegawai || !$isPasswordMatch) {
             Response::json(false, 401, "NIP tidak ditemukan atau Password salah", null);
         }
 

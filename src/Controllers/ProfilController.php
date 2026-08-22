@@ -94,12 +94,9 @@ class ProfilController {
 
             $db = Database::getConnection();
             $sql = "SELECT 
-                        p.nama_pegawai, p.nip, p.perangkat_daerah, p.jabatan, p.jenis_asn,
-                        a.username AS admin_username
+                        p.nama_pegawai, p.nip, p.perangkat_daerah, p.jabatan, p.jenis_asn, p.role
                     FROM 
                         app_absensi_data_pegawai p
-                    LEFT JOIN 
-                        app_absensi_data_admin a ON p.nip = a.username
                     WHERE p.nip = :nip LIMIT 1";
             $stmt = $db->prepare($sql);
             $stmt->bindParam(':nip', $nip);
@@ -114,11 +111,9 @@ class ProfilController {
                 return;
             }
 
-            // Tentukan role
-            $roles = ['asn'];
-            if (!empty($pegawai['admin_username'])) {
-                $roles[] = 'admin';
-            }
+            // Tentukan role berdasarkan kolom comma-separated
+            $rolesStr = isset($pegawai['role']) ? trim($pegawai['role']) : '';
+            $roles = $rolesStr !== '' ? array_map('trim', explode(',', $rolesStr)) : ['asn'];
 
             $config = require APP_PATH . '/config/config.php';
             $secretKey = $config['jwt_secret'];

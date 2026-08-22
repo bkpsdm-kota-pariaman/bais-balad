@@ -688,12 +688,14 @@ async function downloadQrCode() {
 
     try {
         const qrImage = document.querySelector('#qrcode img');
+        const qrCanvas = document.querySelector('#qrcode canvas');
+        const qrSource = (qrImage && qrImage.complete && qrImage.naturalWidth !== 0) ? qrImage : (qrCanvas && qrCanvas.width > 0 ? qrCanvas : null);
         const judulEl = document.getElementById('qrJudulKegiatan');
         const detailEl = document.getElementById('qrDetailKegiatan');
         const kodeEl = document.getElementById('qrKodeAkses');
 
         // Pastikan gambar QR sudah dimuat
-        if (!qrImage || !qrImage.complete || qrImage.naturalWidth === 0) {
+        if (!qrSource) {
             throw new Error('Gambar QR Code belum siap.');
         }
 
@@ -728,12 +730,37 @@ async function downloadQrCode() {
         ctx.font = `bold ${titleFontSize}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top'; // Sejajarkan teks dari atas
-        ctx.fillText(judulEl.innerText, canvas.width / 2, currentY);
-        currentY += titleFontSize + textSpacing;
 
-        // Gambar Detail
+        // Fungsi untuk membungkus teks jika terlalu panjang
+        const wrapText = (text, maxWidth) => {
+            const words = text.split(' ');
+            let lines = [];
+            let currentLine = words[0];
+
+            for (let i = 1; i < words.length; i++) {
+                const word = words[i];
+                const width = ctx.measureText(currentLine + " " + word).width;
+                if (width < maxWidth) {
+                    currentLine += " " + word;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = word;
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        };
+
+        const titleLines = wrapText(judulEl.innerText, canvasWidth - (2 * padding));
+        titleLines.forEach(line => {
+            ctx.fillText(line, canvas.width / 2, currentY);
+            currentY += titleFontSize + 4;
+        });
+        currentY += textSpacing;
+
+        // Gambar Detail (Tanggal & Jam)
+        ctx.fillStyle = '#6c757d'; // Warna abu-abu (text-muted)
         ctx.font = `${detailFontSize}px sans-serif`;
-        ctx.fillStyle = '#6c757d';
         ctx.fillText(detailEl.innerText, canvas.width / 2, currentY);
         currentY += detailFontSize + textSpacing;
 
@@ -951,10 +978,34 @@ function initMap(mode) {
     const radiusInputId = isAddMode ? 'geoRadius' : 'editGeoRadius';
     let map = isAddMode ? mapAdd : mapEdit;
 
+    const latLngInput = document.getElementById(latLngInputId);
+    const radiusInput = document.getElementById(radiusInputId);
+
     if (map) {
         map.invalidateSize();
+        const marker = isAddMode ? markerAdd : markerEdit;
+        const circle = isAddMode ? circleAdd : circleEdit;
+        
+        let coords = pariamanCoords;
+        if (latLngInput && latLngInput.value) {
+            const parts = latLngInput.value.split(',').map(Number);
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                coords = parts;
+            }
+        }
+        
+        if (marker && circle) {
+            marker.setLatLng(coords);
+            circle.setLatLng(coords);
+            if (radiusInput) {
+                circle.setRadius(Number(radiusInput.value) || 100);
+            }
+            map.setView(coords, (latLngInput && latLngInput.value) ? 16 : 13);
+        }
         return;
     }
+
+    if (!document.getElementById(mapId)) return;
 
     map = L.map(mapId).setView(pariamanCoords, 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -962,15 +1013,14 @@ function initMap(mode) {
     }).addTo(map);
 
     let initialCoords = pariamanCoords;
-    const latLngInput = document.getElementById(latLngInputId);
-    const latlngStr = latLngInput.value;
+    const latlngStr = latLngInput ? latLngInput.value : '';
     if (latlngStr) {
         initialCoords = latlngStr.split(',').map(Number);
         map.setView(initialCoords, 16);
     }
 
     const marker = L.marker(initialCoords, { draggable: true }).addTo(map);
-    const circle = L.circle(initialCoords, { radius: Number(document.getElementById(radiusInputId).value) }).addTo(map);
+    const circle = L.circle(initialCoords, { radius: Number(radiusInput ? radiusInput.value : 100) }).addTo(map);
 
     if (isAddMode) { mapAdd = map; markerAdd = marker; circleAdd = circle; }
     else { mapEdit = map; markerEdit = marker; circleEdit = circle; }
